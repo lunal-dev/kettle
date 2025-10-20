@@ -69,6 +69,8 @@ def generate_passport(
         passport["inputs"]["source"] = {
             "type": "git",
             "commit_hash": git_source.commit_hash,
+            "tree_hash": git_source.tree_hash,
+            "git_binary_hash": git_source.git_binary_hash,
         }
         if git_source.repository_url:
             passport["inputs"]["source"]["repository"] = git_source.repository_url

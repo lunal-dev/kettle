@@ -14,6 +14,40 @@ from .verify import verify_all
 app = typer.Typer(help="Build-time verification and attestation for TEE deployments")
 
 
+def verify_git_source_strict(project_dir: Path) -> tuple:
+    """Verify git source with strict mode (fail on dirty working tree).
+
+    Returns:
+        Tuple of (git_info, should_exit) where should_exit indicates if we should exit
+
+    Raises:
+        typer.Exit: If working tree has uncommitted changes
+    """
+    git_info = get_git_info(project_dir)
+    if git_info:
+        # Check for uncommitted changes (strict mode)
+        if not git_info.is_clean:
+            print(f"  ✗ Working tree has uncommitted changes", file=sys.stderr)
+            print(f"\n  Uncommitted files:", file=sys.stderr)
+            for file in git_info.dirty_files:
+                print(f"    - {file}", file=sys.stderr)
+            print(f"\n  Error: Builds require a clean git working tree.", file=sys.stderr)
+            print(f"  Commit or stash your changes before building.", file=sys.stderr)
+            raise typer.Exit(1)
+
+        print(f"  ✓ Commit: {git_info.commit_hash}")
+        print(f"  ✓ Tree hash: {git_info.tree_hash}")
+        print(f"  ✓ Git binary: {git_info.git_path}")
+        print(f"    Hash: {git_info.git_binary_hash[:16]}...")
+        print(f"  ✓ Working tree: clean")
+        if git_info.repository_url:
+            print(f"  ✓ Repository: {git_info.repository_url}")
+    else:
+        print(f"  ⊘ Not a git repository (skipped)")
+
+    return git_info
+
+
 def print_verification_results(results, show_all: bool = False):
     """Print verification results to console."""
     verified = [r for r in results if r.verified]
@@ -78,13 +112,7 @@ def verify(
         print("Phase 1: Input Verification")
         print("=" * 60)
         print("\n[1/4] Verifying git source...")
-        git_info = get_git_info(project_dir)
-        if git_info:
-            print(f"  ✓ Commit: {git_info.commit_hash}")
-            if git_info.repository_url:
-                print(f"  ✓ Repository: {git_info.repository_url}")
-        else:
-            print(f"  ⊘ Not a git repository (skipped)")
+        git_info = verify_git_source_strict(project_dir)
 
         # 2. Hash Cargo.lock
         print("\n[2/4] Hashing Cargo.lock...")
@@ -158,11 +186,7 @@ def passport(
 
         # Verify all inputs
         print("\n[1/4] Verifying git source...")
-        git_info = get_git_info(project_dir)
-        if git_info:
-            print(f"  ✓ Commit: {git_info.commit_hash}")
-        else:
-            print(f"  ⊘ Not a git repository (skipped)")
+        git_info = verify_git_source_strict(project_dir)
 
         print("\n[2/4] Hashing Cargo.lock...")
         cargo_lock_hash = hash_cargo_lock(cargo_lock)
