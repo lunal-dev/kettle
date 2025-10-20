@@ -13,3 +13,8 @@ venv/
 
 # uv
 uv.lock
+
+builds/
+
+claude.md
+.claudeignore

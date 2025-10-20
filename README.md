@@ -1,146 +1,335 @@
-# Attestable Builds for TEE
+# Attestable Builds - Phase 1 POC
 
-Build-time verification and attestation pipeline for **TEE (Trusted Execution Environment)** deployments.
+**Cryptographic verification of build inputs for Rust projects in Trusted Execution Environments (TEE)**
+
+This tool implements Phase 1 of attestable builds: establishing verifiable provenance for all build inputs by cryptographically proving that a binary artifact was built from specific source code, dependencies, and toolchain in a trusted execution environment.
 
 ## Overview
 
-Prepares verified build evidence that links to TEE runtime attestation (Intel SGX, AMD SEV-SNP).
+Unlike reproducible builds which require bit-for-bit identical outputs, attestable builds shift the question from:
+- ❌ "Does this binary have hash X?"
 
-**Build-time pipeline:**
+To:
+- ✅ "Was this binary with hash X produced by process Y from sources Z in environment W?"
 
-1. **Verify inputs** - Parse `Cargo.lock` and verify all dependencies against registries
-2. **Execute build** - Run `cargo build --locked`
-3. **Generate evidence** - Capture SHA-256 hashes of inputs and outputs for TEE attestation
+This approach is more practical and resilient than reproducible builds while providing the same security guarantees through cryptographic attestation.
 
-**TEE runtime linkage:**
-The build evidence contains hashes that the TEE can verify match the code actually running, creating a cryptographic chain from source dependencies → build outputs → TEE runtime measurement.
+## Phase 1: Input Locking & Verification
 
-## Features
+Phase 1 establishes a complete chain of custody for all build inputs:
 
-- **Build-time verification**: Parse and verify all dependencies from `Cargo.lock`
-- **Registry verification**: Check crates.io checksums for all registry dependencies
-- **Git pinning**: Ensure git dependencies use pinned commit hashes
-- **Build evidence generation**: SHA-256 hashes of inputs and outputs for TEE attestation
-- **TEE-ready output**: Build evidence designed to link with runtime TEE attestations
+### What Gets Verified
 
-## Why TEE Attestation?
+1. **Source Code** - Git commit hash (exact source code version)
+2. **Cargo.lock** - SHA256 hash of entire lockfile
+3. **Dependencies** - Verify actual `.crate` files in cargo cache against Cargo.lock checksums
+4. **Toolchain** - Hash `rustc` and `cargo` binaries to prove which compiler was used
 
-TEE attestation proves what code is running inside a trusted execution environment (hardware-protected enclave). This tool provides the **build-time half** of the attestation:
+### Verification Strategy
 
-```
-Build Time (this tool)          TEE Runtime
-┌──────────────────────┐       ┌────────────────────────┐
-│ Verify dependencies  │       │ TEE measures code      │
-│ Build with --locked  │       │ loaded into enclave    │
-│ Hash output binary   │──────▶│ Compares measurement   │
-│ Generate evidence    │       │ to build evidence      │
-└──────────────────────┘       └────────────────────────┘
-         SHA-256: abc123...  =  SHA-256: abc123... ✓
-```
+The tool verifies that cached dependencies are a **subset** of Cargo.lock:
+- ✅ Every `.crate` file in cargo cache must be in Cargo.lock with matching checksum
+- ✅ Platform-specific dependencies can be absent (not all Cargo.lock deps are needed)
+- ❌ Extra crates in cache that aren't in Cargo.lock are flagged as suspicious
 
-If hashes match, the TEE can cryptographically prove it's running the exact binary built from verified dependencies.
+This handles the reality that `Cargo.lock` contains dependencies for all platforms, but builds only download platform-specific ones.
 
 ## Installation
 
-Requires [uv](https://docs.astral.sh/uv/) (fast Python package manager):
+Requires Python 3.10+ and [uv](https://docs.astral.sh/uv/):
 
 ```bash
 # Install uv (if not already installed)
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Install dependencies
-uv sync --dev
+# Clone and install
+git clone https://github.com/lunal-dev/attestable-builds.git
+cd attestable-builds
+uv pip install -e .
 ```
 
-## Usage
+## Quick Start
 
-### Full build pipeline (verify → build → generate evidence)
+### 1. Create a test Rust project
 
 ```bash
-uv run attestable-builds build /path/to/rust/project -o build-evidence.json
+# Create project
+mkdir test-project && cd test-project
+cargo init --name simple-app
+
+# Add some dependencies
+cat >> Cargo.toml << EOF
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+EOF
+
+# Generate Cargo.lock and download dependencies
+cargo generate-lockfile
+cargo fetch
 ```
 
-This executes the complete pipeline:
-
-1. Verifies all input dependencies in `Cargo.lock`
-2. Runs `cargo build --release --locked`
-3. Generates build evidence with hashes of inputs AND outputs
-
-### Verify inputs only
+### 2. Verify all Phase 1 inputs
 
 ```bash
-uv run attestable-builds verify Cargo.lock
+cd ..
+python -m attestable_builds.cli verify test-project
 ```
 
-Checks all dependencies without building:
+This verifies:
+- Git source (if in a git repo)
+- Cargo.lock hash
+- All cached `.crate` files match Cargo.lock checksums
+- Rust toolchain binaries (rustc + cargo)
 
-- Registry dependencies: verifies checksums against crates.io
-- Git dependencies: ensures commits are pinned
-
-### Generate build evidence (inputs only)
+### 3. View detailed verification
 
 ```bash
-uv run attestable-builds evidence Cargo.lock -o build-evidence.json
+python -m attestable_builds.cli verify test-project --verbose
 ```
 
-Generate build evidence for verified inputs (no build execution).
+Shows for each dependency:
+- Cargo.lock checksum
+- Local .crate file path
+- Computed checksum
+- Match status (✓ or ✗)
+
+### 4. Generate passport document
+
+```bash
+python -m attestable_builds.cli passport test-project -o passport.json
+```
+
+Generates a complete Phase 1 passport with all verified inputs.
+
+## CLI Commands
+
+### `verify [PROJECT_DIR]`
+
+Verify all Phase 1 inputs without generating output.
+
+```bash
+# Verify current directory
+python -m attestable_builds.cli verify .
+
+# Verify specific project
+python -m attestable_builds.cli verify path/to/rust/project
+
+# Show all verified dependencies
+python -m attestable_builds.cli verify . --verbose
+```
+
+**Output:**
+- ✓ Git commit hash (if available)
+- ✓ Cargo.lock SHA256
+- ✓ Verification status for each cached dependency
+- ✓ Toolchain hashes (rustc + cargo)
+
+### `passport [PROJECT_DIR]`
+
+Generate a Phase 1 passport document with all verified inputs.
+
+```bash
+# Generate passport
+python -m attestable_builds.cli passport . -o passport.json
+
+# Specify output path
+python -m attestable_builds.cli passport ./my-project -o evidence/passport.json
+```
+
+**Passport Contents:**
+```json
+{
+  "version": "1.0",
+  "inputs": {
+    "source": {
+      "type": "git",
+      "commit_hash": "3ae40f0b47d1e499...",
+      "repository": "https://github.com/user/repo"
+    },
+    "cargo_lock_hash": "23b2e23aa04c93c3...",
+    "toolchain": {
+      "rustc": {
+        "binary_hash": "cb5d96f4c51e916f...",
+        "version": "rustc 1.90.0 (1159e78c4 2025-09-14)"
+      },
+      "cargo": {
+        "binary_hash": "2f50d54779378980...",
+        "version": "cargo 1.90.0 (840b83a10 2025-07-30)"
+      }
+    },
+    "dependencies": [
+      {
+        "name": "serde",
+        "version": "1.0.228",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "checksum": "9a8e94ea7f378bd32cbbd37198a4a91436180c5bb472411e48b5ec2e2124ae9e",
+        "verified": true
+      }
+    ]
+  },
+  "build_process": {
+    "command": "cargo build --release",
+    "timestamp": "2025-10-19T15:52:00Z"
+  }
+}
+```
 
 ## Architecture
 
-### Three-phase pipeline
-
-```
-Phase 1: Input Verification    Phase 2: Build         Phase 3: Build Evidence
-┌────────────────────┐         ┌──────────────┐       ┌──────────────────────┐
-│ cargo.py           │         │ build.py     │       │ evidence.py          │
-│ - Parse Cargo.lock │────────▶│ - Run cargo  │──────▶│ - Hash artifacts     │
-│                    │         │ - Collect    │       │ - Generate JSON      │
-│ verify.py          │         │   artifacts  │       │ - Include inputs +   │
-│ - Hash Cargo.lock  │         │              │       │   outputs            │
-│ - Verify checksums │         └──────────────┘       └──────────────────────┘
-└────────────────────┘
-```
-
-### Modules
+### Module Structure
 
 ```
 src/attestable_builds/
-├── cargo.py     # Parse Cargo.lock, extract dependencies
-├── verify.py    # Verify inputs, hash Cargo.lock
-├── build.py     # Execute cargo build
-├── evidence.py  # Generate build evidence with output hashes
-└── cli.py       # CLI orchestration
+├── git.py        # Extract git commit hash and repository URL
+├── cargo.py      # Parse Cargo.lock, hash lockfile
+├── verify.py     # Verify .crate files from cargo cache
+├── toolchain.py  # Hash rustc/cargo binaries
+├── passport.py   # Generate passport document
+└── cli.py        # CLI commands and output formatting
 ```
 
-Core principles:
+### Verification Flow
 
-- **Clear separation**: Input verification ≠ Build execution ≠ Build evidence generation
-- **DRY**: Shared logic reused across commands
-- **KISS**: Simple data structures (NamedTuples)
+```
+┌─────────────────────────────────────────────────────────┐
+│ Phase 1: Input Verification                             │
+├─────────────────────────────────────────────────────────┤
+│                                                          │
+│  1. Git Source (optional)                               │
+│     ├─ Get commit hash: git rev-parse HEAD              │
+│     └─ Get repo URL: git remote get-url origin          │
+│                                                          │
+│  2. Cargo.lock Hash                                      │
+│     └─ SHA256(Cargo.lock file)                          │
+│                                                          │
+│  3. Dependencies                                         │
+│     ├─ Scan ~/.cargo/registry/cache/ for .crate files   │
+│     ├─ For each cached crate:                           │
+│     │   ├─ Look up in Cargo.lock                        │
+│     │   ├─ SHA256(crate file)                           │
+│     │   └─ Compare to Cargo.lock checksum               │
+│     └─ Flag any crates NOT in Cargo.lock                │
+│                                                          │
+│  4. Toolchain                                            │
+│     ├─ Find rustc: rustup which rustc                   │
+│     ├─ Hash: SHA256(rustc binary)                       │
+│     ├─ Find cargo: rustup which cargo                   │
+│     └─ Hash: SHA256(cargo binary)                       │
+│                                                          │
+│  5. Generate Passport                                    │
+│     └─ JSON document with all verified inputs           │
+│                                                          │
+└─────────────────────────────────────────────────────────┘
+```
 
-## Testing
+## Security Model
+
+### What Phase 1 Proves
+
+1. **Exact source code** via git commit hash
+2. **Exact dependency versions** via Cargo.lock hash
+3. **Integrity of cached dependencies** via .crate file checksums
+4. **Exact build toolchain** via rustc/cargo binary hashes
+
+### Trust Assumptions
+
+**Must Trust:**
+- Git repository integrity
+- Cargo/crates.io infrastructure (for dependency checksums in Cargo.lock)
+- Rustup distribution system (for toolchain binaries)
+
+**Do NOT Need to Trust:**
+- Build environment outside verification
+- Network infrastructure (after verification)
+- Third parties performing verification
+
+### Threat Model
+
+**Defends Against:**
+- ✅ Tampered source code (wrong git commit)
+- ✅ Substituted dependencies (wrong .crate files)
+- ✅ Modified toolchain binaries (wrong rustc/cargo)
+- ✅ Extra/unexpected crates in cache
+
+**Does NOT Defend Against:**
+- ❌ Compromise of source repository
+- ❌ Malicious code intentionally committed
+- ❌ Vulnerabilities in dependencies (verifies integrity, not security)
+- ❌ Bugs in rustc/cargo themselves
+
+## Example Output
 
 ```bash
-uv run pytest tests/ -v
+$ python -m attestable_builds.cli verify test-project --verbose
+
+============================================================
+Phase 1: Input Verification
+============================================================
+
+[1/4] Verifying git source...
+  ✓ Commit: 3ae40f0b47d1e499fb93e303fd39710e6963584e
+  ✓ Repository: git@github.com:lunal-dev/attestable-builds.git
+
+[2/4] Hashing Cargo.lock...
+  ✓ SHA256: 23b2e23aa04c93c350cac09ac73636e4ecedf564acc7f5d1c40a7e3fcf227c10
+
+[3/4] Verifying dependencies...
+  Found 11 external dependencies
+
+============================================================
+Verification Results: 11/11 passed
+============================================================
+
+VERIFIED:
+  • serde 1.0.228
+    Status: Checksum verified: 9a8e94ea...
+    Cargo.lock checksum: 9a8e94ea7f378bd32cbbd37198a4a91436180c5bb472411e48b5ec2e2124ae9e
+    Crate path: /root/.cargo/registry/cache/index.crates.io-1949cf8c6b5b557f/serde-1.0.228.crate
+    Computed checksum:   9a8e94ea7f378bd32cbbd37198a4a91436180c5bb472411e48b5ec2e2124ae9e
+    Match: ✓
+
+[4/4] Verifying Rust toolchain...
+  ✓ rustc: rustc 1.90.0 (1159e78c4 2025-09-14)
+    Hash: cb5d96f4c51e916f...
+  ✓ cargo: cargo 1.90.0 (840b83a10 2025-07-30)
+    Hash: 2f50d54779378980...
+
+============================================================
+✓ All Phase 1 inputs verified successfully
+============================================================
 ```
 
-8 tests covering:
+## Future Phases
 
-- Cargo.lock parsing
-- Checksum verification
-- Build evidence generation (inputs + outputs)
-- Full pipeline integration
+**Phase 2: Build Execution**
+- Execute builds inside Azure Confidential Computing TEE
+- TEE generates launch measurements
+- Isolated build environment
 
-## TEE Attestation Format Options
+**Phase 3: Attestation Chain**
+- Generate attestation report signed by TEE
+- Bind passport to attestation via custom data
+- Enable third-party verification
 
-Currently generates JSON build evidence with SHA-256 hashes. Future integration with [attestation-rs](https://github.com/lunal-dev/attestation-rs) could add signing and TEE-specific attestation formats:
+See [claude.md](claude.md) for complete design specification.
 
-| Format | Best For | Pros | Cons |
-|--------|----------|------|------|
-| **EAT (RFC 9711)** | Cross-platform TEE | IETF standard, hardware-agnostic, composable | New standard, requires CBOR |
-| **Platform-specific** | Single TEE type | Native, well-documented, optimized | Not portable, vendor-specific |
-| **Custom** | Unique needs | Full control, minimal deps | No interoperability |
+## Comparison to Reproducible Builds
 
-**Recommendation:** For cross-platform deployments, consider [EAT (RFC 9711)](https://www.rfc-editor.org/rfc/rfc9711). For single-platform, use vendor formats (SGX quotes, SEV reports, Nitro documents).
+| Aspect | Reproducible Builds | Attestable Builds (This POC) |
+|--------|---------------------|------------------------------|
+| **Core Requirement** | Bit-for-bit identical outputs | Verifiable build process |
+| **Trust Anchor** | Output hash | TEE attestation + process chain |
+| **Toolchain** | Must be deterministic | Can use standard toolchains |
+| **Verification** | Rebuild and compare | Check cryptographic proofs |
+| **Complexity** | High (env control) | Medium (TEE setup) |
+| **Maintenance** | Brittle | More resilient |
+| **Speed** | Requires rebuild | Fast verification |
 
-**TEE platforms:** Intel SGX, AMD SEV-SNP, AWS Nitro, ARM TrustZone
+## Contributing
+
+This is a proof-of-concept implementation of Phase 1. Contributions welcome!
+
+## License
+
+MIT
