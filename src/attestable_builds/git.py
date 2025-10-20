@@ -11,7 +11,6 @@ class GitSource(NamedTuple):
     commit_hash: str
     repository_url: str | None
     tree_hash: str
-    git_version: str
     git_path: Path
     git_binary_hash: str
     is_clean: bool
@@ -34,24 +33,6 @@ def get_git_binary_path() -> Path:
         check=True,
     )
     return Path(result.stdout.strip())
-
-
-def get_git_version() -> str:
-    """Get the git version string.
-
-    Returns:
-        Git version string (e.g., "git version 2.39.2")
-
-    Raises:
-        FileNotFoundError: If git is not installed
-    """
-    result = subprocess.run(
-        ["git", "--version"],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    return result.stdout.strip()
 
 
 def get_tree_hash(repo_path: Path) -> str:
@@ -119,7 +100,6 @@ def get_git_info(repo_path: Path) -> GitSource | None:
     - Commit hash (exact source version)
     - Repository URL (origin)
     - Tree hash (cryptographic proof of source tree state)
-    - Git version (tool version for reproducibility)
     - Git binary path and hash (cryptographic proof of git tool)
     - Working tree status (clean/dirty)
     - List of uncommitted files (if any)
@@ -137,9 +117,6 @@ def get_git_info(repo_path: Path) -> GitSource | None:
         # Get git binary path and hash
         git_path = get_git_binary_path()
         git_binary_hash = hashlib.sha256(git_path.read_bytes()).hexdigest()
-
-        # Get git version
-        git_version = get_git_version()
 
         # Get current commit hash
         commit_hash = subprocess.run(
@@ -172,7 +149,6 @@ def get_git_info(repo_path: Path) -> GitSource | None:
             commit_hash=commit_hash,
             repository_url=repository_url,
             tree_hash=tree_hash,
-            git_version=git_version,
             git_path=git_path,
             git_binary_hash=git_binary_hash,
             is_clean=is_clean,

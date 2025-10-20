@@ -25,7 +25,6 @@ Phase 1 establishes a complete chain of custody for all build inputs:
    - Git tree hash (cryptographic proof of source tree state)
    - Git binary hash (cryptographic proof of git tool itself)
    - Working tree cleanliness (no uncommitted changes)
-   - Git version (for reproducibility)
 2. **Cargo.lock** - SHA256 hash of entire lockfile
 3. **Dependencies** - Verify actual `.crate` files in cargo cache against Cargo.lock checksums
 4. **Toolchain** - Hash `rustc` and `cargo` binaries to prove which compiler was used
@@ -153,7 +152,6 @@ python -m attestable_builds.cli passport ./my-project -o evidence/passport.json
       "type": "git",
       "commit_hash": "3ae40f0b47d1e499...",
       "tree_hash": "5f7a8c9d2e4b1a3f...",
-      "git_version": "git version 2.39.2",
       "git_binary_hash": "a1b2c3d4e5f6g7h8...",
       "repository": "https://github.com/user/repo"
     },
@@ -209,7 +207,6 @@ src/attestable_builds/
 │  1. Git Source (optional, but strict if present)        │
 │     ├─ Find git binary: which git                       │
 │     ├─ Hash git binary: SHA256(git executable)          │
-│     ├─ Get git version: git --version                   │
 │     ├─ Get commit hash: git rev-parse HEAD              │
 │     ├─ Get tree hash: git rev-parse HEAD^{tree}         │
 │     ├─ Check working tree: git status --porcelain       │
@@ -292,7 +289,6 @@ Phase 1: Input Verification
 [1/4] Verifying git source...
   ✓ Commit: 3ae40f0b47d1e499fb93e303fd39710e6963584e
   ✓ Tree hash: 5f7a8c9d2e4b1a3f6c8e7d9b4a2f1e3c5d7a9b8c
-  ✓ Git version: git version 2.39.2 (Apple Git-143)
   ✓ Git binary: /usr/bin/git
     Hash: a1b2c3d4e5f6g7h8...
   ✓ Working tree: clean

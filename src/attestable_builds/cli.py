@@ -37,7 +37,6 @@ def verify_git_source_strict(project_dir: Path) -> tuple:
 
         print(f"  ✓ Commit: {git_info.commit_hash}")
         print(f"  ✓ Tree hash: {git_info.tree_hash}")
-        print(f"  ✓ Git version: {git_info.git_version}")
         print(f"  ✓ Git binary: {git_info.git_path}")
         print(f"    Hash: {git_info.git_binary_hash[:16]}...")
         print(f"  ✓ Working tree: clean")
