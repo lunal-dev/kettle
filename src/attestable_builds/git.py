@@ -1,5 +1,6 @@
 """Extract git source information for build provenance."""
 
+import hashlib
 import subprocess
 from pathlib import Path
 from typing import NamedTuple
@@ -11,8 +12,28 @@ class GitSource(NamedTuple):
     repository_url: str | None
     tree_hash: str
     git_version: str
+    git_path: Path
+    git_binary_hash: str
     is_clean: bool
     dirty_files: list[str]
+
+
+def get_git_binary_path() -> Path:
+    """Get the path to the git binary.
+
+    Returns:
+        Path to the git executable
+
+    Raises:
+        FileNotFoundError: If git is not installed or not in PATH
+    """
+    result = subprocess.run(
+        ["which", "git"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return Path(result.stdout.strip())
 
 
 def get_git_version() -> str:
@@ -99,6 +120,7 @@ def get_git_info(repo_path: Path) -> GitSource | None:
     - Repository URL (origin)
     - Tree hash (cryptographic proof of source tree state)
     - Git version (tool version for reproducibility)
+    - Git binary path and hash (cryptographic proof of git tool)
     - Working tree status (clean/dirty)
     - List of uncommitted files (if any)
 
@@ -112,6 +134,10 @@ def get_git_info(repo_path: Path) -> GitSource | None:
         FileNotFoundError: If git is not installed
     """
     try:
+        # Get git binary path and hash
+        git_path = get_git_binary_path()
+        git_binary_hash = hashlib.sha256(git_path.read_bytes()).hexdigest()
+
         # Get git version
         git_version = get_git_version()
 
@@ -147,6 +173,8 @@ def get_git_info(repo_path: Path) -> GitSource | None:
             repository_url=repository_url,
             tree_hash=tree_hash,
             git_version=git_version,
+            git_path=git_path,
+            git_binary_hash=git_binary_hash,
             is_clean=is_clean,
             dirty_files=dirty_files,
         )

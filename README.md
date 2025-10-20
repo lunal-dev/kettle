@@ -23,6 +23,7 @@ Phase 1 establishes a complete chain of custody for all build inputs:
 1. **Source Code** - Complete git verification:
    - Git commit hash (exact source code version)
    - Git tree hash (cryptographic proof of source tree state)
+   - Git binary hash (cryptographic proof of git tool itself)
    - Working tree cleanliness (no uncommitted changes)
    - Git version (for reproducibility)
 2. **Cargo.lock** - SHA256 hash of entire lockfile
@@ -153,6 +154,7 @@ python -m attestable_builds.cli passport ./my-project -o evidence/passport.json
       "commit_hash": "3ae40f0b47d1e499...",
       "tree_hash": "5f7a8c9d2e4b1a3f...",
       "git_version": "git version 2.39.2",
+      "git_binary_hash": "a1b2c3d4e5f6g7h8...",
       "repository": "https://github.com/user/repo"
     },
     "cargo_lock_hash": "23b2e23aa04c93c3...",
@@ -205,6 +207,8 @@ src/attestable_builds/
 ├─────────────────────────────────────────────────────────┤
 │                                                          │
 │  1. Git Source (optional, but strict if present)        │
+│     ├─ Find git binary: which git                       │
+│     ├─ Hash git binary: SHA256(git executable)          │
 │     ├─ Get git version: git --version                   │
 │     ├─ Get commit hash: git rev-parse HEAD              │
 │     ├─ Get tree hash: git rev-parse HEAD^{tree}         │
@@ -242,6 +246,7 @@ src/attestable_builds/
 1. **Exact source code** via:
    - Git commit hash (specific commit)
    - Git tree hash (cryptographic proof of source tree)
+   - Git binary hash (cryptographic proof of git tool)
    - Clean working tree verification (no uncommitted changes)
 2. **Exact dependency versions** via Cargo.lock hash
 3. **Integrity of cached dependencies** via .crate file checksums
@@ -263,6 +268,7 @@ src/attestable_builds/
 
 **Defends Against:**
 - ✅ Tampered source code (wrong git commit or tree hash)
+- ✅ Tampered git binary (wrong git binary hash)
 - ✅ Uncommitted local changes (enforced clean working tree)
 - ✅ Substituted dependencies (wrong .crate files)
 - ✅ Modified toolchain binaries (wrong rustc/cargo)
@@ -287,6 +293,8 @@ Phase 1: Input Verification
   ✓ Commit: 3ae40f0b47d1e499fb93e303fd39710e6963584e
   ✓ Tree hash: 5f7a8c9d2e4b1a3f6c8e7d9b4a2f1e3c5d7a9b8c
   ✓ Git version: git version 2.39.2 (Apple Git-143)
+  ✓ Git binary: /usr/bin/git
+    Hash: a1b2c3d4e5f6g7h8...
   ✓ Working tree: clean
   ✓ Repository: git@github.com:lunal-dev/attestable-builds.git
 
