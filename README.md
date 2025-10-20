@@ -20,7 +20,11 @@ Phase 1 establishes a complete chain of custody for all build inputs:
 
 ### What Gets Verified
 
-1. **Source Code** - Git commit hash (exact source code version)
+1. **Source Code** - Complete git verification:
+   - Git commit hash (exact source code version)
+   - Git tree hash (cryptographic proof of source tree state)
+   - Working tree cleanliness (no uncommitted changes)
+   - Git version (for reproducibility)
 2. **Cargo.lock** - SHA256 hash of entire lockfile
 3. **Dependencies** - Verify actual `.crate` files in cargo cache against Cargo.lock checksums
 4. **Toolchain** - Hash `rustc` and `cargo` binaries to prove which compiler was used
@@ -120,10 +124,12 @@ python -m attestable_builds.cli verify . --verbose
 ```
 
 **Output:**
-- ✓ Git commit hash (if available)
+- ✓ Git commit hash, tree hash, version, and working tree status (if git repo)
 - ✓ Cargo.lock SHA256
 - ✓ Verification status for each cached dependency
 - ✓ Toolchain hashes (rustc + cargo)
+
+**Note:** Verification requires a clean git working tree. If you have uncommitted changes, the tool will fail with an error listing the dirty files. Commit or stash your changes before running verification or generating a passport.
 
 ### `passport [PROJECT_DIR]`
 
@@ -145,6 +151,8 @@ python -m attestable_builds.cli passport ./my-project -o evidence/passport.json
     "source": {
       "type": "git",
       "commit_hash": "3ae40f0b47d1e499...",
+      "tree_hash": "5f7a8c9d2e4b1a3f...",
+      "git_version": "git version 2.39.2",
       "repository": "https://github.com/user/repo"
     },
     "cargo_lock_hash": "23b2e23aa04c93c3...",
@@ -196,8 +204,12 @@ src/attestable_builds/
 │ Phase 1: Input Verification                             │
 ├─────────────────────────────────────────────────────────┤
 │                                                          │
-│  1. Git Source (optional)                               │
+│  1. Git Source (optional, but strict if present)        │
+│     ├─ Get git version: git --version                   │
 │     ├─ Get commit hash: git rev-parse HEAD              │
+│     ├─ Get tree hash: git rev-parse HEAD^{tree}         │
+│     ├─ Check working tree: git status --porcelain       │
+│     ├─ FAIL if uncommitted changes exist                │
 │     └─ Get repo URL: git remote get-url origin          │
 │                                                          │
 │  2. Cargo.lock Hash                                      │
@@ -227,7 +239,10 @@ src/attestable_builds/
 
 ### What Phase 1 Proves
 
-1. **Exact source code** via git commit hash
+1. **Exact source code** via:
+   - Git commit hash (specific commit)
+   - Git tree hash (cryptographic proof of source tree)
+   - Clean working tree verification (no uncommitted changes)
 2. **Exact dependency versions** via Cargo.lock hash
 3. **Integrity of cached dependencies** via .crate file checksums
 4. **Exact build toolchain** via rustc/cargo binary hashes
@@ -247,7 +262,8 @@ src/attestable_builds/
 ### Threat Model
 
 **Defends Against:**
-- ✅ Tampered source code (wrong git commit)
+- ✅ Tampered source code (wrong git commit or tree hash)
+- ✅ Uncommitted local changes (enforced clean working tree)
 - ✅ Substituted dependencies (wrong .crate files)
 - ✅ Modified toolchain binaries (wrong rustc/cargo)
 - ✅ Extra/unexpected crates in cache
@@ -269,6 +285,9 @@ Phase 1: Input Verification
 
 [1/4] Verifying git source...
   ✓ Commit: 3ae40f0b47d1e499fb93e303fd39710e6963584e
+  ✓ Tree hash: 5f7a8c9d2e4b1a3f6c8e7d9b4a2f1e3c5d7a9b8c
+  ✓ Git version: git version 2.39.2 (Apple Git-143)
+  ✓ Working tree: clean
   ✓ Repository: git@github.com:lunal-dev/attestable-builds.git
 
 [2/4] Hashing Cargo.lock...
