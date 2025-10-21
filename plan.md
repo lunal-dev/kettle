@@ -114,7 +114,8 @@ Input Root Hash
    - Load verified toolchain (rustc/cargo from Phase 1)
 
 2. **Build Execution**
-   - Command: `cargo build --release`
+   - Command: `cargo build --locked --release`
+   - `--locked` flag: Requires exact Cargo.lock match, prevents modifications
    - Uses verified toolchain and dependencies
    - All compilation happens inside TEE
 
@@ -173,7 +174,7 @@ A structured manifest containing complete build information:
     }
   },
   "build_process": {
-    "command": "cargo build --release",
+    "command": "cargo build --locked --release",
     "timestamp": "2025-10-17T12:34:56Z"
   },
   "outputs": {

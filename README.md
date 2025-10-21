@@ -226,7 +226,7 @@ python -m attestable_builds.cli passport ./my-project -o evidence/passport.json
     }
   },
   "build_process": {
-    "command": "cargo build --release",
+    "command": "cargo build --locked --release",
     "timestamp": "2025-10-19T15:52:00Z"
   },
   "outputs": {
@@ -261,7 +261,7 @@ python -m attestable_builds.cli build . --verbose
 **This command performs the complete Phase 2 flow:**
 1. Generate launch measurement (hash of build runner code)
 2. Verify all Phase 1 inputs (git, Cargo.lock, dependencies, toolchain)
-3. Execute `cargo build --release`
+3. Execute `cargo build --locked --release`
 4. Measure output artifacts (hash binaries)
 5. Generate passport with all verified inputs and outputs
 6. Create attestation report binding everything together
@@ -432,7 +432,7 @@ src/attestable_builds/
 │     └─ Generate golden measurement                       │
 │                                                          │
 │  2. Execute Build                                        │
-│     ├─ Run: cargo build --release                       │
+│     ├─ Run: cargo build --locked --release              │
 │     └─ Capture output artifacts                         │
 │                                                          │
 │  3. Measure Outputs                                      │

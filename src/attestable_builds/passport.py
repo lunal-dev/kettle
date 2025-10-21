@@ -60,7 +60,7 @@ def generate_passport(
             ],
         },
         "build_process": {
-            "command": "cargo build --release",
+            "command": "cargo build --locked --release",
             "timestamp": datetime.now(timezone.utc).isoformat(),
         },
     }
