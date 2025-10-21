@@ -75,16 +75,16 @@ def generate_passport(
         if git_source.repository_url:
             passport["inputs"]["source"]["repository"] = git_source.repository_url
 
-    # Add outputs if provided
+    # Add outputs if provided (POC: single binary only)
     if output_artifacts:
+        if len(output_artifacts) > 1:
+            raise ValueError("POC supports single binary output only")
+        path, hash_value = output_artifacts[0]
         passport["outputs"] = {
-            "binary": [
-                {
-                    "path": str(path),
-                    "hash": hash_value,
-                }
-                for path, hash_value in output_artifacts
-            ]
+            "binary": {
+                "path": str(path),
+                "hash": hash_value,
+            }
         }
 
     # Write to file if requested
