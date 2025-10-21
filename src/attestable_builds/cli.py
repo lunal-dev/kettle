@@ -7,7 +7,7 @@ import typer
 
 from .cargo import hash_cargo_lock, parse_cargo_lock
 from .git import get_git_info
-from .golden import calculate_runner_measurement, save_golden_measurement
+from .golden import calculate_launch_measurement, save_golden_measurement
 from .passport import generate_passport, hash_binary
 from .tee_runner import run_tee_build
 from .toolchain import get_toolchain_info
@@ -373,7 +373,7 @@ def measure(
         print("=" * 60)
 
         print("\nCalculating hash of build runner modules...")
-        measurement = calculate_runner_measurement()
+        measurement = calculate_launch_measurement()
 
         print(f"\n  Modules measured:")
         for module, hash_val in measurement.modules.items():

@@ -16,7 +16,7 @@ from .attestation import create_attestation_report, AttestationReport
 from .build import run_cargo_build, BuildResult
 from .cargo import hash_cargo_lock, parse_cargo_lock
 from .git import get_git_info, GitSource
-from .golden import calculate_runner_measurement, GoldenMeasurement
+from .golden import calculate_launch_measurement, GoldenMeasurement
 from .passport import generate_passport
 from .toolchain import get_toolchain_info, ToolchainInfo
 from .verify import verify_all, VerificationResult
@@ -70,7 +70,7 @@ def run_tee_build(
     try:
         # Phase 2 Step 1: Generate launch measurement
         # This proves which specific build runner code is executing
-        launch_measurement = calculate_runner_measurement()
+        launch_measurement = calculate_launch_measurement()
 
         # Phase 1 Step 1: Verify git source
         git_source = get_git_info(project_dir)

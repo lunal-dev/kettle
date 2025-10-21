@@ -27,8 +27,11 @@ def hash_file(file_path: Path) -> str:
     return hashlib.sha256(file_path.read_bytes()).hexdigest()
 
 
-def calculate_runner_measurement(package_dir: Path | None = None) -> GoldenMeasurement:
-    """Calculate golden measurement by hashing all build runner modules.
+def calculate_launch_measurement(package_dir: Path | None = None) -> GoldenMeasurement:
+    """Calculate launch measurement by hashing all build runner modules.
+
+    This generates the "launch measurement" - a cryptographic hash of the build
+    runner code that proves which specific trusted code is executing in the TEE.
 
     Args:
         package_dir: Path to attestable_builds package. If None, auto-detect.
