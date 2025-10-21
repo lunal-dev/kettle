@@ -85,7 +85,24 @@ uv pip install -e .
 
 ## Quick Start
 
-### 1. Create a test Rust project
+### Docker Test (Easiest)
+
+```bash
+# Build Docker image and run Phase 2 attestable build
+make test-docker
+
+# Extract outputs for inspection
+make extract
+
+# See all available commands
+make help
+```
+
+See [TESTING.md](TESTING.md) for detailed testing instructions.
+
+### Manual Test
+
+#### 1. Create a test Rust project
 
 ```bash
 # Create project
