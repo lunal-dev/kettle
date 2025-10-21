@@ -7,7 +7,9 @@ import typer
 
 from .cargo import hash_cargo_lock, parse_cargo_lock
 from .git import get_git_info
+from .golden import calculate_runner_measurement, save_golden_measurement
 from .passport import generate_passport, hash_binary
+from .tee_runner import run_tee_build
 from .toolchain import get_toolchain_info
 from .verify import verify_all
 
@@ -227,6 +229,169 @@ def passport(
 
     except typer.Exit:
         raise
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        raise typer.Exit(1)
+
+
+@app.command()
+def build(
+    project_dir: Path = typer.Argument(
+        ".",
+        help="Path to Cargo project directory",
+        exists=True,
+        file_okay=False,
+    ),
+    passport_output: Path = typer.Option(
+        "passport.json",
+        "--passport",
+        "-p",
+        help="Output path for passport JSON",
+    ),
+    attestation_output: Path = typer.Option(
+        "attestation.json",
+        "--attestation",
+        "-a",
+        help="Output path for attestation JSON",
+    ),
+    release: bool = typer.Option(
+        True,
+        "--release/--debug",
+        help="Build in release mode (default) or debug mode",
+    ),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed output"),
+):
+    """Execute Phase 2 attestable build inside TEE environment (simulated).
+
+    This command runs the complete attestable build flow:
+    1. Generate launch measurement (hash of build runner code)
+    2. Verify all Phase 1 inputs (git, cargo.lock, deps, toolchain)
+    3. Execute cargo build
+    4. Measure output artifacts
+    5. Generate passport with verified inputs and outputs
+    6. Create attestation report binding everything together
+    """
+    try:
+        print("=" * 60)
+        print("Phase 2: TEE Attestable Build")
+        print("=" * 60)
+
+        print("\nExecuting attestable build in TEE environment...")
+        print(f"  Project: {project_dir}")
+        print(f"  Mode: {'release' if release else 'debug'}")
+
+        # Run the complete TEE build
+        result = run_tee_build(
+            project_dir=project_dir,
+            passport_output=passport_output,
+            attestation_output=attestation_output,
+            release=release,
+        )
+
+        if not result.success:
+            print(f"\n✗ Build failed: {result.error_message}", file=sys.stderr)
+            raise typer.Exit(1)
+
+        # Display results
+        print("\n" + "=" * 60)
+        print("Build Results")
+        print("=" * 60)
+
+        print("\n[TEE Launch Measurement]")
+        print(f"  Runner hash: {result.launch_measurement.runner_hash}")
+        print(f"  Modules measured: {len(result.launch_measurement.modules)}")
+        if verbose:
+            for module, hash_val in result.launch_measurement.modules.items():
+                print(f"    - {module}: {hash_val[:16]}...")
+
+        if result.git_source:
+            print("\n[Source Code]")
+            print(f"  ✓ Commit: {result.git_source.commit_hash}")
+            print(f"  ✓ Tree hash: {result.git_source.tree_hash}")
+            print(f"  ✓ Working tree: clean")
+            if result.git_source.repository_url:
+                print(f"  ✓ Repository: {result.git_source.repository_url}")
+
+        print("\n[Dependencies]")
+        verified = [r for r in result.verification_results if r.verified]
+        print(f"  ✓ {len(verified)}/{len(result.verification_results)} dependencies verified")
+
+        print("\n[Toolchain]")
+        print(f"  ✓ rustc: {result.toolchain.rustc_version}")
+        print(f"  ✓ cargo: {result.toolchain.cargo_version}")
+
+        print("\n[Build Output]")
+        print(f"  ✓ Build successful")
+        print(f"  ✓ Artifacts: {len(result.output_artifacts)}")
+        for artifact_path, artifact_hash in result.output_artifacts:
+            print(f"    - {artifact_path.name}")
+            print(f"      SHA256: {artifact_hash}")
+
+        print("\n[Attestation Report]")
+        print(f"  ✓ Report ID: {result.attestation.report_id}")
+        print(f"  ✓ Launch measurement: {result.attestation.launch_measurement[:16]}...")
+        print(f"  ✓ Passport hash: {result.attestation.passport_hash[:16]}...")
+        print(f"  ✓ Nonce: {result.attestation.nonce[:16]}...")
+        print(f"  ✓ Signature: {result.attestation.signature[:40]}...")
+
+        print("\n" + "=" * 60)
+        print(f"✓ Attestable build completed successfully")
+        print("=" * 60)
+        print(f"\nOutputs:")
+        print(f"  - Passport: {passport_output}")
+        print(f"  - Attestation: {attestation_output}")
+        for artifact_path, _ in result.output_artifacts:
+            print(f"  - Binary: {artifact_path}")
+
+    except typer.Exit:
+        raise
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        raise typer.Exit(1)
+
+
+@app.command()
+def measure(
+    output: Path = typer.Option(
+        "golden-measurements.json",
+        "--output",
+        "-o",
+        help="Output path for golden measurement manifest",
+    ),
+):
+    """Generate golden measurement manifest for build runner code.
+
+    This creates a cryptographic hash of the build runner code itself,
+    which serves as the "launch measurement" in the TEE attestation.
+
+    Verifiers check this golden measurement against the TEE's launch
+    measurement to ensure the correct trusted code is running.
+    """
+    try:
+        print("=" * 60)
+        print("Generating Golden Measurement")
+        print("=" * 60)
+
+        print("\nCalculating hash of build runner modules...")
+        measurement = calculate_runner_measurement()
+
+        print(f"\n  Modules measured:")
+        for module, hash_val in measurement.modules.items():
+            print(f"    - {module}")
+            print(f"      {hash_val}")
+
+        print(f"\n  Combined runner hash:")
+        print(f"    {measurement.runner_hash}")
+
+        # Save the manifest
+        save_golden_measurement(measurement, output)
+
+        print("\n" + "=" * 60)
+        print(f"✓ Golden measurement saved to: {output}")
+        print("=" * 60)
+        print("\nThis hash should be published for verifiers to check against")
+        print("TEE attestation reports to ensure trusted code is running.")
+
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         raise typer.Exit(1)
