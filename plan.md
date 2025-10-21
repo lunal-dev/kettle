@@ -74,7 +74,10 @@ All inputs are combined into a Merkle tree to produce a single root hash:
 
 ```
 Input Root Hash
-├─── Source Code Hash (git commit)
+├─── Source Code Subtree
+│    ├─── Git commit hash
+│    ├─── Git tree hash
+│    └─── Git binary hash
 ├─── Cargo.lock Hash
 ├─── Dependencies Subtree
 │    ├─── Dependency 1 (verified checksum)
@@ -89,6 +92,8 @@ Input Root Hash
 ```
 
 **Output**: Input Merkle Root Hash representing all verified inputs
+
+**Implementation Note**: The git binary hash is included because git is the verification tool for the source tree. This ensures complete provenance of all tools (git, rustc, cargo) used in the build process.
 
 ---
 
