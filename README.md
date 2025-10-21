@@ -196,13 +196,6 @@ python -m attestable_builds.cli passport ./my-project -o evidence/passport.json
 {
   "version": "1.0",
   "inputs": {
-    "source": {
-      "type": "git",
-      "commit_hash": "3ae40f0b47d1e499...",
-      "tree_hash": "5f7a8c9d2e4b1a3f...",
-      "git_binary_hash": "a1b2c3d4e5f6g7h8...",
-      "repository": "https://github.com/user/repo"
-    },
     "cargo_lock_hash": "23b2e23aa04c93c3...",
     "toolchain": {
       "rustc": {
@@ -222,11 +215,25 @@ python -m attestable_builds.cli passport ./my-project -o evidence/passport.json
         "checksum": "9a8e94ea7f378bd32cbbd37198a4a91436180c5bb472411e48b5ec2e2124ae9e",
         "verified": true
       }
-    ]
+    ],
+    "input_merkle_root": "5a9f5170360ed983...",
+    "source": {
+      "type": "git",
+      "commit_hash": "3ae40f0b47d1e499...",
+      "tree_hash": "5f7a8c9d2e4b1a3f...",
+      "git_binary_hash": "a1b2c3d4e5f6g7h8...",
+      "repository": "https://github.com/user/repo"
+    }
   },
   "build_process": {
     "command": "cargo build --release",
     "timestamp": "2025-10-19T15:52:00Z"
+  },
+  "outputs": {
+    "binary": {
+      "path": "target/release/my-app",
+      "hash": "d7fb5de4e41dbd3a..."
+    }
   }
 }
 ```

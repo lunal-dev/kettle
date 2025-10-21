@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .git import GitSource
+from .merkle import calculate_input_merkle_root
 from .toolchain import ToolchainInfo
 from .verify import VerificationResult
 
@@ -63,6 +64,33 @@ def generate_passport(
             "timestamp": datetime.now(timezone.utc).isoformat(),
         },
     }
+
+    # Calculate input merkle root
+    input_merkle_root = calculate_input_merkle_root(
+        git_commit_hash=git_source.commit_hash if git_source else None,
+        git_tree_hash=git_source.tree_hash if git_source else None,
+        git_binary_hash=git_source.git_binary_hash if git_source else None,
+        cargo_lock_hash=cargo_lock_hash,
+        dependencies=[
+            {
+                "name": r.dependency.name,
+                "version": r.dependency.version,
+                "checksum": r.dependency.checksum,
+            }
+            for r in verification_results
+        ],
+        toolchain={
+            "rustc": {
+                "binary_hash": toolchain.rustc_hash,
+                "version": toolchain.rustc_version,
+            },
+            "cargo": {
+                "binary_hash": toolchain.cargo_hash,
+                "version": toolchain.cargo_version,
+            },
+        },
+    )
+    passport["inputs"]["input_merkle_root"] = input_merkle_root
 
     # Add git source if available
     if git_source:
