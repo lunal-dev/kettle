@@ -239,9 +239,10 @@ def build(
 
             # Call attest-amd command
             try:
-                print(f"\n  Running: attest-amd --custom-data {custom_data[:16]}...")
+                # TODO this doesn't error out when it fails.
+                print(f"\n  Running: sudo attest-amd --custom-data {custom_data[:16]}...")
                 result = subprocess.run(
-                    ["attest-amd", "--custom-data", custom_data],
+                    ["sudo", "attest-amd", "attest", "--custom-data", custom_data],
                     capture_output=True,
                     text=True,
                     check=True,
