@@ -104,6 +104,145 @@ def print_verification_results(results, show_all: bool = False):
                 print(f"    Match: ✓" if actual_hash == dep["checksum"] else f"    Match: ✗")
 
 
+def _verify_phase1_inputs(
+    project_dir: Path, verbose: bool
+) -> tuple[dict | None, str, list[dict], dict]:
+    """Verify all Phase 1 build inputs.
+
+    Returns:
+        Tuple of (git_info, cargo_lock_hash, verification_results, toolchain)
+
+    Raises:
+        typer.Exit: If verification fails
+    """
+    cargo_lock = project_dir / "Cargo.lock"
+    if not cargo_lock.exists():
+        print(f"Error: Cargo.lock not found in {project_dir}", file=sys.stderr)
+        raise typer.Exit(1)
+
+    print("=" * 60)
+    print("Phase 1: Input Verification")
+    print("=" * 60)
+
+    # Git source verification
+    print("\n[1/4] Verifying git source...")
+    git_info = verify_git_source_strict(project_dir)
+
+    # Cargo.lock hash
+    print("\n[2/4] Hashing Cargo.lock...")
+    cargo_lock_hash = hash_cargo_lock(cargo_lock)
+    print(f"  ✓ SHA256: {cargo_lock_hash}")
+
+    # Dependencies verification
+    print("\n[3/4] Verifying dependencies...")
+    dependencies = parse_cargo_lock(cargo_lock)
+    print(f"  Found {len(dependencies)} external dependencies")
+    results = verify_all(dependencies)
+    print_verification_results(results, verbose)
+
+    if any(not r["verified"] for r in results):
+        print("\n✗ Some dependencies failed verification", file=sys.stderr)
+        raise typer.Exit(1)
+
+    # Toolchain verification
+    print("\n[4/4] Verifying Rust toolchain...")
+    try:
+        toolchain = get_toolchain_info()
+        print(f"  ✓ rustc: {toolchain['rustc_version']}")
+        print(f"    Hash: {toolchain['rustc_hash'][:16]}...")
+        print(f"  ✓ cargo: {toolchain['cargo_version']}")
+        print(f"    Hash: {toolchain['cargo_hash'][:16]}...")
+    except Exception as e:
+        print(f"  ✗ Toolchain verification failed: {e}", file=sys.stderr)
+        raise typer.Exit(1)
+
+    print("\n" + "=" * 60)
+    print("✓ All Phase 1 inputs verified successfully")
+    print("=" * 60)
+
+    return git_info, cargo_lock_hash, results, toolchain
+
+
+def _execute_build(project_dir: Path, release: bool) -> dict:
+    """Execute cargo build and measure output artifacts.
+
+    Args:
+        project_dir: Path to Cargo project directory
+        release: Whether to build in release mode
+
+    Returns:
+        Build result dictionary with success status and artifacts
+
+    Raises:
+        typer.Exit: If build fails
+    """
+    print("\n" + "=" * 60)
+    print("Building Project")
+    print("=" * 60)
+    print(f"\n  Mode: {'release' if release else 'debug'}")
+    print(f"  Command: cargo build --locked {'--release' if release else ''}")
+
+    build_result = run_cargo_build(project_dir, release=release)
+
+    if not build_result["success"]:
+        print(f"\n✗ Build failed", file=sys.stderr)
+        if build_result["stderr"]:
+            print(f"\n{build_result['stderr']}", file=sys.stderr)
+        raise typer.Exit(1)
+
+    print(f"\n  ✓ Build successful")
+    print(f"  ✓ Artifacts: {len(build_result['artifacts'])}")
+
+    for artifact in build_result['artifacts']:
+        print(f"    - {artifact['name']}")
+        print(f"      SHA256: {artifact['hash']}")
+
+    return build_result
+
+
+def _generate_attestation(passport_data: dict) -> None:
+    """Generate attestation report using attest-amd command.
+
+    Args:
+        passport_data: Passport dictionary to hash for attestation
+
+    Raises:
+        typer.Exit: If attestation generation fails
+    """
+    print(f"\n" + "=" * 60)
+    print(f"Generating Attestation")
+    print(f"=" * 60)
+
+    # Hash passport to 64-byte custom data
+    custom_data = hash_passport_to_64bytes(passport_data)
+    print(f"\n  ✓ Passport hash (64 bytes): {custom_data[:32]}...")
+
+    # Call attest-amd command
+    # TODO this doesn't error out when it fails.
+    try:
+        print(f"\n  Running: sudo attest-amd attest --custom-data {custom_data[:16]}...")
+        result = subprocess.run(
+            ["sudo", "attest-amd", "attest", "--custom-data", custom_data],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        print(f"\n  ✓ Attestation generated successfully")
+        if result.stdout:
+            print(f"\n{result.stdout}")
+    except subprocess.CalledProcessError as e:
+        print(f"\n  ✗ Attestation generation failed with exit code {e.returncode}", file=sys.stderr)
+        if e.stderr:
+            print(f"\n{e.stderr}", file=sys.stderr)
+        raise typer.Exit(1)
+    except FileNotFoundError:
+        print(f"\n  ✗ attest-amd command not found", file=sys.stderr)
+        print(f"  Install attest-amd or run without --attestation flag", file=sys.stderr)
+        raise typer.Exit(1)
+
+    print("=" * 60)
+
+
 @app.command()
 def build(
     project_dir: Path = typer.Argument(
@@ -140,68 +279,13 @@ def build(
     4. Generates passport with inputs and outputs
     """
     try:
-        cargo_lock = project_dir / "Cargo.lock"
-        if not cargo_lock.exists():
-            print(f"Error: Cargo.lock not found in {project_dir}", file=sys.stderr)
-            raise typer.Exit(1)
-
         # Phase 1: Input Verification
-        print("=" * 60)
-        print("Phase 1: Input Verification")
-        print("=" * 60)
-        print("\n[1/4] Verifying git source...")
-        git_info = verify_git_source_strict(project_dir)
-
-        print("\n[2/4] Hashing Cargo.lock...")
-        cargo_lock_hash = hash_cargo_lock(cargo_lock)
-        print(f"  ✓ SHA256: {cargo_lock_hash}")
-
-        print("\n[3/4] Verifying dependencies...")
-        dependencies = parse_cargo_lock(cargo_lock)
-        print(f"  Found {len(dependencies)} external dependencies")
-        results = verify_all(dependencies)
-        print_verification_results(results, verbose)
-
-        if any(not r["verified"] for r in results):
-            print("\n✗ Some dependencies failed verification", file=sys.stderr)
-            raise typer.Exit(1)
-
-        print("\n[4/4] Verifying Rust toolchain...")
-        try:
-            toolchain = get_toolchain_info()
-            print(f"  ✓ rustc: {toolchain['rustc_version']}")
-            print(f"    Hash: {toolchain['rustc_hash'][:16]}...")
-            print(f"  ✓ cargo: {toolchain['cargo_version']}")
-            print(f"    Hash: {toolchain['cargo_hash'][:16]}...")
-        except Exception as e:
-            print(f"  ✗ Toolchain verification failed: {e}", file=sys.stderr)
-            raise typer.Exit(1)
-
-        print("\n" + "=" * 60)
-        print("✓ All Phase 1 inputs verified successfully")
-        print("=" * 60)
+        git_info, cargo_lock_hash, results, toolchain = _verify_phase1_inputs(
+            project_dir, verbose
+        )
 
         # Phase 2: Build Execution
-        print("\n" + "=" * 60)
-        print("Building Project")
-        print("=" * 60)
-        print(f"\n  Mode: {'release' if release else 'debug'}")
-        print(f"  Command: cargo build --locked {'--release' if release else ''}")
-
-        build_result = run_cargo_build(project_dir, release=release)
-
-        if not build_result["success"]:
-            print(f"\n✗ Build failed", file=sys.stderr)
-            if build_result["stderr"]:
-                print(f"\n{build_result['stderr']}", file=sys.stderr)
-            raise typer.Exit(1)
-
-        print(f"\n  ✓ Build successful")
-        print(f"  ✓ Artifacts: {len(build_result['artifacts'])}")
-
-        for artifact in build_result['artifacts']:
-            print(f"    - {artifact['name']}")
-            print(f"      SHA256: {artifact['hash']}")
+        build_result = _execute_build(project_dir, release)
 
         # Generate passport with outputs
         print(f"\n" + "=" * 60)
@@ -222,39 +306,14 @@ def build(
         print(f"\n✓ Passport generated: {output}")
         if git_info:
             print(f"  - Source commit: {git_info['commit_hash'][:8]}...")
-        print(f"  - {len(dependencies)} dependencies verified")
+        print(f"  - {len(results)} dependencies verified")
         print(f"  - Toolchain: {toolchain['rustc_version'].split()[1]}")
         print(f"  - {len(output_artifacts)} artifact(s) measured")
         print("=" * 60)
 
         # Generate attestation if requested
         if attestation:
-            print(f"\n" + "=" * 60)
-            print(f"Generating Attestation")
-            print(f"=" * 60)
-
-            # Hash passport to 64-byte custom data
-            custom_data = hash_passport_to_64bytes(passport_data)
-            print(f"\n  ✓ Passport hash (64 bytes): {custom_data[:32]}...")
-
-            # Call attest-amd command
-            try:
-                # TODO this doesn't error out when it fails.
-                print(f"\n  Running: sudo attest-amd --custom-data {custom_data[:16]}...")
-                result = subprocess.run(
-                    ["sudo", "attest-amd", "attest", "--custom-data", custom_data],
-                    capture_output=True,
-                    text=True,
-                    check=True,
-                )
-                print(f"\nAttestation generated successfully")
-                if result.stdout:
-                    print(f"\n{result.stdout}")
-            except Exception as e:
-                print(f"\n Attestation generation failed", file=sys.stderr)
-                raise typer.Exit(1)
-
-            print("=" * 60)
+            _generate_attestation(passport_data)
 
     except typer.Exit:
         raise
