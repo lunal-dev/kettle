@@ -3,14 +3,17 @@
 **Cryptographic verification of build inputs for Rust projects**
 
 This tool implements Phase 1 of attestable builds:
+
 - **Phase 1**: Establishing verifiable provenance for all build inputs
 
 ## Overview
 
 Unlike reproducible builds which require bit-for-bit identical outputs, attestable builds shift the question from:
+
 - ❌ "Does this binary have hash X?"
 
 To:
+
 - ✅ "Was this binary with hash X produced by process Y from sources Z in environment W?"
 
 This approach is more practical and resilient than reproducible builds while providing the same security guarantees through cryptographic attestation.
@@ -33,6 +36,7 @@ Phase 1 establishes a complete chain of custody for all build inputs:
 ### Verification Strategy
 
 The tool verifies that cached dependencies are a **subset** of Cargo.lock:
+
 - ✅ Every `.crate` file in cargo cache must be in Cargo.lock with matching checksum
 - ✅ Platform-specific dependencies can be absent (not all Cargo.lock deps are needed)
 - ❌ Extra crates in cache that aren't in Cargo.lock are flagged as suspicious
@@ -59,6 +63,7 @@ Phase 2 executes the build inside a TEE environment and generates cryptographic 
 ### Attestation Report Structure
 
 The attestation report contains:
+
 - **Report ID**: Unique identifier for this attestation
 - **Timestamp**: When the attestation was generated
 - **Launch Measurement**: Hash of build runner code (matches golden measurement)
@@ -128,6 +133,7 @@ python -m attestable_builds.cli verify test-project
 ```
 
 This verifies:
+
 - Git source (if in a git repo)
 - Cargo.lock hash
 - All cached `.crate` files match Cargo.lock checksums
@@ -140,6 +146,7 @@ python -m attestable_builds.cli verify test-project --verbose
 ```
 
 Shows for each dependency:
+
 - Cargo.lock checksum
 - Local .crate file path
 - Computed checksum
@@ -171,6 +178,7 @@ python -m attestable_builds.cli verify . --verbose
 ```
 
 **Output:**
+
 - ✓ Git commit hash, tree hash, version, and working tree status (if git repo)
 - ✓ Cargo.lock SHA256
 - ✓ Verification status for each cached dependency
@@ -191,6 +199,7 @@ python -m attestable_builds.cli passport ./my-project -o evidence/passport.json
 ```
 
 **Passport Contents:**
+
 ```json
 {
   "version": "1.0",
@@ -237,7 +246,6 @@ python -m attestable_builds.cli passport ./my-project -o evidence/passport.json
 }
 ```
 
-
 ## Architecture
 
 ### Module Structure
@@ -252,7 +260,7 @@ src/attestable_builds/
 │   ├── merkle.py     # Merkle tree construction
 │   └── build.py      # Execute cargo build
 │
-├── evidence.py   # Legacy evidence generation
+├── utils.py      # Shared utilities (file hashing)
 └── cli.py        # CLI commands and output formatting
 ```
 
@@ -301,6 +309,7 @@ src/attestable_builds/
 ### What Phase 1 Proves
 
 **Input Provenance:**
+
 1. **Exact source code** via:
    - Git commit hash (specific commit)
    - Git tree hash (cryptographic proof of source tree)
@@ -313,11 +322,13 @@ src/attestable_builds/
 ### Trust Assumptions
 
 **Must Trust:**
+
 - Git repository integrity
 - Cargo/crates.io infrastructure (for dependency checksums in Cargo.lock)
 - Rustup distribution system (for toolchain binaries)
 
 **Do NOT Need to Trust:**
+
 - Build environment outside verification
 - Network infrastructure (after verification)
 - Third parties performing verification
@@ -325,6 +336,7 @@ src/attestable_builds/
 ### Threat Model
 
 **Defends Against:**
+
 - ✅ Tampered source code (wrong git commit or tree hash)
 - ✅ Tampered git binary (wrong git binary hash)
 - ✅ Uncommitted local changes (enforced clean working tree)
@@ -333,6 +345,7 @@ src/attestable_builds/
 - ✅ Extra/unexpected crates in cache
 
 **Does NOT Defend Against:**
+
 - ❌ Compromise of source repository
 - ❌ Malicious code intentionally committed
 - ❌ Vulnerabilities in dependencies (verifies integrity, not security)
@@ -387,12 +400,14 @@ VERIFIED:
 ## Implementation Status
 
 ✅ **Phase 1: Input Locking & Verification** - Complete
+
 - Git source verification with tree hash
 - Cargo.lock and dependency verification
 - Toolchain binary hashing
 - Passport generation
 
 ⏳ **Phase 2 & 3: TEE Integration** - Future Work
+
 - Real Azure Confidential Computing VM deployment
 - Launch measurement generation
 - TEE build orchestration
@@ -407,15 +422,15 @@ See [CLAUDE.md](CLAUDE.md) for complete design specification.
 
 ## Comparison to Reproducible Builds
 
-| Aspect | Reproducible Builds | Attestable Builds (This POC) |
-|--------|---------------------|------------------------------|
-| **Core Requirement** | Bit-for-bit identical outputs | Verifiable build process |
-| **Trust Anchor** | Output hash | TEE attestation + process chain |
-| **Toolchain** | Must be deterministic | Can use standard toolchains |
-| **Verification** | Rebuild and compare | Check cryptographic proofs |
-| **Complexity** | High (env control) | Medium (TEE setup) |
-| **Maintenance** | Brittle | More resilient |
-| **Speed** | Requires rebuild | Fast verification |
+| Aspect               | Reproducible Builds           | Attestable Builds (This POC)    |
+| -------------------- | ----------------------------- | ------------------------------- |
+| **Core Requirement** | Bit-for-bit identical outputs | Verifiable build process        |
+| **Trust Anchor**     | Output hash                   | TEE attestation + process chain |
+| **Toolchain**        | Must be deterministic         | Can use standard toolchains     |
+| **Verification**     | Rebuild and compare           | Check cryptographic proofs      |
+| **Complexity**       | High (env control)            | Medium (TEE setup)              |
+| **Maintenance**      | Brittle                       | More resilient                  |
+| **Speed**            | Requires rebuild              | Fast verification               |
 
 ## Contributing
 
