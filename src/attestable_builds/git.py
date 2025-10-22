@@ -3,18 +3,6 @@
 import hashlib
 import subprocess
 from pathlib import Path
-from typing import NamedTuple
-
-
-class GitSource(NamedTuple):
-    """Git source information with verification data."""
-    commit_hash: str
-    repository_url: str | None
-    tree_hash: str
-    git_path: Path
-    git_binary_hash: str
-    is_clean: bool
-    dirty_files: list[str]
 
 
 def get_git_binary_path() -> Path:
@@ -93,7 +81,7 @@ def check_working_tree_clean(repo_path: Path) -> tuple[bool, list[str]]:
     return False, dirty_files
 
 
-def get_git_info(repo_path: Path) -> GitSource | None:
+def get_git_info(repo_path: Path) -> dict | None:
     """Extract comprehensive git source information from a repository.
 
     This collects all git metadata needed for verifiable builds:
@@ -108,7 +96,7 @@ def get_git_info(repo_path: Path) -> GitSource | None:
         repo_path: Path to the git repository (project root)
 
     Returns:
-        GitSource with complete git metadata, or None if not a git repo
+        Dict with git metadata, or None if not a git repo
 
     Raises:
         FileNotFoundError: If git is not installed
@@ -145,15 +133,15 @@ def get_git_info(repo_path: Path) -> GitSource | None:
         except subprocess.CalledProcessError:
             repository_url = None
 
-        return GitSource(
-            commit_hash=commit_hash,
-            repository_url=repository_url,
-            tree_hash=tree_hash,
-            git_path=git_path,
-            git_binary_hash=git_binary_hash,
-            is_clean=is_clean,
-            dirty_files=dirty_files,
-        )
+        return {
+            "commit_hash": commit_hash,
+            "repository_url": repository_url,
+            "tree_hash": tree_hash,
+            "git_path": git_path,
+            "git_binary_hash": git_binary_hash,
+            "is_clean": is_clean,
+            "dirty_files": dirty_files,
+        }
     except subprocess.CalledProcessError:
         # Not a git repository
         return None

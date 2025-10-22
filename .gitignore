@@ -15,6 +15,7 @@ venv/
 uv.lock
 
 builds/
+outputs/
 
 claude.md
 .claudeignore

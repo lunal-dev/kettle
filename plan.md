@@ -74,7 +74,10 @@ All inputs are combined into a Merkle tree to produce a single root hash:
 
 ```
 Input Root Hash
-├─── Source Code Hash (git commit)
+├─── Source Code Subtree
+│    ├─── Git commit hash
+│    ├─── Git tree hash
+│    └─── Git binary hash
 ├─── Cargo.lock Hash
 ├─── Dependencies Subtree
 │    ├─── Dependency 1 (verified checksum)
@@ -89,6 +92,8 @@ Input Root Hash
 ```
 
 **Output**: Input Merkle Root Hash representing all verified inputs
+
+**Implementation Note**: The git binary hash is included because git is the verification tool for the source tree. This ensures complete provenance of all tools (git, rustc, cargo) used in the build process.
 
 ---
 
@@ -109,7 +114,8 @@ Input Root Hash
    - Load verified toolchain (rustc/cargo from Phase 1)
 
 2. **Build Execution**
-   - Command: `cargo build --release`
+   - Command: `cargo build --locked --release`
+   - `--locked` flag: Requires exact Cargo.lock match, prevents modifications
    - Uses verified toolchain and dependencies
    - All compilation happens inside TEE
 
@@ -138,11 +144,6 @@ A structured manifest containing complete build information:
 {
   "version": "1.0",
   "inputs": {
-    "source": {
-      "type": "git",
-      "commit_hash": "abc123...",
-      "repository": "https://github.com/org/repo"
-    },
     "cargo_lock_hash": "def456...",
     "toolchain": {
       "rustc": {
@@ -154,10 +155,26 @@ A structured manifest containing complete build information:
         "version": "1.75.0"
       }
     },
-    "input_merkle_root": "..."
+    "dependencies": [
+      {
+        "name": "serde",
+        "version": "1.0.228",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "checksum": "9a8e94ea...",
+        "verified": true
+      }
+    ],
+    "input_merkle_root": "5a9f5170360ed983...",
+    "source": {
+      "type": "git",
+      "commit_hash": "abc123...",
+      "tree_hash": "def456...",
+      "git_binary_hash": "789xyz...",
+      "repository": "https://github.com/org/repo"
+    }
   },
   "build_process": {
-    "command": "cargo build --release",
+    "command": "cargo build --locked --release",
     "timestamp": "2025-10-17T12:34:56Z"
   },
   "outputs": {
@@ -531,17 +548,8 @@ The POC is successful if it demonstrates:
     },
     "inputs": {
       "type": "object",
-      "required": ["source", "cargo_lock_hash", "toolchain"],
+      "required": ["cargo_lock_hash", "toolchain", "dependencies", "input_merkle_root"],
       "properties": {
-        "source": {
-          "type": "object",
-          "required": ["type", "commit_hash"],
-          "properties": {
-            "type": { "type": "string", "enum": ["git"] },
-            "commit_hash": { "type": "string" },
-            "repository": { "type": "string" }
-          }
-        },
         "cargo_lock_hash": { "type": "string" },
         "toolchain": {
           "type": "object",
@@ -565,7 +573,32 @@ The POC is successful if it demonstrates:
             }
           }
         },
-        "input_merkle_root": { "type": "string" }
+        "dependencies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "version", "source", "checksum", "verified"],
+            "properties": {
+              "name": { "type": "string" },
+              "version": { "type": "string" },
+              "source": { "type": "string" },
+              "checksum": { "type": "string" },
+              "verified": { "type": "boolean" }
+            }
+          }
+        },
+        "input_merkle_root": { "type": "string" },
+        "source": {
+          "type": "object",
+          "required": ["type", "commit_hash", "tree_hash", "git_binary_hash"],
+          "properties": {
+            "type": { "type": "string", "enum": ["git"] },
+            "commit_hash": { "type": "string" },
+            "tree_hash": { "type": "string" },
+            "git_binary_hash": { "type": "string" },
+            "repository": { "type": "string" }
+          }
+        }
       }
     },
     "build_process": {

@@ -1,8 +1,9 @@
 # Attestable Builds - Phase 1 POC
 
-**Cryptographic verification of build inputs for Rust projects in Trusted Execution Environments (TEE)**
+**Cryptographic verification of build inputs for Rust projects**
 
-This tool implements Phase 1 of attestable builds: establishing verifiable provenance for all build inputs by cryptographically proving that a binary artifact was built from specific source code, dependencies, and toolchain in a trusted execution environment.
+This tool implements Phase 1 of attestable builds:
+- **Phase 1**: Establishing verifiable provenance for all build inputs
 
 ## Overview
 
@@ -38,6 +39,35 @@ The tool verifies that cached dependencies are a **subset** of Cargo.lock:
 
 This handles the reality that `Cargo.lock` contains dependencies for all platforms, but builds only download platform-specific ones.
 
+## Phase 2: TEE Build Execution & Attestation
+
+Phase 2 executes the build inside a TEE environment and generates cryptographic attestation:
+
+### What Gets Attested
+
+1. **Launch Measurement** - Hash of the build runner code itself (golden measurement)
+   - Proves which specific trusted code is executing in the TEE
+   - Verifiers check this against a published "golden measurement"
+2. **Passport Binding** - SHA256 hash of the complete passport document
+   - Embedded in attestation report's custom data
+   - Cryptographically binds all Phase 1 inputs to the attestation
+3. **Nonce** - 32-byte freshness token for replay protection
+   - Timestamp-based for POC (challenge-response for production)
+4. **Mock TEE Signature** - Simulated attestation signature
+   - In production, signed by hardware-protected TEE keys
+
+### Attestation Report Structure
+
+The attestation report contains:
+- **Report ID**: Unique identifier for this attestation
+- **Timestamp**: When the attestation was generated
+- **Launch Measurement**: Hash of build runner code (matches golden measurement)
+- **Custom Data (64 bytes)**: `Hash(passport) || Nonce`
+  - Bytes 0-31: SHA256 of passport JSON
+  - Bytes 32-63: 32-byte nonce
+- **Platform Info**: TEE type, version, status
+- **Signature**: Cryptographic signature over all data (mock for POC)
+
 ## Installation
 
 Requires Python 3.10+ and [uv](https://docs.astral.sh/uv/):
@@ -54,7 +84,24 @@ uv pip install -e .
 
 ## Quick Start
 
-### 1. Create a test Rust project
+### Docker Test (Easiest)
+
+```bash
+# Build Docker image and run Phase 2 attestable build
+make test-docker
+
+# Extract outputs for inspection
+make extract
+
+# See all available commands
+make help
+```
+
+See [TESTING.md](TESTING.md) for detailed testing instructions.
+
+### Manual Test
+
+#### 1. Create a test Rust project
 
 ```bash
 # Create project
@@ -148,13 +195,6 @@ python -m attestable_builds.cli passport ./my-project -o evidence/passport.json
 {
   "version": "1.0",
   "inputs": {
-    "source": {
-      "type": "git",
-      "commit_hash": "3ae40f0b47d1e499...",
-      "tree_hash": "5f7a8c9d2e4b1a3f...",
-      "git_binary_hash": "a1b2c3d4e5f6g7h8...",
-      "repository": "https://github.com/user/repo"
-    },
     "cargo_lock_hash": "23b2e23aa04c93c3...",
     "toolchain": {
       "rustc": {
@@ -174,14 +214,29 @@ python -m attestable_builds.cli passport ./my-project -o evidence/passport.json
         "checksum": "9a8e94ea7f378bd32cbbd37198a4a91436180c5bb472411e48b5ec2e2124ae9e",
         "verified": true
       }
-    ]
+    ],
+    "input_merkle_root": "5a9f5170360ed983...",
+    "source": {
+      "type": "git",
+      "commit_hash": "3ae40f0b47d1e499...",
+      "tree_hash": "5f7a8c9d2e4b1a3f...",
+      "git_binary_hash": "a1b2c3d4e5f6g7h8...",
+      "repository": "https://github.com/user/repo"
+    }
   },
   "build_process": {
-    "command": "cargo build --release",
+    "command": "cargo build --locked --release",
     "timestamp": "2025-10-19T15:52:00Z"
+  },
+  "outputs": {
+    "binary": {
+      "path": "target/release/my-app",
+      "hash": "d7fb5de4e41dbd3a..."
+    }
   }
 }
 ```
+
 
 ## Architecture
 
@@ -189,15 +244,19 @@ python -m attestable_builds.cli passport ./my-project -o evidence/passport.json
 
 ```
 src/attestable_builds/
-├── git.py        # Extract git commit hash and repository URL
-├── cargo.py      # Parse Cargo.lock, hash lockfile
-├── verify.py     # Verify .crate files from cargo cache
-├── toolchain.py  # Hash rustc/cargo binaries
-├── passport.py   # Generate passport document
+├── Phase 1: Input Verification
+│   ├── git.py        # Extract git commit hash and repository URL
+│   ├── cargo.py      # Parse Cargo.lock, hash lockfile
+│   ├── toolchain.py  # Hash rustc/cargo binaries
+│   ├── passport.py   # Generate passport document
+│   ├── merkle.py     # Merkle tree construction
+│   └── build.py      # Execute cargo build
+│
+├── evidence.py   # Legacy evidence generation
 └── cli.py        # CLI commands and output formatting
 ```
 
-### Verification Flow
+### Build Flow
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -231,7 +290,8 @@ src/attestable_builds/
 │     └─ Hash: SHA256(cargo binary)                       │
 │                                                          │
 │  5. Generate Passport                                    │
-│     └─ JSON document with all verified inputs           │
+│     ├─ Include all verified inputs                      │
+│     └─ Write passport.json                              │
 │                                                          │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -240,6 +300,7 @@ src/attestable_builds/
 
 ### What Phase 1 Proves
 
+**Input Provenance:**
 1. **Exact source code** via:
    - Git commit hash (specific commit)
    - Git tree hash (cryptographic proof of source tree)
@@ -323,19 +384,26 @@ VERIFIED:
 ============================================================
 ```
 
-## Future Phases
+## Implementation Status
 
-**Phase 2: Build Execution**
-- Execute builds inside Azure Confidential Computing TEE
-- TEE generates launch measurements
-- Isolated build environment
+✅ **Phase 1: Input Locking & Verification** - Complete
+- Git source verification with tree hash
+- Cargo.lock and dependency verification
+- Toolchain binary hashing
+- Passport generation
 
-**Phase 3: Attestation Chain**
-- Generate attestation report signed by TEE
-- Bind passport to attestation via custom data
-- Enable third-party verification
+⏳ **Phase 2 & 3: TEE Integration** - Future Work
+- Real Azure Confidential Computing VM deployment
+- Launch measurement generation
+- TEE build orchestration
+- Output artifact measurement
+- Actual TEE attestation signatures (hardware-backed)
+- Challenge-response nonce protocol
+- Public verification service
+- Golden measurement publication infrastructure
+- Integration with CI/CD pipelines
 
-See [claude.md](claude.md) for complete design specification.
+See [CLAUDE.md](CLAUDE.md) for complete design specification.
 
 ## Comparison to Reproducible Builds
 

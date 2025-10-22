@@ -1,20 +1,25 @@
 """Execute cargo build and collect output artifacts."""
 
+import hashlib
 import subprocess
 from pathlib import Path
-from typing import NamedTuple
 
 
-class BuildResult(NamedTuple):
-    """Result of executing cargo build."""
-    success: bool
-    artifacts: list[Path]
-    stdout: str
-    stderr: str
+def hash_file(file_path: Path) -> str:
+    """Calculate SHA256 hash of a file."""
+    return hashlib.sha256(file_path.read_bytes()).hexdigest()
 
 
-def run_cargo_build(project_dir: Path, release: bool = True) -> BuildResult:
-    """Execute cargo build and return artifacts."""
+def run_cargo_build(project_dir: Path, release: bool = True) -> dict:
+    """Execute cargo build and return artifacts with measurements.
+
+    Returns:
+        dict with:
+            - success: bool
+            - artifacts: list of dicts with 'path' and 'hash' keys
+            - stdout: str
+            - stderr: str
+    """
     cmd = ["cargo", "build", "--locked"]
     if release:
         cmd.append("--release")
@@ -40,26 +45,30 @@ def run_cargo_build(project_dir: Path, release: bool = True) -> BuildResult:
                 if item.is_file() and (not item.suffix or item.suffix == ".exe"):
                     # Check if executable
                     if item.stat().st_mode & 0o111:
-                        artifacts.append(item)
+                        artifacts.append({
+                            "path": str(item),
+                            "hash": hash_file(item),
+                            "name": item.name,
+                        })
 
-        return BuildResult(
-            success=True,
-            artifacts=artifacts,
-            stdout=result.stdout,
-            stderr=result.stderr,
-        )
+        return {
+            "success": True,
+            "artifacts": artifacts,
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+        }
 
     except subprocess.CalledProcessError as e:
-        return BuildResult(
-            success=False,
-            artifacts=[],
-            stdout=e.stdout,
-            stderr=e.stderr,
-        )
+        return {
+            "success": False,
+            "artifacts": [],
+            "stdout": e.stdout,
+            "stderr": e.stderr,
+        }
     except FileNotFoundError:
-        return BuildResult(
-            success=False,
-            artifacts=[],
-            stdout="",
-            stderr="cargo command not found",
-        )
+        return {
+            "success": False,
+            "artifacts": [],
+            "stdout": "",
+            "stderr": "cargo command not found",
+        }
