@@ -1,12 +1,12 @@
 """Generate passport document for attestable builds (Phase 1 inputs)."""
 
-import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
 from .merkle import calculate_input_merkle_root
+from .utils import hash_file
 
 
 def generate_passport(
@@ -121,11 +121,6 @@ def generate_passport(
         output_path.write_text(json.dumps(passport, indent=2))
 
     return passport
-
-
-def hash_binary(binary_path: Path) -> str:
-    """Calculate SHA256 hash of a binary file."""
-    return hashlib.sha256(binary_path.read_bytes()).hexdigest()
 
 
 def _load_passport(passport_path: Path) -> tuple[Optional[dict], Optional[dict]]:
@@ -303,7 +298,7 @@ def _verify_binary_hash(passport: dict, binary_path: Path, strict: bool) -> dict
             "fail": True,
         }
 
-    actual_hash = hash_binary(binary_path)
+    actual_hash = hash_file(binary_path)
     artifacts = passport.get("outputs", {}).get("artifacts", [])
     binary_name = binary_path.name
 
