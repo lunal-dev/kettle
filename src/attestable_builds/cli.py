@@ -8,7 +8,7 @@ import typer
 from .build import run_cargo_build
 from .cargo import hash_cargo_lock, parse_cargo_lock, verify_all
 from .git import get_git_info
-from .passport import generate_passport, hash_binary
+from .passport import generate_passport, verify_passport
 from .toolchain import get_toolchain_info
 
 app = typer.Typer(help="Build-time verification and attestation for TEE deployments")
@@ -209,6 +209,168 @@ def build(
         raise typer.Exit(1)
 
 
+@app.command()
+def verify(
+    passport: Path = typer.Argument(
+        ...,
+        help="Path to passport JSON file",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+    ),
+    manifest: Path = typer.Option(
+        None,
+        "--manifest",
+        "-m",
+        help="Path to verification manifest JSON file",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+    ),
+    project_dir: Path = typer.Option(
+        None,
+        "--project-dir",
+        "-p",
+        help="Path to project directory (for git commit and Cargo.lock verification)",
+        exists=True,
+        file_okay=False,
+    ),
+    binary: Path = typer.Option(
+        None,
+        "--binary",
+        "-b",
+        help="Path to binary artifact to verify",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+    ),
+    strict: bool = typer.Option(
+        False,
+        "--strict",
+        help="Fail if any optional checks cannot be performed",
+    ),
+):
+    """Verify a passport document against known values.
+
+    Verification can be done via:
+    1. Verification manifest file (--manifest): A JSON file containing expected values
+    2. Project directory (--project-dir): Gathers git commit and Cargo.lock from project
+    3. Individual values (--binary): Direct specification of values to check
+
+    This command verifies:
+    - Passport format and structure
+    - Git commit hash (from manifest or project directory)
+    - Git tree hash (from manifest)
+    - Cargo.lock hash (from manifest or project directory)
+    - Input merkle root (from manifest)
+    - Toolchain binary hashes - rustc and cargo (from manifest)
+    - Binary artifact hashes (from manifest or --binary)
+    """
+    try:
+        print("=" * 60)
+        print("Passport Verification")
+        print("=" * 60)
+
+        # Gather verification inputs
+        git_commit = None
+        cargo_lock_hash = None
+
+        if manifest:
+            print(f"\n[1/2] Loading verification manifest: {manifest.name}")
+        elif project_dir:
+            print(f"\n[1/2] Gathering verification data from project...")
+            # Get git commit
+            git_info = get_git_info(project_dir)
+            if git_info:
+                git_commit = git_info["commit_hash"]
+                print(f"  ✓ Git commit: {git_commit[:8]}...")
+            else:
+                print(f"  ⊘ Not a git repository")
+
+            # Get Cargo.lock hash
+            cargo_lock = project_dir / "Cargo.lock"
+            if cargo_lock.exists():
+                cargo_lock_hash = hash_cargo_lock(cargo_lock)
+                print(f"  ✓ Cargo.lock hash: {cargo_lock_hash[:16]}...")
+            else:
+                print(f"  ⊘ Cargo.lock not found")
+
+        print(f"\n[2/2] Verifying passport: {passport.name}")
+
+        # Run verification
+        results = verify_passport(
+            passport_path=passport,
+            manifest_path=manifest,
+            git_commit=git_commit,
+            cargo_lock_hash=cargo_lock_hash,
+            binary_path=binary,
+            strict=strict,
+        )
+
+        # Print results
+        print(f"\n{'=' * 60}")
+        print(f"Verification Results")
+        print(f"{'=' * 60}\n")
+
+        # Show passport metadata
+        if results["passport"]:
+            passport_data = results["passport"]
+            print(f"Passport Version: {passport_data.get('version', 'unknown')}")
+            if passport_data.get("build_process", {}).get("timestamp"):
+                print(f"Build Timestamp: {passport_data['build_process']['timestamp']}")
+            print(f"\n{'=' * 60}\n")
+
+        # Display check results
+        passed_checks = []
+        failed_checks = []
+        skipped_checks = []
+
+        for check_name, check_result in results["checks"].items():
+            if check_result["passed"]:
+                passed_checks.append((check_name, check_result["message"]))
+            else:
+                # Check if it's a skip (not a failure)
+                if "skipped" in check_result["message"].lower() or "no " in check_result["message"].lower():
+                    skipped_checks.append((check_name, check_result["message"]))
+                else:
+                    failed_checks.append((check_name, check_result["message"]))
+
+        # Show passed checks
+        if passed_checks:
+            print("PASSED:")
+            for name, message in passed_checks:
+                print(f"  ✓ {name.replace('_', ' ').title()}")
+                print(f"    {message}")
+
+        # Show failed checks
+        if failed_checks:
+            print("\nFAILED:")
+            for name, message in failed_checks:
+                print(f"  ✗ {name.replace('_', ' ').title()}")
+                print(f"    {message}")
+
+        # Show skipped checks
+        if skipped_checks:
+            print("\nSKIPPED:")
+            for name, message in skipped_checks:
+                print(f"  ⊘ {name.replace('_', ' ').title()}")
+                print(f"    {message}")
+
+        print(f"\n{'=' * 60}")
+        if results["valid"]:
+            print("✓ Passport verification PASSED")
+        else:
+            print("✗ Passport verification FAILED")
+        print("=" * 60)
+
+        if not results["valid"]:
+            raise typer.Exit(1)
+
+    except typer.Exit:
+        raise
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        raise typer.Exit(1)
 
 
 
