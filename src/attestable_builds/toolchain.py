@@ -3,26 +3,15 @@
 import hashlib
 import subprocess
 from pathlib import Path
-from typing import NamedTuple
 
 
-class ToolchainInfo(NamedTuple):
-    """Rust toolchain information with binary hashes."""
-    rustc_path: Path
-    rustc_hash: str
-    rustc_version: str
-    cargo_path: Path
-    cargo_hash: str
-    cargo_version: str
-
-
-def get_toolchain_info() -> ToolchainInfo:
+def get_toolchain_info() -> dict:
     """Get information about the current Rust toolchain.
 
     Uses rustup/cargo/rustc in PATH to find binaries and extract version info.
 
     Returns:
-        ToolchainInfo with paths, hashes, and version strings
+        Dict with toolchain info (paths, hashes, versions)
 
     Raises:
         subprocess.CalledProcessError: If commands fail
@@ -66,11 +55,11 @@ def get_toolchain_info() -> ToolchainInfo:
     rustc_hash = hashlib.sha256(rustc_path.read_bytes()).hexdigest()
     cargo_hash = hashlib.sha256(cargo_path.read_bytes()).hexdigest()
 
-    return ToolchainInfo(
-        rustc_path=rustc_path,
-        rustc_hash=rustc_hash,
-        rustc_version=rustc_version,
-        cargo_path=cargo_path,
-        cargo_hash=cargo_hash,
-        cargo_version=cargo_version,
-    )
+    return {
+        "rustc_path": rustc_path,
+        "rustc_hash": rustc_hash,
+        "rustc_version": rustc_version,
+        "cargo_path": cargo_path,
+        "cargo_hash": cargo_hash,
+        "cargo_version": cargo_version,
+    }
