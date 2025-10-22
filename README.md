@@ -49,16 +49,15 @@ Phase 2 executes the build inside a TEE environment and generates cryptographic 
 
 ### What Gets Attested
 
-1. **Launch Measurement** - Hash of the build runner code itself (golden measurement)
-   - Proves which specific trusted code is executing in the TEE
-   - Verifiers check this against a published "golden measurement"
-2. **Passport Binding** - SHA256 hash of the complete passport document
-   - Embedded in attestation report's custom data
+1. **Passport Binding** - SHA256 hash of the complete passport document
+   - Embedded in attestation report's custom data (bytes 0-31)
    - Cryptographically binds all Phase 1 inputs to the attestation
-3. **Nonce** - 32-byte freshness token for replay protection
+2. **Nonce** - 32-byte freshness token for replay protection
+   - Embedded in custom data (bytes 32-63)
    - Timestamp-based for POC (challenge-response for production)
-4. **Mock TEE Signature** - Simulated attestation signature
-   - In production, signed by hardware-protected TEE keys
+3. **TEE Signature** - Cryptographic signature over attestation data
+   - Verified by `attest-amd verify` command
+   - Proves the attestation came from genuine TEE hardware
 
 ### Attestation Report Structure
 
@@ -66,12 +65,12 @@ The attestation report contains:
 
 - **Report ID**: Unique identifier for this attestation
 - **Timestamp**: When the attestation was generated
-- **Launch Measurement**: Hash of build runner code (matches golden measurement)
+- **Launch Measurement**: Hash of build runner code (for future use)
 - **Custom Data (64 bytes)**: `Hash(passport) || Nonce`
   - Bytes 0-31: SHA256 of passport JSON
   - Bytes 32-63: 32-byte nonce
 - **Platform Info**: TEE type, version, status
-- **Signature**: Cryptographic signature over all data (mock for POC)
+- **Signature**: Cryptographic signature verified by attest-amd
 
 ## Installation
 
@@ -160,6 +159,33 @@ python -m attestable_builds.cli passport test-project -o passport.json
 
 Generates a complete Phase 1 passport with all verified inputs.
 
+### 5. Build with attestation
+
+```bash
+# Build and generate attestation (requires attest-amd)
+attestable-builds build test-project --attestation
+```
+
+This generates:
+- `passport.json` - Complete build manifest
+- Attestation report (via `attest-amd` command)
+
+### 6. Verify attestation report
+
+```bash
+# Verify attestation against passport
+attestable-builds verify-attestation attestation.json \
+    --passport passport.json \
+    --max-age 3600
+```
+
+This verifies:
+- ✓ Cryptographic signature (via attest-amd verify)
+- ✓ Passport binding (hash in attestation matches passport)
+- ✓ Nonce freshness (timestamp-based replay protection)
+
+**Note**: Requires `attest-amd` to be installed for cryptographic verification.
+
 ## CLI Commands
 
 ### `verify [PROJECT_DIR]`
@@ -185,6 +211,54 @@ python -m attestable_builds.cli verify . --verbose
 - ✓ Toolchain hashes (rustc + cargo)
 
 **Note:** Verification requires a clean git working tree. If you have uncommitted changes, the tool will fail with an error listing the dirty files. Commit or stash your changes before running verification or generating a passport.
+
+### `build [PROJECT_DIR]`
+
+Build project with full input verification and output measurement.
+
+```bash
+# Build with Phase 1 verification
+attestable-builds build . --release
+
+# Build with attestation generation
+attestable-builds build . --attestation
+
+# Build in debug mode
+attestable-builds build . --debug --verbose
+```
+
+**Options:**
+- `--output/-o PATH` - Output path for passport JSON (default: passport.json)
+- `--release/--debug` - Build in release or debug mode (default: release)
+- `--verbose/-v` - Show all verification results
+- `--attestation/-a` - Generate attestation report using attest-amd command
+
+### `verify-attestation [ATTESTATION]`
+
+Verify an attestation report against a passport document.
+
+```bash
+# Basic verification
+attestable-builds verify-attestation attestation.json \
+    --passport passport.json
+
+# Custom nonce age limit
+attestable-builds verify-attestation attestation.json \
+    --passport passport.json \
+    --max-age 7200
+```
+
+**Requirements:**
+- `attest-amd` must be installed for cryptographic verification
+
+**Options:**
+- `--passport/-p PATH` - Path to passport JSON file (required)
+- `--max-age SECONDS` - Maximum nonce age in seconds (default: 3600)
+
+**Verifies:**
+- ✓ Cryptographic signature (via attest-amd verify)
+- ✓ Passport binding (hash in custom data matches passport)
+- ✓ Nonce freshness (timestamp-based replay protection)
 
 ### `passport [PROJECT_DIR]`
 
@@ -259,6 +333,9 @@ src/attestable_builds/
 │   ├── passport.py   # Generate passport document
 │   ├── merkle.py     # Merkle tree construction
 │   └── build.py      # Execute cargo build
+│
+├── Phase 2: Attestation Verification
+│   └── attestation.py  # Parse and verify attestation reports
 │
 ├── utils.py      # Shared utilities (file hashing)
 └── cli.py        # CLI commands and output formatting

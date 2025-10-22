@@ -8,6 +8,7 @@ from pathlib import Path
 
 import typer
 
+from .attestation import verify_attestation
 from .build import run_cargo_build
 from .cargo import hash_cargo_lock, parse_cargo_lock, verify_all
 from .git import get_git_info
@@ -15,6 +16,76 @@ from .passport import generate_passport, verify_passport
 from .toolchain import get_toolchain_info
 
 app = typer.Typer(help="Build-time verification and attestation for TEE deployments")
+
+
+def _display_verification_checks(
+    checks: dict,
+    title: str,
+    success_message: str,
+    failure_message: str,
+) -> bool:
+    """Display verification check results in consistent format.
+
+    Args:
+        checks: Dict of check results with 'verified' and 'message' keys
+        title: Title to display above results
+        success_message: Message to show if all checks pass
+        failure_message: Message to show if any checks fail
+
+    Returns:
+        True if all checks passed, False otherwise
+    """
+    passed_checks = []
+    failed_checks = []
+    skipped_checks = []
+
+    for check_name, check_result in checks.items():
+        message = check_result["message"]
+
+        if check_result["verified"]:
+            # Check if it's a warning/skip
+            if any(word in message.lower() for word in ["mock", "not implemented", "skipped", "no "]):
+                skipped_checks.append((check_name, message))
+            else:
+                passed_checks.append((check_name, message))
+        else:
+            # Check if it's a skip (not a hard failure)
+            if any(word in message.lower() for word in ["skipped", "no "]):
+                skipped_checks.append((check_name, message))
+            else:
+                failed_checks.append((check_name, message))
+
+    # Display results
+    print(f"\n{'=' * 60}")
+    print(title)
+    print(f"{'=' * 60}\n")
+
+    if passed_checks:
+        print("PASSED:")
+        for name, message in passed_checks:
+            print(f"  ✓ {name.replace('_', ' ').title()}")
+            print(f"    {message}")
+
+    if failed_checks:
+        print("\nFAILED:")
+        for name, message in failed_checks:
+            print(f"  ✗ {name.replace('_', ' ').title()}")
+            print(f"    {message}")
+
+    if skipped_checks:
+        label = "\nWARNINGS (POC Limitations):" if any("mock" in m.lower() or "not implemented" in m.lower()
+                                                        for _, m in skipped_checks) else "\nSKIPPED:"
+        print(label)
+        for name, message in skipped_checks:
+            print(f"  ⊘ {name.replace('_', ' ').title()}")
+            print(f"    {message}")
+
+    print(f"\n{'=' * 60}")
+    all_passed = len(failed_checks) == 0
+    print(f"✓ {success_message}" if all_passed else f"✗ {failure_message}")
+    print("=" * 60)
+
+    return all_passed
 
 
 def hash_passport_to_64bytes(passport_data: dict) -> str:
@@ -434,49 +505,14 @@ def verify(
             print(f"\n{'=' * 60}\n")
 
         # Display check results
-        passed_checks = []
-        failed_checks = []
-        skipped_checks = []
+        all_passed = _display_verification_checks(
+            checks=results["checks"],
+            title="Verification Results",
+            success_message="Passport verification PASSED",
+            failure_message="Passport verification FAILED",
+        )
 
-        for check_name, check_result in results["checks"].items():
-            if check_result["verified"]:
-                passed_checks.append((check_name, check_result["message"]))
-            else:
-                # Check if it's a skip (not a failure)
-                if "skipped" in check_result["message"].lower() or "no " in check_result["message"].lower():
-                    skipped_checks.append((check_name, check_result["message"]))
-                else:
-                    failed_checks.append((check_name, check_result["message"]))
-
-        # Show passed checks
-        if passed_checks:
-            print("PASSED:")
-            for name, message in passed_checks:
-                print(f"  ✓ {name.replace('_', ' ').title()}")
-                print(f"    {message}")
-
-        # Show failed checks
-        if failed_checks:
-            print("\nFAILED:")
-            for name, message in failed_checks:
-                print(f"  ✗ {name.replace('_', ' ').title()}")
-                print(f"    {message}")
-
-        # Show skipped checks
-        if skipped_checks:
-            print("\nSKIPPED:")
-            for name, message in skipped_checks:
-                print(f"  ⊘ {name.replace('_', ' ').title()}")
-                print(f"    {message}")
-
-        print(f"\n{'=' * 60}")
-        if results["valid"]:
-            print("✓ Passport verification PASSED")
-        else:
-            print("✗ Passport verification FAILED")
-        print("=" * 60)
-
-        if not results["valid"]:
+        if not all_passed:
             raise typer.Exit(1)
 
     except typer.Exit:
@@ -486,6 +522,75 @@ def verify(
         raise typer.Exit(1)
 
 
+@app.command(name="verify-attestation")
+def verify_attestation_cmd(
+    attestation: Path = typer.Argument(
+        ...,
+        help="Path to attestation report JSON file",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+    ),
+    passport: Path = typer.Option(
+        ...,
+        "--passport",
+        "-p",
+        help="Path to passport JSON file",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+    ),
+    max_age: int = typer.Option(
+        3600,
+        "--max-age",
+        help="Maximum nonce age in seconds (default: 1 hour)",
+    ),
+):
+    """Verify an attestation report against a passport document.
+
+    This command verifies:
+    1. Cryptographic signature (via attest-amd verify)
+    2. Passport binding (hash in attestation matches passport)
+    3. Nonce freshness (timestamp-based replay protection)
+
+    Requires attest-amd to be installed for cryptographic verification.
+
+    Example:
+        attestable-builds verify-attestation attestation.json \\
+            --passport passport.json \\
+            --max-age 3600
+    """
+    try:
+        print("=" * 60)
+        print("Attestation Verification")
+        print("=" * 60)
+        print(f"\nAttestation: {attestation}")
+        print(f"Passport: {passport}")
+        print(f"Max nonce age: {max_age}s")
+
+        # Verify attestation
+        results = verify_attestation(
+            attestation_path=attestation,
+            passport_path=passport,
+            max_age_seconds=max_age,
+        )
+
+        # Display results
+        all_passed = _display_verification_checks(
+            checks=results["checks"],
+            title="Verification Results",
+            success_message="Attestation verification PASSED",
+            failure_message="Attestation verification FAILED",
+        )
+
+        if not all_passed:
+            raise typer.Exit(1)
+
+    except typer.Exit:
+        raise
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        raise typer.Exit(1)
 
 
 
