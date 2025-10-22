@@ -1,10 +1,9 @@
-# Attestable Builds - Phase 1 & 2 POC
+# Attestable Builds - Phase 1 POC
 
-**Cryptographic verification of build inputs and attestable execution for Rust projects in Trusted Execution Environments (TEE)**
+**Cryptographic verification of build inputs for Rust projects**
 
-This tool implements Phase 1 and Phase 2 of attestable builds:
+This tool implements Phase 1 of attestable builds:
 - **Phase 1**: Establishing verifiable provenance for all build inputs
-- **Phase 2**: Executing builds with cryptographic attestation binding inputs to outputs
 
 ## Overview
 
@@ -238,131 +237,6 @@ python -m attestable_builds.cli passport ./my-project -o evidence/passport.json
 }
 ```
 
-### `build [PROJECT_DIR]`
-
-Execute complete Phase 2 attestable build with TEE attestation (simulated for POC).
-
-```bash
-# Build with attestation
-python -m attestable_builds.cli build .
-
-# Specify output paths
-python -m attestable_builds.cli build ./my-project \
-  --passport passport.json \
-  --attestation attestation.json
-
-# Build in debug mode
-python -m attestable_builds.cli build . --debug
-
-# Show detailed output
-python -m attestable_builds.cli build . --verbose
-```
-
-**This command performs the complete Phase 2 flow:**
-1. Generate launch measurement (hash of build runner code)
-2. Verify all Phase 1 inputs (git, Cargo.lock, dependencies, toolchain)
-3. Execute `cargo build --locked --release`
-4. Measure output artifacts (hash binaries)
-5. Generate passport with all verified inputs and outputs
-6. Create attestation report binding everything together
-
-**Outputs:**
-- `passport.json` - Complete passport with inputs and outputs
-- `attestation.json` - TEE attestation report
-- Build artifacts in `target/release/`
-
-**Example Output:**
-```
-============================================================
-Phase 2: TEE Attestable Build
-============================================================
-
-Executing attestable build in TEE environment...
-  Project: ./my-project
-  Mode: release
-
-============================================================
-Build Results
-============================================================
-
-[TEE Launch Measurement]
-  Runner hash: 7a3f8c9d2e1b5a4f6c8e7d9b3a2f1e0c...
-  Modules measured: 9
-
-[Source Code]
-  ✓ Commit: abc123def456...
-  ✓ Tree hash: 789xyz...
-  ✓ Working tree: clean
-  ✓ Repository: https://github.com/org/repo
-
-[Dependencies]
-  ✓ 15/15 dependencies verified
-
-[Toolchain]
-  ✓ rustc: rustc 1.90.0 (...)
-  ✓ cargo: cargo 1.90.0 (...)
-
-[Build Output]
-  ✓ Build successful
-  ✓ Artifacts: 1
-    - my-app
-      SHA256: def789abc123...
-
-[Attestation Report]
-  ✓ Report ID: 550e8400-e29b-41d4-a716-446655440000
-  ✓ Launch measurement: 7a3f8c9d2e1b...
-  ✓ Passport hash: 9f8e7d6c5b4a...
-  ✓ Nonce: 3c2b1a0f9e8d...
-  ✓ Signature: MOCK_SIG_abc123...
-
-============================================================
-✓ Attestable build completed successfully
-============================================================
-
-Outputs:
-  - Passport: passport.json
-  - Attestation: attestation.json
-  - Binary: target/release/my-app
-```
-
-### `measure`
-
-Generate golden measurement manifest for build runner code.
-
-```bash
-# Generate golden measurement
-python -m attestable_builds.cli measure
-
-# Specify output path
-python -m attestable_builds.cli measure -o golden-measurements.json
-```
-
-**Golden Measurement Contents:**
-```json
-{
-  "version": "1.0",
-  "timestamp": "2025-10-21T12:00:00Z",
-  "runner_hash": "7a3f8c9d2e1b5a4f6c8e7d9b3a2f1e0c5d7a9b8c...",
-  "modules": {
-    "tee_runner.py": "abc123...",
-    "build.py": "def456...",
-    "cargo.py": "789xyz...",
-    "git.py": "012abc...",
-    "toolchain.py": "345def...",
-    "verify.py": "678ghi...",
-    "passport.py": "901jkl...",
-    "attestation.py": "234mno...",
-    "golden.py": "567pqr..."
-  },
-  "description": "Golden measurement of attestable build runner code"
-}
-```
-
-**Purpose:**
-- Creates cryptographic hash of the build runner code itself
-- This hash serves as the "launch measurement" in TEE attestation
-- Verifiers check the TEE's launch measurement against this published golden measurement
-- Ensures the correct trusted code is running in the TEE
 
 ## Architecture
 
@@ -373,15 +247,10 @@ src/attestable_builds/
 ├── Phase 1: Input Verification
 │   ├── git.py        # Extract git commit hash and repository URL
 │   ├── cargo.py      # Parse Cargo.lock, hash lockfile
-│   ├── verify.py     # Verify .crate files from cargo cache
 │   ├── toolchain.py  # Hash rustc/cargo binaries
-│   └── passport.py   # Generate passport document
-│
-├── Phase 2: TEE Build & Attestation
-│   ├── golden.py      # Golden measurement management
-│   ├── attestation.py # Mock attestation report generation
-│   ├── tee_runner.py  # TEE build orchestration
-│   └── build.py       # Execute cargo build
+│   ├── passport.py   # Generate passport document
+│   ├── merkle.py     # Merkle tree construction
+│   └── build.py      # Execute cargo build
 │
 ├── evidence.py   # Legacy evidence generation
 └── cli.py        # CLI commands and output formatting
@@ -420,44 +289,18 @@ src/attestable_builds/
 │     ├─ Find cargo: rustup which cargo                   │
 │     └─ Hash: SHA256(cargo binary)                       │
 │                                                          │
-└─────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────┐
-│ Phase 2: TEE Build Execution & Attestation              │
-├─────────────────────────────────────────────────────────┤
-│                                                          │
-│  1. Launch Measurement                                   │
-│     ├─ Hash build runner modules (tee_runner.py, etc)   │
-│     └─ Generate golden measurement                       │
-│                                                          │
-│  2. Execute Build                                        │
-│     ├─ Run: cargo build --locked --release              │
-│     └─ Capture output artifacts                         │
-│                                                          │
-│  3. Measure Outputs                                      │
-│     ├─ Find binaries in target/release/                 │
-│     └─ SHA256(each binary)                              │
-│                                                          │
-│  4. Generate Passport                                    │
-│     ├─ Include Phase 1 verified inputs                  │
-│     ├─ Include Phase 2 output artifacts                 │
+│  5. Generate Passport                                    │
+│     ├─ Include all verified inputs                      │
 │     └─ Write passport.json                              │
-│                                                          │
-│  5. Create Attestation Report                            │
-│     ├─ Custom data: SHA256(passport) || Nonce           │
-│     ├─ Launch measurement from step 1                   │
-│     ├─ Generate mock TEE signature                      │
-│     └─ Write attestation.json                           │
 │                                                          │
 └─────────────────────────────────────────────────────────┘
 ```
 
 ## Security Model
 
-### What Phase 1 & 2 Prove
+### What Phase 1 Proves
 
-**Phase 1 - Input Provenance:**
+**Input Provenance:**
 1. **Exact source code** via:
    - Git commit hash (specific commit)
    - Git tree hash (cryptographic proof of source tree)
@@ -466,23 +309,6 @@ src/attestable_builds/
 2. **Exact dependency versions** via Cargo.lock hash
 3. **Integrity of cached dependencies** via .crate file checksums
 4. **Exact build toolchain** via rustc/cargo binary hashes
-
-**Phase 2 - Build Execution & Attestation:**
-1. **Trusted build code** via launch measurement
-   - Hash of build runner code matches published golden measurement
-   - Proves which specific trusted code executed the build
-2. **Input-to-output binding** via passport hash in attestation
-   - Cryptographically links verified inputs to build outputs
-   - Cannot substitute different inputs without detection
-3. **Output integrity** via artifact hashes
-   - SHA256 of every binary produced by the build
-   - Proves exact artifacts that were generated
-4. **Temporal integrity** via nonce
-   - Prevents replay attacks
-   - Proves attestation is fresh/recent
-5. **TEE execution** via mock attestation (real TEE in production)
-   - Simulated for POC, actual TEE signature in production
-   - Would prove execution in isolated, tamper-resistant environment
 
 ### Trust Assumptions
 
@@ -566,22 +392,18 @@ VERIFIED:
 - Toolchain binary hashing
 - Passport generation
 
-✅ **Phase 2: Build Execution & Attestation** - Complete (Mock POC)
+⏳ **Phase 2 & 3: TEE Integration** - Future Work
+- Real Azure Confidential Computing VM deployment
 - Launch measurement generation
 - TEE build orchestration
 - Output artifact measurement
-- Mock attestation report generation
-- Passport-attestation binding
-
-⏳ **Phase 3: Production TEE Integration** - Future Work
-- Real Azure Confidential Computing VM deployment
 - Actual TEE attestation signatures (hardware-backed)
 - Challenge-response nonce protocol
 - Public verification service
 - Golden measurement publication infrastructure
 - Integration with CI/CD pipelines
 
-See [plan.md](plan.md) for complete design specification.
+See [CLAUDE.md](CLAUDE.md) for complete design specification.
 
 ## Comparison to Reproducible Builds
 
