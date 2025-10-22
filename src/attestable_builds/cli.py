@@ -2,8 +2,10 @@
 
 import hashlib
 import json
+import secrets
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 import typer
@@ -89,18 +91,29 @@ def _display_verification_checks(
 
 
 def hash_passport_to_64bytes(passport_data: dict) -> str:
-    """Hash passport JSON to 64-byte hex string for attestation.
+    """Hash passport JSON and generate nonce for 64-byte attestation custom data.
+
+    Creates custom data format matching attestation spec:
+    - Bytes 0-31: SHA256(passport)
+    - Bytes 32-63: Nonce (8-byte timestamp + 24-byte random)
 
     Args:
         passport_data: The passport dictionary to hash
 
     Returns:
-        64-byte (128 character) hex string - SHA256 hash (32 bytes) repeated twice
+        64-byte (128 character) hex string: passport_hash || nonce
     """
-    passport_json = json.dumps(passport_data, sort_keys=True)
+    # Hash passport (bytes 0-31)
+    passport_json = json.dumps(passport_data, sort_keys=True, separators=(",", ":"))
     passport_hash = hashlib.sha256(passport_json.encode()).digest()
-    # Create 64-byte string by using the 32-byte hash twice
-    custom_data_bytes = passport_hash + passport_hash
+
+    # Generate nonce (bytes 32-63): timestamp (8 bytes) + random (24 bytes)
+    timestamp = int(datetime.now(timezone.utc).timestamp()).to_bytes(8, "big")
+    random_bytes = secrets.token_bytes(24)
+    nonce = timestamp + random_bytes
+
+    # Combine: 32 bytes hash + 32 bytes nonce = 64 bytes
+    custom_data_bytes = passport_hash + nonce
     return custom_data_bytes.hex()
 
 
