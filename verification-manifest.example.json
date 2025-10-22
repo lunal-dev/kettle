@@ -1,0 +1,16 @@
+{
+  "git_commit": "5e92101a8fe716d9d9c4676ba9775e17936abb0c",
+  "git_tree": "b40b914c8332a5aab59b9cadbd129c71a3e0287f",
+  "cargo_lock_hash": "23b2e23aa04c93c350cac09ac73636e4ecedf564acc7f5d1c40a7e3fcf227c10",
+  "input_merkle_root": "e47367b6cd0aafeaa53de30c062cd27eb9078d605e1e5ce423fb79820eac07a3",
+  "toolchain": {
+    "rustc_hash": "cb5d96f4c51e916fbc4fee5bbd3c3bd5030734f170ef50ec1d0dad0e9e9b9943",
+    "cargo_hash": "2f50d54779378980084feb68e77b8ed4d40be9f592a2ce096d797f5421cf9c62"
+  },
+  "binary_artifacts": [
+    {
+      "name": "simple-app",
+      "hash": "466de09978ee4d5a2328d27612f8eedf6fea84aa0bd763e9ccf5df8c6363cfa1"
+    }
+  ]
+}

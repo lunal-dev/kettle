@@ -1,5 +1,8 @@
 """CLI interface for attestable-builds."""
 
+import hashlib
+import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -12,6 +15,22 @@ from .passport import generate_passport, verify_passport
 from .toolchain import get_toolchain_info
 
 app = typer.Typer(help="Build-time verification and attestation for TEE deployments")
+
+
+def hash_passport_to_64bytes(passport_data: dict) -> str:
+    """Hash passport JSON to 64-byte hex string for attestation.
+
+    Args:
+        passport_data: The passport dictionary to hash
+
+    Returns:
+        64-byte (128 character) hex string - SHA256 hash (32 bytes) repeated twice
+    """
+    passport_json = json.dumps(passport_data, sort_keys=True)
+    passport_hash = hashlib.sha256(passport_json.encode()).digest()
+    # Create 64-byte string by using the 32-byte hash twice
+    custom_data_bytes = passport_hash + passport_hash
+    return custom_data_bytes.hex()
 
 
 def verify_git_source_strict(project_dir: Path) -> tuple:
@@ -105,6 +124,12 @@ def build(
         help="Build in release mode (default) or debug mode",
     ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show all results"),
+    attestation: bool = typer.Option(
+        False,
+        "--attestation",
+        "-a",
+        help="Generate attestation report using attest-amd command",
+    ),
 ):
     """Build project with full input verification and output measurement.
 
@@ -201,6 +226,35 @@ def build(
         print(f"  - Toolchain: {toolchain['rustc_version'].split()[1]}")
         print(f"  - {len(output_artifacts)} artifact(s) measured")
         print("=" * 60)
+
+        # Generate attestation if requested
+        if attestation:
+            print(f"\n" + "=" * 60)
+            print(f"Generating Attestation")
+            print(f"=" * 60)
+
+            # Hash passport to 64-byte custom data
+            custom_data = hash_passport_to_64bytes(passport_data)
+            print(f"\n  ✓ Passport hash (64 bytes): {custom_data[:32]}...")
+
+            # Call attest-amd command
+            try:
+                # TODO this doesn't error out when it fails.
+                print(f"\n  Running: sudo attest-amd --custom-data {custom_data[:16]}...")
+                result = subprocess.run(
+                    ["sudo", "attest-amd", "attest", "--custom-data", custom_data],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                )
+                print(f"\nAttestation generated successfully")
+                if result.stdout:
+                    print(f"\n{result.stdout}")
+            except Exception as e:
+                print(f"\n Attestation generation failed", file=sys.stderr)
+                raise typer.Exit(1)
+
+            print("=" * 60)
 
     except typer.Exit:
         raise
