@@ -148,7 +148,7 @@ attestable-builds build test-project --attestation
 
 This generates:
 - `passport.json` - Complete build manifest
-- Attestation report (via `attest-amd` command)
+- `attestation.json` - TEE attestation report (via `attest-amd attest` command)
 
 ### 4. Verify attestation report
 
@@ -187,7 +187,11 @@ attestable-builds build . --debug --verbose
 - `--output/-o PATH` - Output path for passport JSON (default: passport.json)
 - `--release/--debug` - Build in release or debug mode (default: release)
 - `--verbose/-v` - Show all verification results
-- `--attestation/-a` - Generate attestation report using attest-amd command
+- `--attestation/-a` - Generate attestation report using attest-amd command (saves to attestation.json)
+
+**Outputs:**
+- `passport.json` - Build manifest with all verified inputs and measured outputs (always generated)
+- `attestation.json` - TEE attestation report (only with `--attestation` flag)
 
 ### `verify-attestation [ATTESTATION]`
 

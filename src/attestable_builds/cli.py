@@ -284,11 +284,14 @@ def _execute_build(project_dir: Path, release: bool) -> dict:
     return build_result
 
 
-def _generate_attestation(passport_data: dict) -> None:
+def _generate_attestation(passport_data: dict) -> Path:
     """Generate attestation report using attest-amd command.
 
     Args:
         passport_data: Passport dictionary to hash for attestation
+
+    Returns:
+        Path to saved attestation report JSON file
 
     Raises:
         typer.Exit: If attestation generation fails
@@ -312,8 +315,14 @@ def _generate_attestation(passport_data: dict) -> None:
             check=True,
         )
         print(f"\n  ✓ Attestation generated successfully")
-        if result.stdout:
-            print(f"\n{result.stdout}")
+
+        # Save attestation output to file
+        attestation_path = Path("attestation.json")
+        attestation_path.write_text(result.stdout)
+        print(f"  ✓ Attestation saved: {attestation_path}")
+
+        return attestation_path
+
     except subprocess.CalledProcessError as e:
         print(f"\n  ✗ Attestation generation failed with exit code {e.returncode}", file=sys.stderr)
         if e.stderr:
@@ -323,8 +332,8 @@ def _generate_attestation(passport_data: dict) -> None:
         print(f"\n  ✗ attest-amd command not found", file=sys.stderr)
         print(f"  Install attest-amd or run without --attestation flag", file=sys.stderr)
         raise typer.Exit(1)
-
-    print("=" * 60)
+    finally:
+        print("=" * 60)
 
 
 @app.command()
@@ -393,11 +402,15 @@ def build(
         print(f"  - {len(results)} dependencies verified")
         print(f"  - Toolchain: {toolchain['rustc_version'].split()[1]}")
         print(f"  - {len(output_artifacts)} artifact(s) measured")
-        print("=" * 60)
 
         # Generate attestation if requested
         if attestation:
-            _generate_attestation(passport_data)
+            attestation_path = _generate_attestation(passport_data)
+            print(f"\n✓ Build complete with attestation")
+            print(f"  - Passport: {output}")
+            print(f"  - Attestation: {attestation_path}")
+        else:
+            print("=" * 60)
 
     except typer.Exit:
         raise
