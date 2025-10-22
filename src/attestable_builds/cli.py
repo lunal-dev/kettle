@@ -439,7 +439,7 @@ def verify(
         skipped_checks = []
 
         for check_name, check_result in results["checks"].items():
-            if check_result["passed"]:
+            if check_result["verified"]:
                 passed_checks.append((check_name, check_result["message"]))
             else:
                 # Check if it's a skip (not a failure)
