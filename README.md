@@ -148,13 +148,14 @@ attestable-builds build test-project --attestation
 
 This generates:
 - `passport.json` - Complete build manifest
-- `attestation.json` - TEE attestation report (via `attest-amd attest` command)
+- `evidence.b64` - TEE attestation report (base64-encoded, via `attest-amd attest` command)
+- `custom_data.hex` - Custom data used in attestation (passport hash + nonce)
 
 ### 4. Verify attestation report
 
 ```bash
 # Verify attestation against passport
-attestable-builds verify-attestation attestation.json \
+attestable-builds verify-attestation evidence.b64 custom_data.hex \
     --passport passport.json \
     --max-age 3600
 ```
@@ -187,29 +188,34 @@ attestable-builds build . --debug --verbose
 - `--output/-o PATH` - Output path for passport JSON (default: passport.json)
 - `--release/--debug` - Build in release or debug mode (default: release)
 - `--verbose/-v` - Show all verification results
-- `--attestation/-a` - Generate attestation report using attest-amd command (saves to attestation.json)
+- `--attestation/-a` - Generate attestation report using attest-amd command (saves to evidence.b64 and custom_data.hex)
 
 **Outputs:**
 - `passport.json` - Build manifest with all verified inputs and measured outputs (always generated)
-- `attestation.json` - TEE attestation report (only with `--attestation` flag)
+- `evidence.b64` - TEE attestation report (only with `--attestation` flag)
+- `custom_data.hex` - Custom data for attestation verification (only with `--attestation` flag)
 
-### `verify-attestation [ATTESTATION]`
+### `verify-attestation [ATTESTATION] [CUSTOM_DATA]`
 
 Verify an attestation report against a passport document.
 
 ```bash
 # Basic verification
-attestable-builds verify-attestation attestation.json \
+attestable-builds verify-attestation evidence.b64 custom_data.hex \
     --passport passport.json
 
 # Custom nonce age limit
-attestable-builds verify-attestation attestation.json \
+attestable-builds verify-attestation evidence.b64 custom_data.hex \
     --passport passport.json \
     --max-age 7200
 ```
 
 **Requirements:**
 - `attest-amd` must be installed for cryptographic verification
+
+**Arguments:**
+- `ATTESTATION` - Path to evidence.b64 file
+- `CUSTOM_DATA` - Path to custom_data.hex file
 
 **Options:**
 - `--passport/-p PATH` - Path to passport JSON file (required)

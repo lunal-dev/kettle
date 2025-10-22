@@ -284,14 +284,16 @@ def _execute_build(project_dir: Path, release: bool) -> dict:
     return build_result
 
 
-def _generate_attestation(passport_data: dict) -> Path:
-    """Generate attestation report using attest-amd command.
+def _generate_attestation(passport_data: dict) -> tuple[Path, Path]:
+    """Generate attestation using attest-amd command.
 
     Args:
         passport_data: Passport dictionary to hash for attestation
 
     Returns:
-        Path to saved attestation report JSON file
+        Tuple of (attestation_path, custom_data_path)
+        - attestation_path: Path to evidence.b64 (base64 compressed bincode)
+        - custom_data_path: Path to custom_data.hex (for verification)
 
     Raises:
         typer.Exit: If attestation generation fails
@@ -302,7 +304,13 @@ def _generate_attestation(passport_data: dict) -> Path:
 
     # Hash passport to 64-byte custom data
     custom_data = hash_passport_to_64bytes(passport_data)
-    print(f"\n  ✓ Passport hash (64 bytes): {custom_data[:32]}...")
+    print(f"\n  ✓ Custom data generated (128 hex chars)")
+    print(f"    - Passport hash: {custom_data[:64]}")
+    print(f"    - Nonce: {custom_data[64:80]}...")
+
+    # Save custom data for later verification
+    custom_data_path = Path("custom_data.hex")
+    custom_data_path.write_text(custom_data)
 
     # Call attest-amd command
     # TODO this doesn't error out when it fails.
@@ -314,14 +322,18 @@ def _generate_attestation(passport_data: dict) -> Path:
             text=True,
             check=True,
         )
+
+        # attest-amd saves to evidence.b64 automatically
+        attestation_path = Path("evidence.b64")
+        if not attestation_path.exists():
+            # Fallback: save stdout if file wasn't created
+            attestation_path.write_text(result.stdout.strip())
+
         print(f"\n  ✓ Attestation generated successfully")
+        print(f"  ✓ Attestation saved: {attestation_path} (base64 compressed bincode)")
+        print(f"  ✓ Custom data saved: {custom_data_path}")
 
-        # Save attestation output to file
-        attestation_path = Path("attestation.json")
-        attestation_path.write_text(result.stdout)
-        print(f"  ✓ Attestation saved: {attestation_path}")
-
-        return attestation_path
+        return attestation_path, custom_data_path
 
     except subprocess.CalledProcessError as e:
         print(f"\n  ✗ Attestation generation failed with exit code {e.returncode}", file=sys.stderr)
@@ -405,10 +417,11 @@ def build(
 
         # Generate attestation if requested
         if attestation:
-            attestation_path = _generate_attestation(passport_data)
+            attestation_path, custom_data_path = _generate_attestation(passport_data)
             print(f"\n✓ Build complete with attestation")
             print(f"  - Passport: {output}")
             print(f"  - Attestation: {attestation_path}")
+            print(f"  - Custom data: {custom_data_path}")
         else:
             print("=" * 60)
 
@@ -552,7 +565,14 @@ def verify(
 def verify_attestation_cmd(
     attestation: Path = typer.Argument(
         ...,
-        help="Path to attestation report JSON file",
+        help="Path to attestation file (evidence.b64)",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+    ),
+    custom_data: Path = typer.Argument(
+        ...,
+        help="Path to custom data file (custom_data.hex)",
         exists=True,
         file_okay=True,
         dir_okay=False,
@@ -582,7 +602,7 @@ def verify_attestation_cmd(
     Requires attest-amd to be installed for cryptographic verification.
 
     Example:
-        attestable-builds verify-attestation attestation.json \\
+        attestable-builds verify-attestation evidence.b64 custom_data.hex \\
             --passport passport.json \\
             --max-age 3600
     """
@@ -591,12 +611,14 @@ def verify_attestation_cmd(
         print("Attestation Verification")
         print("=" * 60)
         print(f"\nAttestation: {attestation}")
+        print(f"Custom data: {custom_data}")
         print(f"Passport: {passport}")
         print(f"Max nonce age: {max_age}s")
 
         # Verify attestation
         results = verify_attestation(
             attestation_path=attestation,
+            custom_data_path=custom_data,
             passport_path=passport,
             max_age_seconds=max_age,
         )

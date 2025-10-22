@@ -14,83 +14,31 @@ import json
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import NamedTuple
 
 
-class AttestationReport(NamedTuple):
-    """Attestation report structure matching TEE format."""
-
-    report_id: str
-    timestamp: str
-    launch_measurement: str
-    custom_data: str  # Hex-encoded 64 bytes
-    signature: str
-    platform_info: dict
-
-
-def load_attestation(attestation_path: Path) -> AttestationReport:
-    """Load an attestation report from JSON file.
-
-    Args:
-        attestation_path: Path to attestation JSON file
-
-    Returns:
-        AttestationReport with parsed data
-
-    Raises:
-        ValueError: If attestation format is invalid
-    """
-    try:
-        data = json.loads(attestation_path.read_text())
-    except Exception as e:
-        raise ValueError(f"Failed to load attestation: {e}")
-
-    required_fields = [
-        "report_id",
-        "timestamp",
-        "launch_measurement",
-        "custom_data",
-        "signature",
-    ]
-    missing = [f for f in required_fields if f not in data]
-    if missing:
-        raise ValueError(f"Missing required fields: {', '.join(missing)}")
-
-    # Validate custom_data is 64 bytes (128 hex chars)
-    if len(data["custom_data"]) != 128:
-        raise ValueError(
-            f"Invalid custom_data length: {len(data['custom_data'])} chars (expected 128)"
-        )
-
-    return AttestationReport(
-        report_id=data["report_id"],
-        timestamp=data["timestamp"],
-        launch_measurement=data["launch_measurement"],
-        custom_data=data["custom_data"],
-        signature=data["signature"],
-        platform_info=data.get("platform_info", {}),
-    )
-
-
-def extract_custom_data(attestation: AttestationReport) -> tuple[str, str]:
-    """Extract passport hash and nonce from attestation custom data.
+def extract_custom_data(custom_data_hex: str) -> tuple[str, str]:
+    """Extract passport hash and nonce from custom data hex string.
 
     Custom data format (64 bytes):
     - Bytes 0-31: SHA256(passport)
     - Bytes 32-63: Nonce
 
     Args:
-        attestation: Attestation report
+        custom_data_hex: Hex-encoded custom data (128 chars)
 
     Returns:
         Tuple of (passport_hash, nonce) as hex strings (64 chars each)
     """
-    custom_data_bytes = bytes.fromhex(attestation.custom_data)
+    if len(custom_data_hex) != 128:
+        raise ValueError(
+            f"Invalid custom_data length: {len(custom_data_hex)} chars (expected 128)"
+        )
+    custom_data_bytes = bytes.fromhex(custom_data_hex)
     return custom_data_bytes[:32].hex(), custom_data_bytes[32:64].hex()
 
 
 def verify_passport_binding(
-    attestation: AttestationReport,
+    custom_data_hex: str,
     passport: dict,
 ) -> tuple[bool, str]:
     """Verify that an attestation report is bound to a passport.
@@ -99,14 +47,14 @@ def verify_passport_binding(
     matches the actual passport document.
 
     Args:
-        attestation: Attestation report to verify
+        custom_data_hex: Hex-encoded custom data (128 chars)
         passport: Passport document to check
 
     Returns:
         Tuple of (verified, message)
     """
     # Extract passport hash from custom data (first 32 bytes)
-    attestation_passport_hash, _ = extract_custom_data(attestation)
+    attestation_passport_hash, _ = extract_custom_data(custom_data_hex)
 
     # Hash the actual passport (canonical JSON for determinism)
     passport_json = json.dumps(passport, sort_keys=True, separators=(",", ":"))
@@ -122,7 +70,7 @@ def verify_passport_binding(
 
 
 def verify_nonce_freshness(
-    attestation: AttestationReport,
+    custom_data_hex: str,
     max_age_seconds: int = 3600,
 ) -> tuple[bool, str]:
     """Verify that the nonce is fresh (timestamp-based approach for POC).
@@ -130,14 +78,14 @@ def verify_nonce_freshness(
     Extracts timestamp from first 8 bytes of nonce and checks age.
 
     Args:
-        attestation: Attestation report
+        custom_data_hex: Hex-encoded custom data (128 chars)
         max_age_seconds: Maximum age in seconds (default 1 hour)
 
     Returns:
         Tuple of (verified, message)
     """
     try:
-        _, nonce_hex = extract_custom_data(attestation)
+        _, nonce_hex = extract_custom_data(custom_data_hex)
         nonce_bytes = bytes.fromhex(nonce_hex)
 
         # Extract timestamp from first 8 bytes
@@ -160,6 +108,7 @@ def verify_nonce_freshness(
 
 def verify_attestation(
     attestation_path: Path,
+    custom_data_path: Path,
     passport_path: Path,
     max_age_seconds: int = 3600,
 ) -> dict:
@@ -169,7 +118,8 @@ def verify_attestation(
     application-specific properties (passport binding, nonce freshness).
 
     Args:
-        attestation_path: Path to attestation report JSON
+        attestation_path: Path to attestation file (evidence.b64)
+        custom_data_path: Path to custom_data.hex file
         passport_path: Path to passport JSON
         max_age_seconds: Maximum nonce age in seconds (default 1 hour)
 
@@ -182,7 +132,7 @@ def verify_attestation(
                 "passport_binding": {"verified": bool, "message": str},
                 "nonce_freshness": {"verified": bool, "message": str},
             },
-            "attestation": AttestationReport,
+            "custom_data": str,
             "passport": dict
         }
 
@@ -190,13 +140,25 @@ def verify_attestation(
         subprocess.CalledProcessError: If attest-amd verify fails
         FileNotFoundError: If attest-amd is not installed
     """
-    results = {"valid": True, "checks": {}, "attestation": None, "passport": None}
+    results = {"valid": True, "checks": {}, "custom_data": None, "passport": None}
 
-    # Step 1: Cryptographic verification via attest-amd
+    # Step 1: Load custom data
+    try:
+        custom_data_hex = custom_data_path.read_text().strip()
+        results["custom_data"] = custom_data_hex
+    except Exception as e:
+        results["valid"] = False
+        results["checks"]["cryptographic"] = {
+            "verified": False,
+            "message": f"Failed to load custom data: {e}",
+        }
+        return results
+
+    # Step 2: Cryptographic verification via attest-amd
     # TODO this doesn't error out when it fails.
     try:
         subprocess.run(
-            ["attest-amd", "verify", str(attestation_path)],
+            ["attest-amd", "verify", str(attestation_path), custom_data_hex, "--check-custom-data"],
             check=True,
             capture_output=True,
             text=True,
@@ -220,18 +182,6 @@ def verify_attestation(
         }
         return results
 
-    # Step 2: Load attestation
-    try:
-        attestation = load_attestation(attestation_path)
-        results["attestation"] = attestation
-    except ValueError as e:
-        results["valid"] = False
-        results["checks"]["cryptographic"] = {
-            "verified": False,
-            "message": f"Failed to load attestation: {e}",
-        }
-        return results
-
     # Step 3: Load passport
     try:
         passport = json.loads(passport_path.read_text())
@@ -245,13 +195,13 @@ def verify_attestation(
         return results
 
     # Step 4: Verify passport binding
-    verified, message = verify_passport_binding(attestation, passport)
+    verified, message = verify_passport_binding(custom_data_hex, passport)
     results["checks"]["passport_binding"] = {"verified": verified, "message": message}
     if not verified:
         results["valid"] = False
 
     # Step 5: Verify nonce freshness
-    verified, message = verify_nonce_freshness(attestation, max_age_seconds)
+    verified, message = verify_nonce_freshness(custom_data_hex, max_age_seconds)
     results["checks"]["nonce_freshness"] = {"verified": verified, "message": message}
     if not verified:
         results["valid"] = False
