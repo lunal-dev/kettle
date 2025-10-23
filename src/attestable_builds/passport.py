@@ -1,12 +1,12 @@
 """Generate passport document for attestable builds (Phase 1 inputs)."""
 
-import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
 from .merkle import calculate_input_merkle_root
+from .utils import hash_file
 
 
 def generate_passport(
@@ -123,11 +123,6 @@ def generate_passport(
     return passport
 
 
-def hash_binary(binary_path: Path) -> str:
-    """Calculate SHA256 hash of a binary file."""
-    return hashlib.sha256(binary_path.read_bytes()).hexdigest()
-
-
 def _load_passport(passport_path: Path) -> tuple[Optional[dict], Optional[dict]]:
     """Load and validate passport structure.
 
@@ -143,7 +138,7 @@ def _load_passport(passport_path: Path) -> tuple[Optional[dict], Optional[dict]]
     missing_fields = [f for f in required_fields if f not in passport]
     if missing_fields:
         return None, {
-            "passed": False,
+            "verified": False,
             "message": f"Missing required fields: {', '.join(missing_fields)}",
         }
 
@@ -156,19 +151,19 @@ def _verify_git_commit(passport: dict, expected_commit: str, strict: bool) -> di
 
     if not passport_commit:
         return {
-            "passed": False,
+            "verified": False,
             "message": "No git commit in passport",
             "fail": strict,
         }
 
     if passport_commit == expected_commit:
         return {
-            "passed": True,
+            "verified": True,
             "message": f"Git commit matches: {expected_commit[:8]}...",
         }
 
     return {
-        "passed": False,
+        "verified": False,
         "message": f"Git commit mismatch: expected {expected_commit[:8]}..., got {passport_commit[:8]}...",
         "fail": True,
     }
@@ -180,19 +175,19 @@ def _verify_git_tree(passport: dict, expected_tree: str, strict: bool) -> dict:
 
     if not passport_tree:
         return {
-            "passed": False,
+            "verified": False,
             "message": "No git tree in passport",
             "fail": strict,
         }
 
     if passport_tree == expected_tree:
         return {
-            "passed": True,
+            "verified": True,
             "message": f"Git tree matches: {expected_tree[:8]}...",
         }
 
     return {
-        "passed": False,
+        "verified": False,
         "message": f"Git tree mismatch: expected {expected_tree[:8]}..., got {passport_tree[:8]}...",
         "fail": True,
     }
@@ -204,19 +199,19 @@ def _verify_input_merkle_root(passport: dict, expected_root: str, strict: bool) 
 
     if not passport_root:
         return {
-            "passed": False,
+            "verified": False,
             "message": "No input merkle root in passport",
             "fail": strict,
         }
 
     if passport_root == expected_root:
         return {
-            "passed": True,
+            "verified": True,
             "message": f"Input merkle root matches: {expected_root[:16]}...",
         }
 
     return {
-        "passed": False,
+        "verified": False,
         "message": f"Input merkle root mismatch: expected {expected_root[:16]}..., got {passport_root[:16]}...",
         "fail": True,
     }
@@ -261,13 +256,13 @@ def _verify_toolchain_hashes(
 
     if not checks:
         return {
-            "passed": False,
+            "verified": False,
             "message": "No toolchain hashes provided",
             "fail": strict,
         }
 
     return {
-        "passed": all_passed,
+        "verified": all_passed,
         "message": "; ".join(checks),
         "fail": not all_passed,
     }
@@ -279,16 +274,16 @@ def _verify_cargo_lock(passport: dict, expected_hash: str, strict: bool) -> dict
 
     if not passport_hash:
         return {
-            "passed": False,
+            "verified": False,
             "message": "No Cargo.lock hash in passport",
             "fail": strict,
         }
 
     if passport_hash == expected_hash:
-        return {"passed": True, "message": "Cargo.lock hash matches"}
+        return {"verified": True, "message": "Cargo.lock hash matches"}
 
     return {
-        "passed": False,
+        "verified": False,
         "message": "Cargo.lock hash mismatch",
         "fail": True,
     }
@@ -298,12 +293,12 @@ def _verify_binary_hash(passport: dict, binary_path: Path, strict: bool) -> dict
     """Verify binary artifact hash matches passport record."""
     if not binary_path.exists():
         return {
-            "passed": False,
+            "verified": False,
             "message": f"Binary not found: {binary_path}",
             "fail": True,
         }
 
-    actual_hash = hash_binary(binary_path)
+    actual_hash = hash_file(binary_path)
     artifacts = passport.get("outputs", {}).get("artifacts", [])
     binary_name = binary_path.name
 
@@ -314,7 +309,7 @@ def _verify_binary_hash(passport: dict, binary_path: Path, strict: bool) -> dict
 
     if not matching_artifact:
         return {
-            "passed": False,
+            "verified": False,
             "message": f"No artifact named '{binary_name}' in passport",
             "fail": strict,
         }
@@ -322,12 +317,12 @@ def _verify_binary_hash(passport: dict, binary_path: Path, strict: bool) -> dict
     expected_hash = matching_artifact.get("hash")
     if actual_hash == expected_hash:
         return {
-            "passed": True,
+            "verified": True,
             "message": f"Binary hash matches: {actual_hash[:16]}...",
         }
 
     return {
-        "passed": False,
+        "verified": False,
         "message": f"Binary hash mismatch: expected {expected_hash[:16]}..., got {actual_hash[:16]}...",
         "fail": True,
     }
@@ -371,19 +366,19 @@ def _verify_input_merkle(passport: dict, strict: bool) -> dict:
         expected_root = inputs.get("input_merkle_root")
         if computed_root == expected_root:
             return {
-                "passed": True,
+                "verified": True,
                 "message": f"Input merkle root verified: {computed_root[:16]}...",
             }
 
         expected_str = expected_root[:16] if expected_root else "None"
         return {
-            "passed": False,
+            "verified": False,
             "message": f"Input merkle root mismatch: expected {expected_str}..., computed {computed_root[:16]}...",
             "fail": True,
         }
     except Exception as e:
         return {
-            "passed": False,
+            "verified": False,
             "message": f"Failed to verify input merkle root: {e}",
             "fail": strict,
         }
@@ -442,11 +437,11 @@ def verify_passport(
         {
             "valid": bool,
             "checks": {
-                "passport_format": {"passed": bool, "message": str},
-                "git_commit": {"passed": bool, "message": str},
-                "cargo_lock": {"passed": bool, "message": str},
-                "binary_hash": {"passed": bool, "message": str},
-                "input_merkle": {"passed": bool, "message": str},
+                "passport_format": {"verified": bool, "message": str},
+                "git_commit": {"verified": bool, "message": str},
+                "cargo_lock": {"verified": bool, "message": str},
+                "binary_hash": {"verified": bool, "message": str},
+                "input_merkle": {"verified": bool, "message": str},
             },
             "passport": dict  # The loaded passport data
         }
@@ -458,14 +453,14 @@ def verify_passport(
     if error or passport is None:
         results["valid"] = False
         results["checks"]["passport_format"] = error or {
-            "passed": False,
+            "verified": False,
             "message": "Unknown error loading passport",
         }
         return results
 
     results["passport"] = passport
     results["checks"]["passport_format"] = {
-        "passed": True,
+        "verified": True,
         "message": "Passport loaded successfully",
     }
 
@@ -491,7 +486,7 @@ def verify_passport(
         except ValueError as e:
             results["valid"] = False
             results["checks"]["manifest_format"] = {
-                "passed": False,
+                "verified": False,
                 "message": str(e),
             }
             return results
@@ -545,18 +540,18 @@ def verify_passport(
                 if actual_hash != expected_hash:
                     results["valid"] = False
                     results["checks"][f"artifact_{artifact_name}"] = {
-                        "passed": False,
+                        "verified": False,
                         "message": f"Artifact '{artifact_name}' hash mismatch: expected {expected_hash[:16]}..., got {actual_hash[:16]}...",
                     }
                 else:
                     results["checks"][f"artifact_{artifact_name}"] = {
-                        "passed": True,
+                        "verified": True,
                         "message": f"Artifact '{artifact_name}' hash matches",
                     }
             elif strict:
                 results["valid"] = False
                 results["checks"][f"artifact_{artifact_name}"] = {
-                    "passed": False,
+                    "verified": False,
                     "message": f"Artifact '{artifact_name}' not found in passport",
                 }
 

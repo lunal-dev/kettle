@@ -1,13 +1,9 @@
 """Execute cargo build and collect output artifacts."""
 
-import hashlib
 import subprocess
 from pathlib import Path
 
-
-def hash_file(file_path: Path) -> str:
-    """Calculate SHA256 hash of a file."""
-    return hashlib.sha256(file_path.read_bytes()).hexdigest()
+from .utils import hash_file
 
 
 def run_cargo_build(project_dir: Path, release: bool = True) -> dict:

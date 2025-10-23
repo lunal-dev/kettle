@@ -5,6 +5,8 @@ import os
 import re
 from pathlib import Path
 
+from .utils import hash_file
+
 
 def parse_cargo_lock(path: Path) -> list[dict]:
     """Parse Cargo.lock and extract all dependencies with checksums.
@@ -37,7 +39,7 @@ def parse_cargo_lock(path: Path) -> list[dict]:
 
 def hash_cargo_lock(path: Path) -> str:
     """Calculate SHA-256 hash of Cargo.lock file."""
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    return hash_file(path)
 
 
 def extract_git_commit(source: str) -> str | None:
