@@ -188,10 +188,10 @@ def print_verification_results(results, show_all: bool = False):
                 print(f"    Match: ✓" if actual_hash == dep["checksum"] else f"    Match: ✗")
 
 
-def verify_phase1_inputs(
+def verify_inputs(
     project_dir: Path, verbose: bool = False
 ) -> tuple[dict | None, str, list[dict], dict]:
-    """Verify all Phase 1 build inputs.
+    """Verify all build inputs (git, Cargo.lock, dependencies, toolchain).
 
     Returns:
         Tuple of (git_info, cargo_lock_hash, verification_results, toolchain)
@@ -205,7 +205,7 @@ def verify_phase1_inputs(
         raise typer.Exit(1)
 
     print("=" * 60)
-    print("Phase 1: Input Verification")
+    print("Verifying Build Inputs")
     print("=" * 60)
 
     # Git source verification
@@ -241,7 +241,7 @@ def verify_phase1_inputs(
         raise typer.Exit(1)
 
     print("\n" + "=" * 60)
-    print("✓ All Phase 1 inputs verified successfully")
+    print("✓ All inputs verified successfully")
     print("=" * 60)
 
     return git_info, cargo_lock_hash, results, toolchain
@@ -378,18 +378,18 @@ def build(
     """Build project with full input verification and output measurement.
 
     This command:
-    1. Verifies all Phase 1 inputs (git, Cargo.lock, deps, toolchain)
+    1. Verifies all inputs (git, Cargo.lock, deps, toolchain)
     2. Executes cargo build
     3. Measures output artifacts
     4. Generates passport with inputs and outputs
     """
     try:
-        # Phase 1: Input Verification
-        git_info, cargo_lock_hash, results, toolchain = verify_phase1_inputs(
+        # Verify inputs
+        git_info, cargo_lock_hash, results, toolchain = verify_inputs(
             project_dir, verbose
         )
 
-        # Phase 2: Build Execution
+        # Execute build
         build_result = execute_build(project_dir, release)
 
         # Generate passport with outputs
