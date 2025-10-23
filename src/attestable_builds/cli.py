@@ -188,8 +188,8 @@ def print_verification_results(results, show_all: bool = False):
                 print(f"    Match: ✓" if actual_hash == dep["checksum"] else f"    Match: ✗")
 
 
-def _verify_phase1_inputs(
-    project_dir: Path, verbose: bool
+def verify_phase1_inputs(
+    project_dir: Path, verbose: bool = False
 ) -> tuple[dict | None, str, list[dict], dict]:
     """Verify all Phase 1 build inputs.
 
@@ -247,7 +247,7 @@ def _verify_phase1_inputs(
     return git_info, cargo_lock_hash, results, toolchain
 
 
-def _execute_build(project_dir: Path, release: bool) -> dict:
+def execute_build(project_dir: Path, release: bool = True) -> dict:
     """Execute cargo build and measure output artifacts.
 
     Args:
@@ -284,7 +284,7 @@ def _execute_build(project_dir: Path, release: bool) -> dict:
     return build_result
 
 
-def _generate_attestation(passport_data: dict) -> tuple[Path, Path]:
+def generate_attestation(passport_data: dict) -> tuple[Path, Path]:
     """Generate attestation using attest-amd command.
 
     Args:
@@ -385,12 +385,12 @@ def build(
     """
     try:
         # Phase 1: Input Verification
-        git_info, cargo_lock_hash, results, toolchain = _verify_phase1_inputs(
+        git_info, cargo_lock_hash, results, toolchain = verify_phase1_inputs(
             project_dir, verbose
         )
 
         # Phase 2: Build Execution
-        build_result = _execute_build(project_dir, release)
+        build_result = execute_build(project_dir, release)
 
         # Generate passport with outputs
         print(f"\n" + "=" * 60)
@@ -417,7 +417,7 @@ def build(
 
         # Generate attestation if requested
         if attestation:
-            attestation_path, custom_data_path = _generate_attestation(passport_data)
+            attestation_path, custom_data_path = generate_attestation(passport_data)
             print(f"\n✓ Build complete with attestation")
             print(f"  - Passport: {output}")
             print(f"  - Attestation: {attestation_path}")
