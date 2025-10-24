@@ -1,6 +1,7 @@
 """Minimal attestable builds API."""
 
 import json
+import os
 import shutil
 import zipfile
 from pathlib import Path
@@ -14,7 +15,7 @@ from kettle.passport import generate_passport
 
 app = FastAPI(title="Attestable Builds Service")
 
-BUILDS = Path("/tmp/kettle")
+BUILDS = Path(os.getenv("KETTLE_STORAGE_DIR", "/tmp/kettle"))
 BUILDS.mkdir(parents=True, exist_ok=True)
 
 
