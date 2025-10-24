@@ -160,7 +160,6 @@ def print_verification_results(results, show_all: bool = False):
             if r.get("crate_path"):
                 print(f"    Crate path: {r['crate_path']}")
                 # Calculate and show the actual checksum
-                import hashlib
                 actual_hash = hashlib.sha256(r["crate_path"].read_bytes()).hexdigest()
                 print(f"    Computed checksum:   {actual_hash}")
                 print(f"    Match: ✓" if actual_hash == dep["checksum"] else f"    Match: ✗")
@@ -309,9 +308,11 @@ def generate_attestation(passport_data: dict) -> tuple[Path, Path]:
 
         print(f"\n  ✓ Attestation generated successfully")
         print(f"  ✓ Attestation saved: {attestation_path} (base64 compressed bincode)")
-        print(f"  ✓ Custom data saved: {custom_data_path}")
+        # TODO: Uncomment when custom_data_path saving is enabled (lines 290-291)
+        # print(f"  ✓ Custom data saved: {custom_data_path}")
 
-        return attestation_path, custom_data_path
+        # TODO: Return custom_data_path when saving is enabled
+        return attestation_path, None
 
     except subprocess.CalledProcessError as e:
         print(f"\n  ✗ Attestation generation failed with exit code {e.returncode}", file=sys.stderr)

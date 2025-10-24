@@ -11,10 +11,12 @@ The attestation report cryptographically binds:
 
 import hashlib
 import json
-import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
-from .utils import hash_passport_to_32bytes
+from subprocess import CalledProcessError
+
+from kettle.subprocess_utils import run_command
+from kettle.utils import hash_passport_to_32bytes
 
 
 def verify_attestation(
@@ -45,7 +47,7 @@ def verify_attestation(
         }
 
     Raises:
-        subprocess.CalledProcessError: If attest-amd verify fails
+        CalledProcessError: If attest-amd verify fails
         FileNotFoundError: If attest-amd is not installed
     """
     results = {"valid": True, "checks": {}, "custom_data": None, "passport": None}
@@ -68,11 +70,8 @@ def verify_attestation(
 
     # Step 2: Cryptographic verification via attest-amd
     try:
-        result = subprocess.run(
-            ["attest-amd", "verify", str(attestation_path), custom_data_hex, "--check-custom-data"],
-            check=True,
-            capture_output=True,
-            text=True,
+        result = run_command(
+            ["attest-amd", "verify", str(attestation_path), custom_data_hex, "--check-custom-data"]
         )
 
         # Parse JSON output from stdout
@@ -145,7 +144,7 @@ def verify_attestation(
             "message": "attest-amd not found (required for verification)",
         }
         return results
-    except subprocess.CalledProcessError as e:
+    except CalledProcessError as e:
         results["valid"] = False
         results["checks"]["cryptographic"] = {
             "verified": False,
