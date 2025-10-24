@@ -73,6 +73,7 @@ async def build(source: UploadFile = File(...)):
         import os
         old_cwd = Path.cwd()
         attestation_b64 = None
+        attestation_error = None
         try:
             os.chdir(build_dir)
             generate_attestation(passport_data)
@@ -82,18 +83,30 @@ async def build(source: UploadFile = File(...)):
             if attestation_path.exists():
                 attestation_b64 = attestation_path.read_text().strip()
         except Exception as e:
+            attestation_error = str(e)
             print(f"Warning: Attestation failed: {e}")
         finally:
             os.chdir(old_cwd)
 
         # Return everything in one response
-        return {
+        response = {
             "build_id": build_id,
             "status": "success",
             "passport": passport_data,
             "attestation": attestation_b64,
             "artifacts": artifact_names,
         }
+
+        # Add attestation status if it failed
+        if attestation_error:
+            response["attestation_status"] = "failed"
+            response["attestation_error"] = attestation_error
+        elif attestation_b64:
+            response["attestation_status"] = "success"
+        else:
+            response["attestation_status"] = "unavailable"
+
+        return response
 
     except Exception as e:
         return {
