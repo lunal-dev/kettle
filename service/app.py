@@ -9,12 +9,12 @@ from uuid import uuid4
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 
-from attestable_builds.cli import execute_build, generate_attestation, verify_inputs
-from attestable_builds.passport import generate_passport
+from kettle.cli import execute_build, generate_attestation, verify_inputs
+from kettle.passport import generate_passport
 
 app = FastAPI(title="Attestable Builds Service")
 
-BUILDS = Path("/tmp/attestable-builds")
+BUILDS = Path("/tmp/kettle")
 BUILDS.mkdir(parents=True, exist_ok=True)
 
 

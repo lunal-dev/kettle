@@ -1,7 +1,7 @@
 .PHONY: help test test-docker build-docker run-docker clean extract-outputs interactive install
 
 help:
-	@echo "Attestable Builds - Phase 2 Testing"
+	@echo "Kettle - Phase 2 Testing"
 	@echo ""
 	@echo "Available targets:"
 	@echo "  make test          - Run all tests locally with uv"
@@ -12,7 +12,7 @@ help:
 	@echo "  make interactive   - Run interactive shell in Docker"
 	@echo "  make measure       - Generate golden measurement"
 	@echo "  make clean         - Clean up outputs and Docker images"
-	@echo "  make install       - Install attestable-builds locally"
+	@echo "  make install       - Install kettle locally"
 
 # Run tests locally
 test:
@@ -24,19 +24,19 @@ test-docker: build-docker run-docker
 # Build Docker test image
 build-docker:
 	@echo "Building Docker test image..."
-	docker build -f Dockerfile.test -t attestable-builds-test .
+	docker build -f Dockerfile.test -t kettle-test .
 
 # Run Phase 2 build in Docker
 run-docker:
-	@echo "Running Phase 2 attestable build in Docker..."
-	docker run --rm attestable-builds-test
+	@echo "Running Phase 2 kettle build in Docker..."
+	docker run --rm kettle-test
 
 # Extract outputs from Docker
 extract:
 	@echo "Extracting passport and attestation..."
 	@mkdir -p outputs
 	docker run --rm -v $$(pwd)/outputs:/outputs attestable-builds-test sh -c \
-		'python3 -m attestable_builds.cli build . > /dev/null 2>&1 && cp passport.json attestation.json /outputs/'
+		'python3 -m kettle.cli build . > /dev/null 2>&1 && cp passport.json attestation.json /outputs/'
 	@echo "✓ Outputs saved to outputs/"
 	@echo ""
 	@echo "Passport (first 20 lines):"
@@ -51,7 +51,7 @@ interactive:
 
 # Generate golden measurement locally
 measure:
-	uv run python -m attestable_builds.cli measure -o golden-measurements.json
+	uv run python -m kettle.cli measure -o golden-measurements.json
 	@echo ""
 	@cat golden-measurements.json | python3 -m json.tool
 

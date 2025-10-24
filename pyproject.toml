@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "attestable-builds"
+name = "kettle"
 version = "0.1.0"
 description = "Build-time verification and attestation for TEE (Trusted Execution Environment) deployments"
 requires-python = ">=3.10"
@@ -26,8 +26,8 @@ service = [
 ]
 
 [project.scripts]
-attestable-builds = "attestable_builds.cli:main"
-attestable-builds-service = "service.app:app"
+kettle = "kettle.cli:main"
+kettle-service = "service.app:app"
 
 [tool.setuptools.packages.find]
 where = ["src"]

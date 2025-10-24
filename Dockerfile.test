@@ -24,15 +24,15 @@ RUN git config --global user.email "test@example.com" && \
     git add . && \
     git commit -m "Initial commit"
 
-# Copy attestable-builds into the container
-WORKDIR /attestable-builds
+# Copy kettle into the container
+WORKDIR /kettle
 COPY . .
 
-# Install attestable-builds with dependencies
+# Install kettle with dependencies
 RUN pip3 install -e . --break-system-packages
 
 # Set working directory back to test project
 WORKDIR /test-project
 
-# Default command: run the attestable build
-CMD ["python3", "-m", "attestable_builds.cli", "build", ".", "-v"]
+# Default command: run the kettle build
+CMD ["python3", "-m", "kettle.cli", "build", ".", "-v"]
