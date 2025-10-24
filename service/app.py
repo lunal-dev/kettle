@@ -1,25 +1,27 @@
-"""Attestable builds API - calls existing CLI functions."""
+"""Minimal attestable builds API."""
 
+import json
 import shutil
 import zipfile
 from pathlib import Path
 from uuid import uuid4
 
+from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.responses import JSONResponse
+
 from attestable_builds.cli import execute_build, generate_attestation, verify_inputs
 from attestable_builds.passport import generate_passport
-from fastapi import FastAPI, File, HTTPException, UploadFile
-from fastapi.responses import FileResponse
 
 app = FastAPI(title="Attestable Builds Service")
 
-BUILDS = Path("/var/lib/attestable-builds")
+BUILDS = Path("/tmp/attestable-builds")
 BUILDS.mkdir(parents=True, exist_ok=True)
 
 
 @app.post("/build")
 async def build(source: UploadFile = File(...)):
-    """Upload zip, build with attestation."""
-    build_id = str(uuid4())
+    """Upload source.zip, build with attestation, return passport and attestation data."""
+    build_id = str(uuid4())[:8]
     build_dir = BUILDS / build_id
     build_dir.mkdir()
 
@@ -32,11 +34,19 @@ async def build(source: UploadFile = File(...)):
     with zipfile.ZipFile(zip_path, "r") as z:
         z.extractall(source_dir)
 
-    try:
-        # Reuse CLI functions
-        git_info, cargo_lock_hash, results, toolchain = verify_inputs(source_dir)
-        build_result = execute_build(source_dir, release=True)
+    # Find Cargo.toml (might be in subdirectory)
+    project_dir = source_dir
+    if not (project_dir / "Cargo.toml").exists():
+        subdirs = [d for d in source_dir.iterdir() if d.is_dir()]
+        if len(subdirs) == 1:
+            project_dir = subdirs[0]
 
+    try:
+        # Build
+        git_info, cargo_lock_hash, results, toolchain = verify_inputs(project_dir, verbose=False)
+        build_result = execute_build(project_dir, release=True)
+
+        # Generate passport
         output_artifacts = [(a["path"], a["hash"]) for a in build_result["artifacts"]]
         passport_path = build_dir / "passport.json"
 
@@ -49,25 +59,59 @@ async def build(source: UploadFile = File(...)):
             output_path=passport_path,
         )
 
+        # Copy artifacts
+        artifacts_dir = build_dir / "artifacts"
+        artifacts_dir.mkdir()
+        artifact_names = []
+        for artifact in build_result["artifacts"]:
+            artifact_path = Path(artifact["path"])
+            shutil.copy2(artifact_path, artifacts_dir / artifact_path.name)
+            artifact_names.append(artifact_path.name)
+
         # Generate attestation
+        import os
         old_cwd = Path.cwd()
+        attestation_b64 = None
         try:
-            import os
             os.chdir(build_dir)
-            attestation_path, custom_data_path = generate_attestation(passport_data)
+            generate_attestation(passport_data)
+
+            # Read attestation if it was created
+            attestation_path = build_dir / "evidence.b64"
+            if attestation_path.exists():
+                attestation_b64 = attestation_path.read_text().strip()
+        except Exception as e:
+            print(f"Warning: Attestation failed: {e}")
         finally:
             os.chdir(old_cwd)
 
-        return {"build_id": build_id, "success": True}
+        # Return everything in one response
+        return {
+            "build_id": build_id,
+            "status": "success",
+            "passport": passport_data,
+            "attestation": attestation_b64,
+            "artifacts": artifact_names,
+        }
 
     except Exception as e:
-        return {"build_id": build_id, "success": False, "error": str(e)}
+        return {
+            "build_id": build_id,
+            "status": "failed",
+            "error": str(e)
+        }
 
 
-@app.get("/build/{build_id}/{file}")
-def download(build_id: str, file: str):
-    """Download passport.json, evidence.b64, custom_data.hex"""
-    path = BUILDS / build_id / file
+@app.get("/builds/{build_id}/artifacts/{name}")
+def get_artifact(build_id: str, name: str):
+    """Download binary artifact."""
+    from fastapi.responses import FileResponse
+    path = BUILDS / build_id / "artifacts" / name
     if not path.exists():
         raise HTTPException(404)
     return FileResponse(path)
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
