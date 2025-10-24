@@ -281,7 +281,7 @@ attestable-builds verify passport.json --manifest manifest.json --strict
 ### Module Structure
 
 ```
-src/attestable_builds/
+src/kettle/
 ├── Phase 1: Input Verification
 │   ├── git.py        # Extract git commit hash and repository URL
 │   ├── cargo.py      # Parse Cargo.lock, hash lockfile

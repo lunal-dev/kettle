@@ -800,7 +800,7 @@ passport: Path = typer.Argument(
 
 
 @app.command()
-def remote_build(
+def tee_build(
     project_dir: Path = typer.Argument(
         ".",
         help="Path to Cargo project directory",
@@ -821,13 +821,13 @@ def remote_build(
     3. Saves passport, attestation, and artifacts to kettle-{build_id}/ directory
 
     Example:
-        attestable-builds remote-build . --api http://builder.example.com
+        attestable-builds tee-build . --api http://builder.example.com
     """
 
 
     try:
         print("=" * 60)
-        print("Remote Build")
+        print("Tee Build")
         print("=" * 60)
 
         # Create source archive
