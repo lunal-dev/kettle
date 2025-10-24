@@ -1,9 +1,10 @@
 """Execute cargo build and collect output artifacts."""
 
-import subprocess
 from pathlib import Path
+from subprocess import CalledProcessError
 
-from .utils import hash_file
+from kettle.subprocess_utils import run_command
+from kettle.utils import hash_file
 
 
 def run_cargo_build(project_dir: Path, release: bool = True) -> dict:
@@ -21,13 +22,7 @@ def run_cargo_build(project_dir: Path, release: bool = True) -> dict:
         cmd.append("--release")
 
     try:
-        result = subprocess.run(
-            cmd,
-            cwd=project_dir,
-            capture_output=True,
-            text=True,
-            check=True,
-        )
+        result = run_command(cmd, cwd=project_dir)
 
         # Find built artifacts
         target_dir = project_dir / "target"
@@ -54,7 +49,7 @@ def run_cargo_build(project_dir: Path, release: bool = True) -> dict:
             "stderr": result.stderr,
         }
 
-    except subprocess.CalledProcessError as e:
+    except CalledProcessError as e:
         return {
             "success": False,
             "artifacts": [],

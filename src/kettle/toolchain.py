@@ -1,8 +1,9 @@
 """Extract and hash Rust toolchain binaries."""
 
 import hashlib
-import subprocess
 from pathlib import Path
+
+from kettle.subprocess_utils import run_command_stdout
 
 
 def get_toolchain_info() -> dict:
@@ -18,38 +19,16 @@ def get_toolchain_info() -> dict:
         FileNotFoundError: If rustup/cargo/rustc not found
     """
     # Find rustc binary path
-    rustc_path_str = subprocess.run(
-        ["rustup", "which", "rustc"],
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.strip()
-    rustc_path = Path(rustc_path_str)
+    rustc_path = Path(run_command_stdout(["rustup", "which", "rustc"]))
 
     # Find cargo binary path
-    cargo_path_str = subprocess.run(
-        ["rustup", "which", "cargo"],
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.strip()
-    cargo_path = Path(cargo_path_str)
+    cargo_path = Path(run_command_stdout(["rustup", "which", "cargo"]))
 
     # Get rustc version (full version string)
-    rustc_version = subprocess.run(
-        ["rustc", "--version"],
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.strip()
+    rustc_version = run_command_stdout(["rustc", "--version"])
 
     # Get cargo version
-    cargo_version = subprocess.run(
-        ["cargo", "--version"],
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.strip()
+    cargo_version = run_command_stdout(["cargo", "--version"])
 
     # Hash the binaries
     rustc_hash = hashlib.sha256(rustc_path.read_bytes()).hexdigest()

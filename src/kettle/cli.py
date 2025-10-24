@@ -160,7 +160,6 @@ def print_verification_results(results, show_all: bool = False):
             if r.get("crate_path"):
                 print(f"    Crate path: {r['crate_path']}")
                 # Calculate and show the actual checksum
-                import hashlib
                 actual_hash = hashlib.sha256(r["crate_path"].read_bytes()).hexdigest()
                 print(f"    Computed checksum:   {actual_hash}")
                 print(f"    Match: ✓" if actual_hash == dep["checksum"] else f"    Match: ✗")
