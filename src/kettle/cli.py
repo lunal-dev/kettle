@@ -309,9 +309,11 @@ def generate_attestation(passport_data: dict) -> tuple[Path, Path]:
 
         print(f"\n  ✓ Attestation generated successfully")
         print(f"  ✓ Attestation saved: {attestation_path} (base64 compressed bincode)")
-        print(f"  ✓ Custom data saved: {custom_data_path}")
+        # TODO: Uncomment when custom_data_path saving is enabled (lines 290-291)
+        # print(f"  ✓ Custom data saved: {custom_data_path}")
 
-        return attestation_path, custom_data_path
+        # TODO: Return custom_data_path when saving is enabled
+        return attestation_path, None
 
     except subprocess.CalledProcessError as e:
         print(f"\n  ✗ Attestation generation failed with exit code {e.returncode}", file=sys.stderr)
