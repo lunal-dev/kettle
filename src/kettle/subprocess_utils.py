@@ -1,8 +1,32 @@
 """Subprocess utilities for consistent command execution and error handling."""
 
+import os
 import subprocess
 from pathlib import Path
 from typing import Optional
+
+
+def _set_umask():
+    """Set umask to 0o002 to ensure cargo build-scripts get execute permissions.
+
+    The umask (user file creation mask) defines which permission bits are turned
+    off when creating new files or directories. Setting umask to 0o002 ensures:
+
+    - New files get permissions 0o664 (rw-rw-r--):
+      - Owner: read + write
+      - Group: read + write
+      - Others: read only
+
+    - New directories get permissions 0o775 (rwxrwxr-x):
+      - Owner: read + write + execute
+      - Group: read + write + execute
+      - Others: read + execute
+
+    This is required for cargo to create build-script binaries with execute
+    permissions (775). Cargo creates build-scripts with mode 0o777, which
+    with umask 0o002 results in 0o775 (rwxrwxr-x).
+    """
+    os.umask(0o002)
 
 
 def run_command(
@@ -35,6 +59,7 @@ def run_command(
         check=check,
         capture_output=capture_output,
         text=text,
+        preexec_fn=_set_umask,
     )
 
 
