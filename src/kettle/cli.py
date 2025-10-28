@@ -543,39 +543,19 @@ def verify_attestation_cmd(
         log_error(f"Error: {e}")
         raise typer.Exit(1)
 
-
 @app.command()
 def verify(
-passport: Path = typer.Argument(
+    build_dir: Path = typer.Argument(
         ...,
-        help="Path to passport JSON file",
+        help="Path to build directory containing passport.json and evidence.b64",
         exists=True,
-        file_okay=True,
-        dir_okay=False,
-    ),
-    attestation: Path = typer.Option(
-        None,
-        "--attestation",
-        "-a",
-        help="Path to attestation f    ile (evidence.b64) for cryptographic verification",
-        exists=True,
-        file_okay=True,
-        dir_okay=False,
-    ),
-    manifest: Path = typer.Option(
-        None,
-        "--manifest",
-        "-m",
-        help="Path to verification manifest JSON file",
-        exists=True,
-        file_okay=True,
-        dir_okay=False,
+        file_okay=False,
     ),
     project_dir: Path = typer.Option(
         None,
         "--project-dir",
         "-p",
-        help="Path to project directory (for git commit and Cargo.lock verification)",
+        help="Path to project directory containing verification manifest.json",
         exists=True,
         file_okay=False,
     ),
@@ -594,52 +574,39 @@ passport: Path = typer.Argument(
         help="Fail if any optional checks cannot be performed",
     ),
 ):
-    """Verify a passport document and optionally its attestation.
-
-    This command performs two-phase verification:
-    1. Attestation verification (if --attestation provided):
-       - Cryptographic signature verification via attest-amd
-       - Passport binding (attestation custom data matches passport hash)
-       - Nonce freshness (timestamp-based replay protection)
-
-    2. Passport content verification:
-       - Passport format and structure
-       - Git commit hash (from manifest or project directory)
-       - Git tree hash (from manifest)
-       - Cargo.lock hash (from manifest or project directory)
-       - Input merkle root (from manifest)
-       - Toolchain binary hashes - rustc and cargo (from manifest)
-       - Binary artifact hashes (from manifest or --binary)
-
-    Verification inputs can be provided via:
-    - Verification manifest file (--manifest): A JSON file containing expected values
-    - Project directory (--project-dir): Gathers git commit and Cargo.lock from project
-    - Individual values (--binary): Direct specification of values to check
-
-    Examples:
-        # Verify passport only
-        attestable-builds verify passport.json --project-dir .
-
-        # Verify attestation + passport
-        attestable-builds verify passport.json --attestation evidence.b64 --project-dir .
-
-        # Verify with manifest
-        attestable-builds verify passport.json --attestation evidence.b64 --manifest verify.json
+    """
+    Verify a passport document and it's attestation
     """
     try:
+        # Find passport and attestation in build directory
+        passport_path = build_dir / "passport.json"
+        attestation_path = build_dir / "evidence.b64"
+
+        if not passport_path.exists():
+            log_error(f"passport.json not found in {build_dir}")
+            raise typer.Exit(1)
+
+        log(f"Build directory: {build_dir}", style="dim")
+        log(f"Passport: {passport_path.name}", style="dim")
+
+        # Check if attestation exists
+        has_attestation = attestation_path.exists()
+        if has_attestation:
+            log(f"Attestation: {attestation_path.name}", style="dim")
+        else:
+            log("Attestation: not found (passport-only verification)", style="dim")
+
         attestation_passed = True
         passport_passed = True
 
-        # Phase 1: Attestation Verification (if provided)
-        if attestation:
+        # Phase 1: Attestation Verification (if available)
+        if has_attestation:
             log_section("Phase 1: Attestation Verification")
-            log(f"\nAttestation: {attestation}", style="dim")
-            log(f"Passport: {passport}", style="dim")
 
             # Verify attestation
             attestation_results = verify_attestation(
-                attestation_path=attestation,
-                passport_path=passport,
+                attestation_path=attestation_path,
+                passport_path=passport_path,
             )
 
             # Display attestation results
@@ -656,39 +623,44 @@ passport: Path = typer.Argument(
                 raise typer.Exit(1)
 
         # Phase 2: Passport Content Verification
-        phase_title = "Phase 2: Passport Content Verification" if attestation else "Passport Verification"
+        phase_title = "Phase 2: Passport Content Verification" if has_attestation else "Passport Verification"
         log_section(phase_title)
 
         # Gather verification inputs
         git_commit = None
         cargo_lock_hash = None
+        manifest_path = None
 
-        if manifest:
-            log(f"\nLoading verification manifest: {manifest.name}")
-        elif project_dir:
-            log(f"\nGathering verification data from project...")
-            # Get git commit
-            git_info = get_git_info(project_dir)
-            if git_info:
-                git_commit = git_info["commit_hash"]
-                log_success(f"Git commit: {git_commit[:8]}...")
+        if project_dir:
+            # Check for manifest in project directory
+            potential_manifest = project_dir / "manifest.json"
+            if potential_manifest.exists():
+                manifest_path = potential_manifest
+                log(f"Loading verification manifest: {manifest_path.name}")
             else:
-                log_warning("Not a git repository")
+                log(f"Gathering verification data from project directory...")
+                # Get git commit
+                git_info = get_git_info(project_dir)
+                if git_info:
+                    git_commit = git_info["commit_hash"]
+                    log_success(f"Git commit: {git_commit[:8]}...")
+                else:
+                    log_warning("Not a git repository")
 
-            # Get Cargo.lock hash
-            cargo_lock = project_dir / "Cargo.lock"
-            if cargo_lock.exists():
-                cargo_lock_hash = hash_cargo_lock(cargo_lock)
-                log_success(f"Cargo.lock hash: {cargo_lock_hash[:16]}...")
-            else:
-                log_warning("Cargo.lock not found")
+                # Get Cargo.lock hash
+                cargo_lock = project_dir / "Cargo.lock"
+                if cargo_lock.exists():
+                    cargo_lock_hash = hash_cargo_lock(cargo_lock)
+                    log_success(f"Cargo.lock hash: {cargo_lock_hash[:16]}...")
+                else:
+                    log_warning("Cargo.lock not found")
 
-        log(f"\nVerifying passport: {passport.name}")
+        log(f"\nVerifying passport: {passport_path.name}")
 
         # Run passport verification
         passport_results = verify_build_passport(
-            passport_path=passport,
-            manifest_path=manifest,
+            passport_path=passport_path,
+            manifest_path=manifest_path,
             git_commit=git_commit,
             cargo_lock_hash=cargo_lock_hash,
             binary_path=binary,
@@ -713,7 +685,7 @@ passport: Path = typer.Argument(
         # Final overall result
         overall_passed = attestation_passed and passport_passed
 
-        if attestation:
+        if has_attestation:
             log("\n")
             log_section("Overall Results")
             if overall_passed:
