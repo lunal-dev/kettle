@@ -16,7 +16,10 @@ from .attestation import verify_attestation
 from .build import run_cargo_build
 from .cargo import hash_cargo_lock, parse_cargo_lock, verify_all
 from .git import get_git_info
-from .passport import generate_passport, verify_passport
+from .logger import log, log_error, log_section, log_success, log_warning
+from .output import display_checks, display_dependency_results
+from .passport import generate_passport, verify_build_passport
+from .results import CheckResult
 from .toolchain import get_toolchain_info
 from .utils import hash_passport_to_32bytes
 
@@ -41,55 +44,33 @@ def _display_verification_checks(
     Returns:
         True if all checks passed, False otherwise
     """
-    passed_checks = []
-    failed_checks = []
-    skipped_checks = []
+    # Convert dict checks to CheckResult format
+    check_results = {}
+    for check_name, check_data in checks.items():
+        # Determine if this is a warning/skip
+        message = check_data["message"]
+        is_skip = any(word in message.lower() for word in ["mock", "not implemented", "skipped", "no "])
 
-    for check_name, check_result in checks.items():
-        message = check_result["message"]
+        check_results[check_name.replace('_', ' ').title()] = CheckResult(
+            verified=check_data["verified"],
+            message=message,
+            details={"critical": not is_skip}
+        )
 
-        if check_result["verified"]:
-            # Check if it's a warning/skip
-            if any(word in message.lower() for word in ["mock", "not implemented", "skipped", "no "]):
-                skipped_checks.append((check_name, message))
-            else:
-                passed_checks.append((check_name, message))
-        else:
-            # Check if it's a skip (not a hard failure)
-            if any(word in message.lower() for word in ["skipped", "no "]):
-                skipped_checks.append((check_name, message))
-            else:
-                failed_checks.append((check_name, message))
+    # Use the new display function
+    display_checks(check_results, title)
 
-    # Display results
-    print(f"\n{'=' * 60}")
-    print(title)
-    print(f"{'=' * 60}\n")
+    # Check if all critical checks passed
+    all_passed = all(
+        result.verified or not result.details.get("critical", True)
+        for result in check_results.values()
+    )
 
-    if passed_checks:
-        print("PASSED:")
-        for name, message in passed_checks:
-            print(f"  ✓ {name.replace('_', ' ').title()}")
-            print(f"    {message}")
-
-    if failed_checks:
-        print("\nFAILED:")
-        for name, message in failed_checks:
-            print(f"  ✗ {name.replace('_', ' ').title()}")
-            print(f"    {message}")
-
-    if skipped_checks:
-        label = "\nWARNINGS (POC Limitations):" if any("mock" in m.lower() or "not implemented" in m.lower()
-                                                        for _, m in skipped_checks) else "\nSKIPPED:"
-        print(label)
-        for name, message in skipped_checks:
-            print(f"  ⊘ {name.replace('_', ' ').title()}")
-            print(f"    {message}")
-
-    print(f"\n{'=' * 60}")
-    all_passed = len(failed_checks) == 0
-    print(f"✓ {success_message}" if all_passed else f"✗ {failure_message}")
-    print("=" * 60)
+    # Show final message
+    if all_passed:
+        log_success(success_message)
+    else:
+        log_error(failure_message)
 
     return all_passed
 
@@ -108,61 +89,39 @@ def verify_git_source_strict(project_dir: Path) -> tuple:
     if git_info:
         # Check for uncommitted changes (strict mode)
         if not git_info["is_clean"]:
-            print(f"  ✗ Working tree has uncommitted changes", file=sys.stderr)
-            print(f"\n  Uncommitted files:", file=sys.stderr)
+            log_error("Working tree has uncommitted changes")
+            log("\nUncommitted files:")
             for file in git_info["dirty_files"]:
-                print(f"    - {file}", file=sys.stderr)
-            print(f"\n  Error: Builds require a clean git working tree.", file=sys.stderr)
-            print(f"  Commit or stash your changes before building.", file=sys.stderr)
+                log(f"  - {file}")
+            log("\nError: Builds require a clean git working tree.")
+            log("Commit or stash your changes before building.")
             raise typer.Exit(1)
 
-        print(f"  ✓ Commit: {git_info['commit_hash']}")
-        print(f"  ✓ Tree hash: {git_info['tree_hash']}")
-        print(f"  ✓ Git binary: {git_info['git_path']}")
-        print(f"    Hash: {git_info['git_binary_hash'][:16]}...")
-        print(f"  ✓ Working tree: clean")
+        log_success(f"Commit: {git_info['commit_hash']}")
+        log_success(f"Tree hash: {git_info['tree_hash']}")
+        log_success(f"Git binary: {git_info['git_path']}")
+        log(f"  Hash: {git_info['git_binary_hash'][:16]}...", style="dim")
+        log_success("Working tree: clean")
         if git_info.get("repository_url"):
-            print(f"  ✓ Repository: {git_info['repository_url']}")
+            log_success(f"Repository: {git_info['repository_url']}")
     else:
-        print(f"  ⊘ Not a git repository (skipped)")
+        log_warning("Not a git repository (skipped)")
 
     return git_info
 
 
 def print_verification_results(results, show_all: bool = False):
     """Print verification results to console."""
-    verified = [r for r in results if r["verified"]]
-    failed = [r for r in results if not r["verified"]]
-
-    print(f"\n{'='*60}")
-    print(f"Verification Results: {len(verified)}/{len(results)} passed")
-    print(f"{'='*60}\n")
-
-    if failed:
-        print("FAILED:")
-        for r in failed:
-            dep = r["dependency"]
-            print(f"  • {dep['name']} {dep['version']}")
-            print(f"    {r['message']}")
-            if dep.get("checksum"):
-                print(f"    Cargo.lock checksum: {dep['checksum']}")
-            if r.get("crate_path"):
-                print(f"    Crate path: {r['crate_path']}")
-
-    if show_all and verified:
-        print("\nVERIFIED:")
-        for r in verified:
-            dep = r["dependency"]
-            print(f"  • {dep['name']} {dep['version']}")
-            print(f"    Status: {r['message']}")
-            if dep.get("checksum"):
-                print(f"    Cargo.lock checksum: {dep['checksum']}")
-            if r.get("crate_path"):
-                print(f"    Crate path: {r['crate_path']}")
-                # Calculate and show the actual checksum
+    # If verbose, add detailed info to results
+    if show_all:
+        for r in results:
+            if r.get("crate_path") and r.get("dependency", {}).get("checksum"):
                 actual_hash = hashlib.sha256(r["crate_path"].read_bytes()).hexdigest()
-                print(f"    Computed checksum:   {actual_hash}")
-                print(f"    Match: ✓" if actual_hash == dep["checksum"] else f"    Match: ✗")
+                match = actual_hash == r["dependency"]["checksum"]
+                r["message"] += f" | Match: {'✓' if match else '✗'}"
+
+    # Use the new display function
+    display_dependency_results(results)
 
 
 def verify_inputs(
@@ -178,48 +137,45 @@ def verify_inputs(
     """
     cargo_lock = project_dir / "Cargo.lock"
     if not cargo_lock.exists():
-        print(f"Error: Cargo.lock not found in {project_dir}", file=sys.stderr)
+        log_error(f"Cargo.lock not found in {project_dir}")
         raise typer.Exit(1)
 
-    print("=" * 60)
-    print("Verifying Build Inputs")
-    print("=" * 60)
+    log_section("Verifying Build Inputs")
 
     # Git source verification
-    print("\n[1/4] Verifying git source...")
+    log("\n[1/4] Verifying git source...")
     git_info = verify_git_source_strict(project_dir)
 
     # Cargo.lock hash
-    print("\n[2/4] Hashing Cargo.lock...")
+    log("\n[2/4] Hashing Cargo.lock...")
     cargo_lock_hash = hash_cargo_lock(cargo_lock)
-    print(f"  ✓ SHA256: {cargo_lock_hash}")
+    log_success(f"SHA256: {cargo_lock_hash}")
 
     # Dependencies verification
-    print("\n[3/4] Verifying dependencies...")
+    log("\n[3/4] Verifying dependencies...")
     dependencies = parse_cargo_lock(cargo_lock)
-    print(f"  Found {len(dependencies)} external dependencies")
+    log(f"Found {len(dependencies)} external dependencies", style="dim")
     results = verify_all(dependencies)
     print_verification_results(results, verbose)
 
     if any(not r["verified"] for r in results):
-        print("\n✗ Some dependencies failed verification", file=sys.stderr)
+        log_error("Some dependencies failed verification")
         raise typer.Exit(1)
 
     # Toolchain verification
-    print("\n[4/4] Verifying Rust toolchain...")
+    log("\n[4/4] Verifying Rust toolchain...")
     try:
         toolchain = get_toolchain_info()
-        print(f"  ✓ rustc: {toolchain['rustc_version']}")
-        print(f"    Hash: {toolchain['rustc_hash'][:16]}...")
-        print(f"  ✓ cargo: {toolchain['cargo_version']}")
-        print(f"    Hash: {toolchain['cargo_hash'][:16]}...")
+        log_success(f"rustc: {toolchain['rustc_version']}")
+        log(f"  Hash: {toolchain['rustc_hash'][:16]}...", style="dim")
+        log_success(f"cargo: {toolchain['cargo_version']}")
+        log(f"  Hash: {toolchain['cargo_hash'][:16]}...", style="dim")
     except Exception as e:
-        print(f"  ✗ Toolchain verification failed: {e}", file=sys.stderr)
+        log_error(f"Toolchain verification failed: {e}")
         raise typer.Exit(1)
 
-    print("\n" + "=" * 60)
-    print("✓ All inputs verified successfully")
-    print("=" * 60)
+    log("\n")
+    log_success("All inputs verified successfully")
 
     return git_info, cargo_lock_hash, results, toolchain
 
@@ -237,26 +193,24 @@ def execute_build(project_dir: Path, release: bool = True) -> dict:
     Raises:
         typer.Exit: If build fails
     """
-    print("\n" + "=" * 60)
-    print("Building Project")
-    print("=" * 60)
-    print(f"\n  Mode: {'release' if release else 'debug'}")
-    print(f"  Command: cargo build --locked {'--release' if release else ''}")
+    log_section("Building Project")
+    log(f"\nMode: {'release' if release else 'debug'}", style="dim")
+    log(f"Command: cargo build --locked {'--release' if release else ''}", style="dim")
 
     build_result = run_cargo_build(project_dir, release=release)
 
     if not build_result["success"]:
-        print(f"\n✗ Build failed", file=sys.stderr)
+        log_error("Build failed")
         if build_result["stderr"]:
-            print(f"\n{build_result['stderr']}", file=sys.stderr)
+            log(f"\n{build_result['stderr']}")
         raise typer.Exit(1)
 
-    print(f"\n  ✓ Build successful")
-    print(f"  ✓ Artifacts: {len(build_result['artifacts'])}")
+    log_success("Build successful")
+    log_success(f"Artifacts: {len(build_result['artifacts'])}")
 
     for artifact in build_result['artifacts']:
-        print(f"    - {artifact['name']}")
-        print(f"      SHA256: {artifact['hash']}")
+        log(f"  - {artifact['name']}", style="bold")
+        log(f"    SHA256: {artifact['hash']}", style="dim")
 
     return build_result
 
@@ -275,15 +229,13 @@ def generate_attestation(passport_data: dict) -> tuple[Path, Path]:
     Raises:
         typer.Exit: If attestation generation fails
     """
-    print(f"\n" + "=" * 60)
-    print(f"Generating Attestation")
-    print(f"=" * 60)
+    log_section("Generating Attestation")
 
     # Hash passport to 32-byte custom data
     custom_data = hash_passport_to_32bytes(passport_data)
-    print(f"\n  ✓ Custom data generated (128 hex chars)")
-    print(f"    - Passport hash: {custom_data[:64]}")
-    print(f"    - Nonce: {custom_data[64:80]}...")
+    log_success("Custom data generated (128 hex chars)")
+    log(f"  - Passport hash: {custom_data[:64]}", style="dim")
+    log(f"  - Nonce: {custom_data[64:80]}...", style="dim")
 
     # Save custom data for later verification
     # custom_data_path = Path("custom_data.hex")
@@ -292,7 +244,7 @@ def generate_attestation(passport_data: dict) -> tuple[Path, Path]:
     # Call attest-amd command
     # TODO this doesn't error out when it fails.
     try:
-        print(f"\n  Running: sudo attest-amd attest --custom-data {custom_data[:16]}...")
+        log(f"\nRunning: sudo attest-amd attest --custom-data {custom_data[:16]}...", style="dim")
         result = subprocess.run(
             ["sudo", "attest-amd", "attest", "--custom-data", custom_data],
             capture_output=True,
@@ -306,25 +258,23 @@ def generate_attestation(passport_data: dict) -> tuple[Path, Path]:
             # Fallback: save stdout if file wasn't created
             attestation_path.write_text(result.stdout.strip())
 
-        print(f"\n  ✓ Attestation generated successfully")
-        print(f"  ✓ Attestation saved: {attestation_path} (base64 compressed bincode)")
+        log_success("Attestation generated successfully")
+        log_success(f"Attestation saved: {attestation_path} (base64 compressed bincode)")
         # TODO: Uncomment when custom_data_path saving is enabled (lines 290-291)
-        # print(f"  ✓ Custom data saved: {custom_data_path}")
+        # log_success(f"Custom data saved: {custom_data_path}")
 
         # TODO: Return custom_data_path when saving is enabled
         return attestation_path, None
 
     except subprocess.CalledProcessError as e:
-        print(f"\n  ✗ Attestation generation failed with exit code {e.returncode}", file=sys.stderr)
+        log_error(f"Attestation generation failed with exit code {e.returncode}")
         if e.stderr:
-            print(f"\n{e.stderr}", file=sys.stderr)
+            log(f"\n{e.stderr}")
         raise typer.Exit(1)
     except FileNotFoundError:
-        print(f"\n  ✗ attest-amd command not found", file=sys.stderr)
-        print(f"  Install attest-amd or run without --attestation flag", file=sys.stderr)
+        log_error("attest-amd command not found")
+        log("Install attest-amd or run without --attestation flag")
         raise typer.Exit(1)
-    finally:
-        print("=" * 60)
 
 
 @app.command()
@@ -372,9 +322,7 @@ def build(
         build_result = execute_build(project_dir, release)
 
         # Generate passport with outputs
-        print(f"\n" + "=" * 60)
-        print(f"Generating Passport")
-        print(f"=" * 60)
+        log_section("Generating Passport")
 
         output_artifacts = [(artifact['path'], artifact['hash']) for artifact in build_result['artifacts']]
 
@@ -387,31 +335,32 @@ def build(
             output_path=output,
         )
 
-        print(f"\n✓ Passport generated: {output}")
+        log_success(f"Passport generated: {output}")
+        log_success(f"Manifest generated: manifest.json")
+
         if git_info:
-            print(f"  - Source commit: {git_info['commit_hash'][:8]}...")
-        print(f"  - {len(results)} dependencies verified")
-        print(f"  - Toolchain: {toolchain['rustc_version'].split()[1]}")
-        print(f"  - {len(output_artifacts)} artifact(s) measured")
+            log(f"  - Source commit: {git_info['commit_hash'][:8]}...", style="dim")
+        log(f"  - {len(results)} dependencies verified", style="dim")
+        log(f"  - Toolchain: {toolchain['rustc_version'].split()[1]}", style="dim")
+        log(f"  - {len(output_artifacts)} artifact(s) measured", style="dim")
 
         # Generate attestation if requested
         if attestation:
             attestation_path, custom_data_path = generate_attestation(passport_data)
-            print(f"\n✓ Build complete with attestation")
-            print(f"  - Passport: {output}")
-            print(f"  - Attestation: {attestation_path}")
-        else:
-            print("=" * 60)
+            log("\n")
+            log_success("Build complete with attestation")
+            log(f"  - Passport: {output}", style="dim")
+            log(f"  - Attestation: {attestation_path}", style="dim")
 
     except typer.Exit:
         raise
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        log_error(f"Error: {e}")
         raise typer.Exit(1)
 
 
 @app.command()
-def verify_pass(
+def verify_passport(
     passport: Path = typer.Argument(
         ...,
         help="Path to passport JSON file",
@@ -468,38 +417,36 @@ def verify_pass(
     - Binary artifact hashes (from manifest or --binary)
     """
     try:
-        print("=" * 60)
-        print("Passport Verification")
-        print("=" * 60)
+        log_section("Passport Verification")
 
         # Gather verification inputs
         git_commit = None
         cargo_lock_hash = None
 
         if manifest:
-            print(f"\n[1/2] Loading verification manifest: {manifest.name}")
+            log(f"\n[1/2] Loading verification manifest: {manifest.name}")
         elif project_dir:
-            print(f"\n[1/2] Gathering verification data from project...")
+            log(f"\n[1/2] Gathering verification data from project...")
             # Get git commit
             git_info = get_git_info(project_dir)
             if git_info:
                 git_commit = git_info["commit_hash"]
-                print(f"  ✓ Git commit: {git_commit[:8]}...")
+                log_success(f"Git commit: {git_commit[:8]}...")
             else:
-                print(f"  ⊘ Not a git repository")
+                log_warning("Not a git repository")
 
             # Get Cargo.lock hash
             cargo_lock = project_dir / "Cargo.lock"
             if cargo_lock.exists():
                 cargo_lock_hash = hash_cargo_lock(cargo_lock)
-                print(f"  ✓ Cargo.lock hash: {cargo_lock_hash[:16]}...")
+                log_success(f"Cargo.lock hash: {cargo_lock_hash[:16]}...")
             else:
-                print(f"  ⊘ Cargo.lock not found")
+                log_warning("Cargo.lock not found")
 
-        print(f"\n[2/2] Verifying passport: {passport.name}")
+        log(f"\n[2/2] Verifying passport: {passport.name}")
 
         # Run verification
-        results = verify_passport(
+        results = verify_build_passport(
             passport_path=passport,
             manifest_path=manifest,
             git_commit=git_commit,
@@ -508,18 +455,13 @@ def verify_pass(
             strict=strict,
         )
 
-        # Print results
-        print(f"\n{'=' * 60}")
-        print(f"Verification Results")
-        print(f"{'=' * 60}\n")
-
         # Show passport metadata
         if results["passport"]:
             passport_data = results["passport"]
-            print(f"Passport Version: {passport_data.get('version', 'unknown')}")
+            log(f"\nPassport Version: {passport_data.get('version', 'unknown')}", style="dim")
             if passport_data.get("build_process", {}).get("timestamp"):
-                print(f"Build Timestamp: {passport_data['build_process']['timestamp']}")
-            print(f"\n{'=' * 60}\n")
+                log(f"Build Timestamp: {passport_data['build_process']['timestamp']}", style="dim")
+            log("")
 
         # Display check results
         all_passed = _display_verification_checks(
@@ -535,7 +477,7 @@ def verify_pass(
     except typer.Exit:
         raise
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        log_error(f"Error: {e}")
         raise typer.Exit(1)
 
 
@@ -574,11 +516,9 @@ def verify_attestation_cmd(
             --max-age 3600
     """
     try:
-        print("=" * 60)
-        print("Attestation Verification")
-        print("=" * 60)
-        print(f"\nAttestation: {attestation}")
-        print(f"Passport: {passport}")
+        log_section("Attestation Verification")
+        log(f"\nAttestation: {attestation}", style="dim")
+        log(f"Passport: {passport}", style="dim")
 
         # Verify attestation
         results = verify_attestation(
@@ -600,7 +540,7 @@ def verify_attestation_cmd(
     except typer.Exit:
         raise
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        log_error(f"Error: {e}")
         raise typer.Exit(1)
 
 
@@ -692,11 +632,9 @@ passport: Path = typer.Argument(
 
         # Phase 1: Attestation Verification (if provided)
         if attestation:
-            print("=" * 60)
-            print("Phase 1: Attestation Verification")
-            print("=" * 60)
-            print(f"\nAttestation: {attestation}")
-            print(f"Passport: {passport}")
+            log_section("Phase 1: Attestation Verification")
+            log(f"\nAttestation: {attestation}", style="dim")
+            log(f"Passport: {passport}", style="dim")
 
             # Verify attestation
             attestation_results = verify_attestation(
@@ -714,43 +652,41 @@ passport: Path = typer.Argument(
 
             # Stop here if attestation fails and strict mode
             if not attestation_passed and strict:
-                print(f"\n✗ Stopping verification due to attestation failure (strict mode)", file=sys.stderr)
+                log_error("Stopping verification due to attestation failure (strict mode)")
                 raise typer.Exit(1)
 
         # Phase 2: Passport Content Verification
-        print("=" * 60)
         phase_title = "Phase 2: Passport Content Verification" if attestation else "Passport Verification"
-        print(phase_title)
-        print("=" * 60)
+        log_section(phase_title)
 
         # Gather verification inputs
         git_commit = None
         cargo_lock_hash = None
 
         if manifest:
-            print(f"\nLoading verification manifest: {manifest.name}")
+            log(f"\nLoading verification manifest: {manifest.name}")
         elif project_dir:
-            print(f"\nGathering verification data from project...")
+            log(f"\nGathering verification data from project...")
             # Get git commit
             git_info = get_git_info(project_dir)
             if git_info:
                 git_commit = git_info["commit_hash"]
-                print(f"  ✓ Git commit: {git_commit[:8]}...")
+                log_success(f"Git commit: {git_commit[:8]}...")
             else:
-                print(f"  ⊘ Not a git repository")
+                log_warning("Not a git repository")
 
             # Get Cargo.lock hash
             cargo_lock = project_dir / "Cargo.lock"
             if cargo_lock.exists():
                 cargo_lock_hash = hash_cargo_lock(cargo_lock)
-                print(f"  ✓ Cargo.lock hash: {cargo_lock_hash[:16]}...")
+                log_success(f"Cargo.lock hash: {cargo_lock_hash[:16]}...")
             else:
-                print(f"  ⊘ Cargo.lock not found")
+                log_warning("Cargo.lock not found")
 
-        print(f"\nVerifying passport: {passport.name}")
+        log(f"\nVerifying passport: {passport.name}")
 
         # Run passport verification
-        passport_results = verify_passport(
+        passport_results = verify_build_passport(
             passport_path=passport,
             manifest_path=manifest,
             git_commit=git_commit,
@@ -762,9 +698,9 @@ passport: Path = typer.Argument(
         # Show passport metadata
         if passport_results["passport"]:
             passport_data = passport_results["passport"]
-            print(f"\nPassport Version: {passport_data.get('version', 'unknown')}")
+            log(f"\nPassport Version: {passport_data.get('version', 'unknown')}", style="dim")
             if passport_data.get("build_process", {}).get("timestamp"):
-                print(f"Build Timestamp: {passport_data['build_process']['timestamp']}")
+                log(f"Build Timestamp: {passport_data['build_process']['timestamp']}", style="dim")
 
         # Display passport results
         passport_passed = _display_verification_checks(
@@ -778,17 +714,17 @@ passport: Path = typer.Argument(
         overall_passed = attestation_passed and passport_passed
 
         if attestation:
-            print("\n" + "=" * 60)
+            log("\n")
+            log_section("Overall Results")
             if overall_passed:
-                print("✓ OVERALL VERIFICATION PASSED")
-                print("  Both attestation and passport verification succeeded")
+                log_success("OVERALL VERIFICATION PASSED")
+                log("  Both attestation and passport verification succeeded", style="dim")
             else:
-                print("✗ OVERALL VERIFICATION FAILED")
+                log_error("OVERALL VERIFICATION FAILED")
                 if not attestation_passed:
-                    print("  Attestation verification failed")
+                    log("  Attestation verification failed", style="dim")
                 if not passport_passed:
-                    print("  Passport content verification failed")
-            print("=" * 60)
+                    log("  Passport content verification failed", style="dim")
 
         if not overall_passed:
             raise typer.Exit(1)
@@ -796,7 +732,7 @@ passport: Path = typer.Argument(
     except typer.Exit:
         raise
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        log_error(f"Error: {e}")
         raise typer.Exit(1)
 
 
@@ -827,36 +763,34 @@ def tee_build(
 
 
     try:
-        print("=" * 60)
-        print("Tee Build")
-        print("=" * 60)
+        log_section("TEE Build")
 
         # Create source archive
-        print(f"\n[1/4] Creating source archive from {project_dir}...")
+        log(f"\n[1/4] Creating source archive from {project_dir}...")
         with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp:
             archive_path = Path(tmp.name)
 
         # Create zip manually to include .git but exclude target/
-        print(f"  Creating zip archive (including .git, excluding target/)...")
+        log("  Creating zip archive (including .git, excluding target/)...", style="dim")
 
         with zipfile.ZipFile(archive_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
             for file_path in project_dir.rglob('*'):
                 if file_path.is_file():
                     relative_path = file_path.relative_to(project_dir)
                     # Exclude target directory and common build artifacts
-                    if not any(part in ['target', '__pycache__', '.pytest_cache', 'node_modules']
+                    if not any(part in ['target', '__pycache__', '.pytest_cache', 'node_modules', 'passport.json', 'manifest.json']
                               for part in relative_path.parts):
                         zipf.write(file_path, relative_path)
 
         # Show git info if available
         git_info = get_git_info(project_dir)
         if git_info:
-            print(f"  ✓ Including git metadata from commit {git_info['commit_hash'][:8]}...")
+            log_success(f"Including git metadata from commit {git_info['commit_hash'][:8]}...")
 
-        print(f"  ✓ Archive created: {archive_path.stat().st_size / 1024:.1f} KB")
+        log_success(f"Archive created: {archive_path.stat().st_size / 1024:.1f} KB")
 
         # Upload and build
-        print(f"\n[2/4] Uploading to {api_url}/build...")
+        log(f"\n[2/4] Uploading to {api_url}/build...")
         with open(archive_path, "rb") as f:
             response = requests.post(
                 f"{api_url}/build",
@@ -865,44 +799,44 @@ def tee_build(
             )
 
         if response.status_code != 200:
-            print(f"  ✗ API error: {response.status_code}", file=sys.stderr)
-            print(response.text, file=sys.stderr)
+            log_error(f"API error: {response.status_code}")
+            log(response.text)
             raise typer.Exit(1)
 
         result = response.json()
         build_id = result["build_id"]
 
         if result["status"] != "success":
-            print(f"  ✗ Build failed: {result.get('error', 'Unknown error')}", file=sys.stderr)
+            log_error(f"Build failed: {result.get('error', 'Unknown error')}")
             raise typer.Exit(1)
 
-        print(f"  ✓ Build succeeded")
-        print(f"  ✓ Build ID: {build_id}")
+        log_success("Build succeeded")
+        log_success(f"Build ID: {build_id}")
 
         # Create output directory
         output_dir = Path(f"kettle-{build_id}")
         output_dir.mkdir(exist_ok=True)
 
         # Save passport and attestation
-        print(f"\n[3/4] Saving passport and attestation to {output_dir}/...")
+        log(f"\n[3/4] Saving passport and attestation to {output_dir}/...")
 
         # Save passport
         if result.get("passport"):
             passport_path = output_dir / "passport.json"
             passport_path.write_text(json.dumps(result["passport"], indent=2))
-            print(f"  ✓ Passport: {passport_path}")
+            log_success(f"Passport: {passport_path}")
 
         # Save attestation
         if result.get("attestation"):
             attestation_path = output_dir / "evidence.b64"
             attestation_path.write_text(result["attestation"])
-            print(f"  ✓ Attestation: {attestation_path}")
+            log_success(f"Attestation: {attestation_path}")
         else:
-            print(f"  ⊘ Attestation not available")
+            log_warning("Attestation not available")
 
         # Download artifacts
         if result.get("artifacts"):
-            print(f"\n[4/4] Downloading {len(result['artifacts'])} artifact(s) to {output_dir}/...")
+            log(f"\n[4/4] Downloading {len(result['artifacts'])} artifact(s) to {output_dir}/...")
             for artifact_name in result["artifacts"]:
                 try:
                     artifact_response = requests.get(
@@ -915,37 +849,36 @@ def tee_build(
                         artifact_path.write_bytes(artifact_response.content)
                         artifact_path.chmod(0o755)  # Make executable
                         size_kb = len(artifact_response.content) / 1024
-                        print(f"  ✓ {artifact_name}: {artifact_path} ({size_kb:.1f} KB)")
+                        log_success(f"{artifact_name}: {artifact_path} ({size_kb:.1f} KB)")
                     else:
-                        print(f"  ⊘ Failed to download {artifact_name} (HTTP {artifact_response.status_code})")
+                        log_warning(f"Failed to download {artifact_name} (HTTP {artifact_response.status_code})")
 
                 except Exception as e:
-                    print(f"  ⊘ Failed to download {artifact_name}: {e}")
+                    log_warning(f"Failed to download {artifact_name}: {e}")
         else:
-            print(f"\n[4/4] No artifacts to download")
+            log("\n[4/4] No artifacts to download")
 
-        print("\n" + "=" * 60)
-        print("✓ Remote build complete")
-        print("=" * 60)
+        log("\n")
+        log_success("Remote build complete")
 
         # Summary
-        print(f"\nBuild artifacts in: {output_dir}/")
+        log(f"\nBuild artifacts in: {output_dir}/", style="bold")
         if result.get("passport"):
-            print(f"  - passport.json")
+            log("  - passport.json", style="dim")
         if result.get("attestation"):
-            print(f"  - evidence.b64")
+            log("  - evidence.b64", style="dim")
         if result.get("artifacts"):
             for artifact_name in result["artifacts"]:
-                print(f"  - {artifact_name}")
+                log(f"  - {artifact_name}", style="dim")
 
         # Cleanup
         archive_path.unlink()
 
     except requests.exceptions.RequestException as e:
-        print(f"\n✗ API request failed: {e}", file=sys.stderr)
+        log_error(f"API request failed: {e}")
         raise typer.Exit(1)
     except Exception as e:
-        print(f"\n✗ Error: {e}", file=sys.stderr)
+        log_error(f"Error: {e}")
         raise typer.Exit(1)
 
 def main():
