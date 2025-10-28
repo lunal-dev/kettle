@@ -22,6 +22,7 @@ from .passport import generate_passport, verify_build_passport
 from .results import CheckResult
 from .toolchain import get_toolchain_info
 from .utils import hash_passport_to_32bytes
+from .merkle import generate_inclusion_proofs, verify_inclusion_proof_from_data
 
 
 app = typer.Typer(help="Build-time verification and attestation for TEE deployments")
@@ -852,6 +853,129 @@ def tee_build(
     except Exception as e:
         log_error(f"Error: {e}")
         raise typer.Exit(1)
+
+
+@app.command(name="prove-inclusion")
+def prove_inclusion(
+    passport: Path = typer.Argument(
+        ...,
+        help="Path to passport JSON file",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+    ),
+    hashes: list[str] = typer.Argument(
+        ...,
+        help="Hash values to prove inclusion for (supports partial matching)",
+    ),
+    output: Path = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Save proofs to JSON file (default: print to stdout)",
+    ),
+):
+    """Generate and verify Merkle inclusion proofs for hashes in a passport.
+
+    This command both generates proofs that specified hashes are included in
+    the passport's merkle root AND immediately verifies those proofs.
+
+    Supports partial hash matching for convenience (e.g., "abc123" or "serde:1.0").
+
+    Examples:
+        # Prove inclusion of cargo.lock hash
+        attestable-builds prove-inclusion passport.json abc123...
+
+        # Prove multiple hashes
+        attestable-builds prove-inclusion passport.json hash1 hash2 hash3
+
+        # Prove inclusion of a dependency by partial match
+        attestable-builds prove-inclusion passport.json serde:1.0
+
+        # Save proofs to file
+        attestable-builds prove-inclusion passport.json abc123 --output proofs.json
+    """
+    try:
+        log_section("Merkle Inclusion Proof")
+
+        # Load passport
+        log(f"\nLoading passport: {passport}")
+        passport_data = json.loads(passport.read_text())
+
+        log(f"Generating proofs for {len(hashes)} hash(es)...\n")
+
+        # Generate proofs
+        result = generate_inclusion_proofs(passport_data, hashes)
+
+        # Display generation results
+        log(f"Merkle Root: {result['merkle_root']}", style="bold")
+        log(f"Tree Size: {result['tree_size']} leaves\n")
+
+        if result['proofs']:
+            log_success(f"Generated {len(result['proofs'])} proof(s):")
+            for proof in result['proofs']:
+                log(f"\n  Target: {proof['target_hash']}", style="bold")
+                log(f"  Label: {proof['label']}", style="dim")
+                log(f"  Leaf Index: {proof['leaf_index']}", style="dim")
+                log(f"  Leaf Hash: {proof['leaf_value'][:32]}...", style="dim")
+                log(f"  Proof Size: {len(json.dumps(proof['proof']))} bytes", style="dim")
+
+        if result['not_found']:
+            log("\n")
+            log_warning(f"{len(result['not_found'])} hash(es) not found:")
+            for missing in result['not_found']:
+                log(f"  - {missing}", style="dim")
+
+        # Verify the proofs immediately
+        if result['proofs']:
+            log("\n")
+            log_section("Verifying Proofs")
+
+            merkle_root = bytes.fromhex(result['merkle_root'])
+            all_valid = True
+
+            for i, proof in enumerate(result['proofs'], 1):
+                log(f"\n[{i}/{len(result['proofs'])}] {proof['label']}", style="bold")
+                log(f"  Target: {proof['target_hash']}", style="dim")
+
+                is_valid = verify_inclusion_proof_from_data(proof, merkle_root)
+
+                if is_valid:
+                    log_success("  Proof VALID")
+                else:
+                    log_error("  Proof INVALID")
+                    all_valid = False
+
+            # Final verification result
+            log("\n")
+            if all_valid:
+                log_success(f"All {len(result['proofs'])} proof(s) verified successfully")
+            else:
+                log_error("Some proofs failed verification")
+                if output:
+                    output.write_text(json.dumps(result, indent=2))
+                    log_warning(f"Proofs saved to: {output} (contains invalid proofs)")
+                raise typer.Exit(1)
+
+        # Save if requested
+        if output and result['proofs']:
+            output.write_text(json.dumps(result, indent=2))
+            log("\n")
+            log_success(f"Proofs saved to: {output}")
+        elif output:
+            log_warning("No proofs generated, file not saved")
+
+        # Exit with error if some hashes weren't found
+        if result['not_found'] and not result['proofs']:
+            raise typer.Exit(1)
+
+    except json.JSONDecodeError as e:
+        log_error(f"Invalid JSON in passport: {e}")
+        raise typer.Exit(1)
+    except Exception as e:
+        log_error(f"Error: {e}")
+        raise typer.Exit(1)
+
 
 def main():
     """Entry point for CLI."""
