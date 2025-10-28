@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from subprocess import CalledProcessError
 
+from kettle.logger import log, log_error, log_success
 from kettle.subprocess_utils import run_command
 from kettle.utils import hash_passport_to_32bytes
 
@@ -67,51 +68,50 @@ def verify_attestation(
         }
         return results
 
-
     # Step 2: Cryptographic verification via attest-amd
     try:
         result = run_command(
-            ["attest-amd", "verify", str(attestation_path), custom_data_hex, "--check-custom-data"]
+            ["./attest-amd", "verify", str(attestation_path), custom_data_hex, "--check-custom-data"]
         )
 
         # Parse JSON output from stdout
         try:
             attestation_report = json.loads(result.stdout)
 
-            # Print report data for sanity check
-            print("=== Attestation Verification Report ===")
-            print(f"Overall Status: {attestation_report.get('status', 'unknown')}")
+            # Log report data for verification
+            log("\n[Attestation Report]", style="bold")
+            log(f"Status: {attestation_report.get('status', 'unknown')}", style="dim")
 
             # Check certificate chain verification
             if 'certs' in attestation_report:
-                print("✓ Certificate chain verified")
+                log_success("Certificate chain verified")
                 certs = attestation_report['certs']
                 if 'certificateChain' in certs:
-                    print("  - Certificate chain present and validated")
+                    log("  - Certificate chain present and validated", style="dim")
                 if 'vcekCert' in certs:
-                    print("  - VCEK certificate present and validated")
+                    log("  - VCEK certificate present and validated", style="dim")
 
-            # Check launch measurement verification and print it
+            # Check launch measurement verification
             if 'report' in attestation_report:
                 report = attestation_report['report']
                 if 'measurement' in report:
                     measurement = report['measurement']
-                    print("✓ Launch measurement verified")
+                    log_success("Launch measurement verified")
                     # Convert measurement bytes to hex string for readability
                     measurement_hex = ''.join(f'{b:02x}' for b in measurement)
-                    print(f"  - Measurement: {measurement_hex}")
+                    log(f"  - Measurement: {measurement_hex}", style="dim")
 
-                print(f"  - Guest SVN: {report.get('guest_svn', 'N/A')}")
-                print(f"  - Policy: {report.get('policy', 'N/A')}")
-                print(f"  - Version: {report.get('version', 'N/A')}")
-                print(f"  - VMPL: {report.get('vmpl', 'N/A')}")
+                log(f"  - Guest SVN: {report.get('guest_svn', 'N/A')}", style="dim")
+                log(f"  - Policy: {report.get('policy', 'N/A')}", style="dim")
+                log(f"  - Version: {report.get('version', 'N/A')}", style="dim")
+                log(f"  - VMPL: {report.get('vmpl', 'N/A')}", style="dim")
 
             # Check report data verification
             if 'report_data' in attestation_report:
-                print("✓ Report data verified")
-                print(f"  - Report data: {attestation_report['report_data']}")
+                log_success("Report data verified")
+                log(f"  - Report data: {attestation_report['report_data']}", style="dim")
 
-            print("=======================================\n")
+            log("")
 
             # Check if verification was successful
             if attestation_report.get('status') == 'verified':
@@ -134,7 +134,7 @@ def verify_attestation(
                 "verified": False,
                 "message": f"Failed to parse attestation report JSON: {e}",
             }
-            print(f"Raw stdout: {result.stdout}")
+            log_error(f"Raw stdout: {result.stdout}")
             return results
 
     except FileNotFoundError:
@@ -150,11 +150,11 @@ def verify_attestation(
             "verified": False,
             "message": f"Cryptographic verification failed: {e.stderr.strip() if e.stderr else 'Unknown error'}",
         }
-        print(f"Process failed with return code: {e.returncode}")
+        log_error(f"Process failed with return code: {e.returncode}")
         if e.stdout:
-            print(f"Stdout: {e.stdout}")
+            log(f"Stdout: {e.stdout}", style="dim")
         if e.stderr:
-            print(f"Stderr: {e.stderr}")
+            log(f"Stderr: {e.stderr}", style="dim")
         return results
 
     return results

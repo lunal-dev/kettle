@@ -414,7 +414,7 @@ def load_verification_manifest(manifest_path: Path) -> dict:
         raise ValueError(f"Failed to load verification manifest: {e}")
 
 
-def verify_passport(
+def verify_build_passport(
     passport_path: Path,
     manifest_path: Optional[Path] = None,
     git_commit: Optional[str] = None,
