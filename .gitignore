@@ -20,6 +20,7 @@ manifest.json
 
 builds/
 outputs/
+target
 
 claude.md
 .claudeignore

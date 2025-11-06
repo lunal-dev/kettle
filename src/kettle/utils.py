@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 import secrets
 
 def hash_file(file_path: Path) -> str:
-    """Calculate SHA256 hash of a file.
+    """Calculate SHA256 hash of a file using streaming reads.
 
     Args:
         file_path: Path to the file to hash
@@ -16,7 +16,11 @@ def hash_file(file_path: Path) -> str:
     Returns:
         Hexadecimal SHA256 hash of the file contents
     """
-    return hashlib.sha256(file_path.read_bytes()).hexdigest()
+    hasher = hashlib.sha256()
+    with open(file_path, "rb") as f:
+        while chunk := f.read(8192):
+            hasher.update(chunk)
+    return hasher.hexdigest()
 
 
 def hash_json(json_obj: Any) -> str:

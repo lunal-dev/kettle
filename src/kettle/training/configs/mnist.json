@@ -1,0 +1,6 @@
+{
+  "type": "mlp",
+  "input_size": 784,
+  "hidden_sizes": [128],
+  "output_size": 10
+}

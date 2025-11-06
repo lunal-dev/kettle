@@ -977,6 +977,138 @@ def prove_inclusion(
         raise typer.Exit(1)
 
 
+@app.command()
+def train(
+    config: Path = typer.Argument(None, help="Path to model config JSON"),
+    dataset: Path = typer.Option(None, "--dataset", "-d", help="Dataset directory (auto-downloads if not specified)"),
+    output: Path = typer.Option(
+        "./training-output", "--output", "-o", help="Output directory"
+    ),
+    quick: bool = typer.Option(False, "--quick", help="Quick test mode (1 epoch)"),
+    rebuild_binary: bool = typer.Option(False, "--rebuild-binary", help="Force rebuild of training binary"),
+):
+    """
+    Train a model with attestable training.
+
+    Training uses default settings: 10 epochs (or 1 with --quick), batch_size=256, lr=0.01, seed=42.
+
+    Examples:
+      kettle train config.json              # Train with custom config
+      kettle train config.json --quick      # Quick 1-epoch test
+    """
+    try:
+        from .training import train as train_impl
+
+        # Handle quick mode
+        if quick:
+            log("[yellow]Quick mode: Training for 1 epoch only")
+
+        # Use built-in MNIST config if no config provided
+        if config is None:
+            import kettle
+            config = Path(kettle.__file__).parent / "training" / "configs" / "mnist.json"
+
+        # Validate config path
+        if not config.exists():
+            log_error(f"Model configuration not found: {config}")
+            raise typer.Exit(1)
+
+        # Validate dataset if custom path provided
+        if dataset and not dataset.exists():
+            log_error(f"Dataset directory not found: {dataset}")
+            raise typer.Exit(1)
+
+        # Run training
+        passport_path = train_impl(
+            config=config,
+            dataset_path=dataset,
+            output_dir=output,
+            quick=quick,
+            rebuild_binary=rebuild_binary,
+        )
+
+        log("\n")
+        log_success(f"Training passport: {passport_path}")
+
+    except Exception as e:
+        log_error(f"Training failed: {e}")
+        raise typer.Exit(1)
+
+
+@app.command(name="train-verify")
+def train_verify(
+    passport: Path = typer.Argument(..., help="Path to training passport JSON"),
+):
+    """Verify a training passport and its chain of trust."""
+    try:
+        from .training import verify_training_passport
+
+        if not passport.exists():
+            log_error(f"Training passport not found: {passport}")
+            raise typer.Exit(1)
+
+        success = verify_training_passport(passport)
+
+        if not success:
+            raise typer.Exit(1)
+
+    except Exception as e:
+        log_error(f"Verification failed: {e}")
+        raise typer.Exit(1)
+
+
+
+
+@app.command(name="verify-determinism")
+def verify_determinism_cmd(
+    checkpoint1: Path = typer.Argument(..., help="Path to first checkpoint file"),
+    checkpoint2: Path = typer.Argument(..., help="Path to second checkpoint file"),
+):
+    """Verify deterministic training by comparing checkpoint hashes.
+
+    This command compares two checkpoint files to verify that training is deterministic.
+    If the hashes match, it proves that the same inputs produce identical outputs.
+
+    Example:
+        kettle verify-determinism run1/final.safetensors run2/final.safetensors
+    """
+    try:
+        from .training_inputs import hash_file
+
+        log_section("Verifying Determinism")
+
+        # Verify files exist
+        if not checkpoint1.exists():
+            log_error(f"Checkpoint 1 not found: {checkpoint1}")
+            raise typer.Exit(1)
+        if not checkpoint2.exists():
+            log_error(f"Checkpoint 2 not found: {checkpoint2}")
+            raise typer.Exit(1)
+
+        log(f"\nCheckpoint 1: {checkpoint1}")
+        hash1 = hash_file(checkpoint1)
+        log(f"  Hash: {hash1}")
+
+        log(f"\nCheckpoint 2: {checkpoint2}")
+        hash2 = hash_file(checkpoint2)
+        log(f"  Hash: {hash2}")
+
+        log("")
+        if hash1 == hash2:
+            log_success("✓ Checkpoints are identical - training is deterministic!")
+            log("  Same inputs produce the same outputs", style="dim")
+        else:
+            log_error("✗ Checkpoints differ - training is NOT deterministic!")
+            log("  Different hashes indicate non-determinism", style="dim")
+            raise typer.Exit(1)
+
+    except typer.Exit:
+        raise
+    except Exception as e:
+        log_error(f"Error: {e}")
+        raise typer.Exit(1)
+
+
 def main():
     """Entry point for CLI."""
     app()
