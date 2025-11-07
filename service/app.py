@@ -47,6 +47,13 @@ async def build(source: UploadFile = File(...)):
         git_info, cargo_lock_hash, results, toolchain = verify_inputs(project_dir, verbose=False)
         build_result = execute_build(project_dir, release=True)
 
+        # Create build-config directory and copy Cargo.lock
+        build_config_dir = build_dir / "build-config"
+        build_config_dir.mkdir()
+        cargo_lock_path = project_dir / "Cargo.lock"
+        if cargo_lock_path.exists():
+            shutil.copy2(cargo_lock_path, build_config_dir / "Cargo.lock")
+
         # Generate passport
         output_artifacts = [(a["path"], a["hash"]) for a in build_result["artifacts"]]
         passport_path = build_dir / "passport.json"
@@ -68,6 +75,9 @@ async def build(source: UploadFile = File(...)):
             artifact_path = Path(artifact["path"])
             shutil.copy2(artifact_path, artifacts_dir / artifact_path.name)
             artifact_names.append(artifact_path.name)
+
+        # List build-config files
+        build_config_files = [f.name for f in build_config_dir.iterdir() if f.is_file()]
 
         # Generate attestation
         import os
@@ -95,6 +105,7 @@ async def build(source: UploadFile = File(...)):
             "passport": passport_data,
             "attestation": attestation_b64,
             "artifacts": artifact_names,
+            "build_config_files": build_config_files,
         }
 
         # Add attestation status if it failed
@@ -121,6 +132,16 @@ def get_artifact(build_id: str, name: str):
     """Download binary artifact."""
     from fastapi.responses import FileResponse
     path = BUILDS / build_id / "artifacts" / name
+    if not path.exists():
+        raise HTTPException(404)
+    return FileResponse(path)
+
+
+@app.get("/builds/{build_id}/build-config/{name}")
+def get_build_config(build_id: str, name: str):
+    """Download build config file (e.g., Cargo.lock)."""
+    from fastapi.responses import FileResponse
+    path = BUILDS / build_id / "build-config" / name
     if not path.exists():
         raise HTTPException(404)
     return FileResponse(path)

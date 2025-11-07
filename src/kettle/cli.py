@@ -786,12 +786,20 @@ def tee_build(
         log_success("Build succeeded")
         log_success(f"Build ID: {build_id}")
 
-        # Create output directory
+        # Create output directory structure
         output_dir = Path(f"kettle-{build_id}")
         output_dir.mkdir(exist_ok=True)
 
+        # Create subdirectories
+        artifacts_dir = output_dir / "artifacts"
+        artifacts_dir.mkdir(exist_ok=True)
+        build_config_dir = output_dir / "build-config"
+        build_config_dir.mkdir(exist_ok=True)
+        source_dir = output_dir / "source"
+        source_dir.mkdir(exist_ok=True)
+
         # Save passport and attestation
-        log(f"\n[3/4] Saving passport and attestation to {output_dir}/...")
+        log(f"\n[3/5] Saving passport and attestation to {output_dir}/...")
 
         # Save passport
         if result.get("passport"):
@@ -807,9 +815,32 @@ def tee_build(
         else:
             log_warning("Attestation not available")
 
+        # Download build-config files
+        if result.get("build_config_files"):
+            log(f"\n[4/5] Downloading {len(result['build_config_files'])} build config file(s) to {build_config_dir}/...")
+            for config_file in result["build_config_files"]:
+                try:
+                    config_response = requests.get(
+                        f"{api_url}/builds/{build_id}/build-config/{config_file}",
+                        timeout=60
+                    )
+
+                    if config_response.status_code == 200:
+                        config_path = build_config_dir / config_file
+                        config_path.write_bytes(config_response.content)
+                        size_kb = len(config_response.content) / 1024
+                        log_success(f"{config_file}: {config_path} ({size_kb:.1f} KB)")
+                    else:
+                        log_warning(f"Failed to download {config_file} (HTTP {config_response.status_code})")
+
+                except Exception as e:
+                    log_warning(f"Failed to download {config_file}: {e}")
+        else:
+            log("\n[4/5] No build config files to download")
+
         # Download artifacts
         if result.get("artifacts"):
-            log(f"\n[4/4] Downloading {len(result['artifacts'])} artifact(s) to {output_dir}/...")
+            log(f"\n[5/5] Downloading {len(result['artifacts'])} artifact(s) to {artifacts_dir}/...")
             for artifact_name in result["artifacts"]:
                 try:
                     artifact_response = requests.get(
@@ -818,7 +849,7 @@ def tee_build(
                     )
 
                     if artifact_response.status_code == 200:
-                        artifact_path = output_dir / artifact_name
+                        artifact_path = artifacts_dir / artifact_name
                         artifact_path.write_bytes(artifact_response.content)
                         artifact_path.chmod(0o755)  # Make executable
                         size_kb = len(artifact_response.content) / 1024
@@ -829,7 +860,7 @@ def tee_build(
                 except Exception as e:
                     log_warning(f"Failed to download {artifact_name}: {e}")
         else:
-            log("\n[4/4] No artifacts to download")
+            log("\n[5/5] No artifacts to download")
 
         log("\n")
         log_success("Remote build complete")
@@ -840,9 +871,14 @@ def tee_build(
             log("  - passport.json", style="dim")
         if result.get("attestation"):
             log("  - evidence.b64", style="dim")
+        if result.get("build_config_files"):
+            log("  - build-config/", style="dim")
+            for config_file in result["build_config_files"]:
+                log(f"    - {config_file}", style="dim")
         if result.get("artifacts"):
+            log("  - artifacts/", style="dim")
             for artifact_name in result["artifacts"]:
-                log(f"  - {artifact_name}", style="dim")
+                log(f"    - {artifact_name}", style="dim")
 
         # Cleanup
         archive_path.unlink()
