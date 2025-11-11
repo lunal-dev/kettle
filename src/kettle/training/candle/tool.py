@@ -122,6 +122,7 @@ class CandleTrainingTool:
         from ...git import get_git_info
         from ...toolchain import get_toolchain_info
         from ...utils import hash_file
+        from ...cargo import parse_cargo_lock, verify_all
 
         # Get git info from the main repo
         repo_root = Path(__file__).parent.parent.parent.parent
@@ -156,6 +157,16 @@ class CandleTrainingTool:
         cargo_lock = self.source_dir / "Cargo.lock"
         cargo_lock_hash = hash_file(cargo_lock) if cargo_lock.exists() else ""
 
+        # Verify dependencies
+        verification_results = None
+        if cargo_lock.exists():
+            console.print("[cyan]Verifying dependencies...")
+            dependencies = parse_cargo_lock(cargo_lock)
+            console.print(f"Found {len(dependencies)} external dependencies", style="dim")
+            verification_results = verify_all(dependencies)
+            verified_count = sum(1 for r in verification_results if r["verified"])
+            console.print(f"[green]✓ Verified {verified_count}/{len(verification_results)} dependencies")
+
         # Get binary hash
         binary_hash = hash_file(self.binary_path)
         output_artifacts = [(self.binary_path, binary_hash)]
@@ -165,7 +176,7 @@ class CandleTrainingTool:
             git_source=git_info,
             cargo_lock_hash=cargo_lock_hash,
             toolchain=toolchain,
-            verification_results=None,  # No dependency verification for training binary
+            verification_results=verification_results,
             output_artifacts=output_artifacts,
             output_path=self.build_passport_path,
         )
