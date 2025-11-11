@@ -27,7 +27,6 @@ from .constants import (
     QUICK_MODE_LOG_INTERVAL,
     CHECKPOINTS_SUBDIR,
     FINAL_CHECKPOINT_FILENAME,
-    TRAINING_RESULTS_FILENAME,
     TRAINING_PASSPORT_FILENAME,
 )
 from .inputs import TrainingInputs
@@ -183,16 +182,35 @@ def train(
     from .inputs import hash_file
     final_checkpoint_hash = hash_file(final_checkpoint)
 
-    # Load training results from Rust output
-    results_path = checkpoints_dir / TRAINING_RESULTS_FILENAME
-    if not results_path.exists():
-        raise RuntimeError(f"Training results not found at {results_path}")
+    # Load training metrics from safetensors checkpoint metadata
+    # Parse safetensors format directly (no framework dependencies)
+    try:
+        import struct
+        with open(final_checkpoint, "rb") as f:
+            # Safetensors format: 8-byte header size (little-endian uint64), then JSON header
+            header_size_bytes = f.read(8)
+            if len(header_size_bytes) != 8:
+                raise ValueError("Invalid safetensors file: missing header size")
 
-    with open(results_path, "r") as f:
-        training_result = json.load(f)
+            header_size = struct.unpack("<Q", header_size_bytes)[0]
+            header_json = f.read(header_size).decode("utf-8")
+            header = json.loads(header_json)
 
-    # Add checkpoint hash to results
-    training_result["final_checkpoint_hash"] = final_checkpoint_hash
+            # Metadata is in __metadata__ field
+            metadata = header.get("__metadata__", {})
+            if not metadata:
+                raise ValueError("No metadata found in checkpoint")
+
+        total_epochs = int(metadata.get("total_epochs", "0"))
+        final_train_loss = float(metadata.get("final_train_loss", "0.0"))
+    except Exception as e:
+        raise RuntimeError(f"Failed to read metrics from checkpoint metadata: {e}")
+
+    training_result = {
+        "final_checkpoint_hash": final_checkpoint_hash,
+        "total_epochs": total_epochs,
+        "final_train_loss": final_train_loss,
+    }
 
     # Step 6: Create training passport
     passport = create_training_passport(

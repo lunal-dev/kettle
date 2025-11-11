@@ -28,5 +28,4 @@ CHECKPOINTS_SUBDIR = "checkpoints"
 
 # Training-specific filenames
 FINAL_CHECKPOINT_FILENAME = "final.safetensors"
-TRAINING_RESULTS_FILENAME = "training-results.json"
 TRAINING_PASSPORT_FILENAME = "passport.json"

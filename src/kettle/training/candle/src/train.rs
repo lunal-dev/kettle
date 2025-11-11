@@ -59,20 +59,40 @@ impl Trainer {
             final_loss = self.train_epoch(&model, &mut optimizer, dataset)?;
         }
 
-        // Save final checkpoint
+        // Save final checkpoint with embedded metadata
         let final_checkpoint_path = output_dir.join("final.safetensors");
+
+        // Save checkpoint (candle handles safetensors format)
         self.varmap.save(&final_checkpoint_path)?;
 
-        // Save training results
-        let results_path = output_dir.join("training-results.json");
-        let results_json = format!(
-            r#"{{
-  "total_epochs": {},
-  "final_train_loss": {}
-}}"#,
-            self.config.epochs, final_loss
-        );
-        std::fs::write(&results_path, results_json)?;
+        // Add metadata to the saved safetensors file by rewriting it
+        use std::collections::HashMap;
+
+        // Read and keep file bytes in scope for the lifetime of the views
+        let file_bytes = std::fs::read(&final_checkpoint_path)?;
+        let safetensors_view = safetensors::SafeTensors::deserialize(&file_bytes)?;
+
+        // Create metadata
+        let mut metadata = HashMap::new();
+        metadata.insert("total_epochs".to_string(), self.config.epochs.to_string());
+        metadata.insert("final_train_loss".to_string(), final_loss.to_string());
+
+        // Collect tensor views (keeping them borrowed from file_bytes)
+        let tensors_data: Vec<_> = safetensors_view
+            .names()
+            .iter()
+            .map(|name| {
+                let view = safetensors_view.tensor(name).unwrap();
+                (name.clone(), view)
+            })
+            .collect();
+
+        // Serialize with metadata
+        safetensors::serialize_to_file(
+            tensors_data,
+            &Some(metadata),
+            &final_checkpoint_path,
+        )?;
 
         Ok(())
     }
