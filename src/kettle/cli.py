@@ -979,11 +979,9 @@ def prove_inclusion(
 
 @app.command()
 def train(
-    config: Path = typer.Argument(None, help="Path to model config JSON"),
-    dataset: Path = typer.Option(None, "--dataset", "-d", help="Dataset directory (auto-downloads if not specified)"),
-    output: Path = typer.Option(
-        "./training-output", "--output", "-o", help="Output directory"
-    ),
+    config: Path = typer.Argument(Path("./config.json"), help="Path to model config JSON (default: ./config.json)"),
+    dataset: Path = typer.Option(Path("./data"), "--dataset", "-d", help="Path to dataset directory (default: ./data)"),
+    output: Path = typer.Option(Path("./output"), "--output", "-o", help="Output directory (default: ./output)"),
     quick: bool = typer.Option(False, "--quick", help="Quick test mode (1 epoch)"),
     rebuild_binary: bool = typer.Option(False, "--rebuild-binary", help="Force rebuild of training binary"),
 ):
@@ -991,10 +989,12 @@ def train(
     Train a model with attestable training.
 
     Training uses default settings: 10 epochs (or 1 with --quick), batch_size=256, lr=0.01, seed=42.
+    If dataset is missing and download.py exists next to config, auto-downloads dataset.
 
     Examples:
-      kettle train config.json              # Train with custom config
-      kettle train config.json --quick      # Quick 1-epoch test
+      kettle train                                         # Use defaults (./config.json, ./data, ./output)
+      kettle train --quick                                 # Quick test with defaults
+      kettle train custom.json --dataset /path             # Custom paths
     """
     try:
         from .training import train as train_impl
@@ -1003,22 +1003,12 @@ def train(
         if quick:
             log("[yellow]Quick mode: Training for 1 epoch only")
 
-        # Use built-in MNIST config if no config provided
-        if config is None:
-            import kettle
-            config = Path(kettle.__file__).parent / "training" / "configs" / "mnist.json"
-
         # Validate config path
         if not config.exists():
             log_error(f"Model configuration not found: {config}")
             raise typer.Exit(1)
 
-        # Validate dataset if custom path provided
-        if dataset and not dataset.exists():
-            log_error(f"Dataset directory not found: {dataset}")
-            raise typer.Exit(1)
-
-        # Run training
+        # Run training (auto-downloads dataset if missing)
         passport_path = train_impl(
             config=config,
             dataset_path=dataset,

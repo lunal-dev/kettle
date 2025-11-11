@@ -62,7 +62,7 @@ fn main() -> Result<()> {
     // Load dataset
     let device = candle_core::Device::Cpu;
     let dataset = MnistDataset::load(&cli.dataset, &device)
-        .context("Failed to load dataset - ensure MNIST files exist in dataset directory")?;
+        .context("Failed to load dataset - ensure dataset files exist in dataset directory")?;
 
     // Create trainer and train with all parameters from CLI
     let mut trainer = Trainer::new(TrainConfig {
@@ -72,7 +72,7 @@ fn main() -> Result<()> {
         master_seed: cli.seed,
         log_interval: cli.log_interval,
     })?;
-    trainer.train(&model_config, &dataset, &cli.output)?;
+    trainer.train(&model_config, &dataset as &dyn dataset::Dataset, &cli.output)?;
 
     Ok(())
 }

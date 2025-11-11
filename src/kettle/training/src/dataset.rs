@@ -4,10 +4,19 @@ use anyhow::{Context, Result};
 use candle_core::{DType, Device, Tensor};
 use std::path::Path;
 
+/// Generic dataset trait for attestable training
+pub trait Dataset {
+    /// Get number of training samples
+    fn train_size(&self) -> usize;
+
+    /// Get a single training sample by index
+    fn get_train_sample(&self, index: usize) -> Result<(Tensor, Tensor)>;
+}
+
 /// MNIST dataset loader
 pub struct MnistDataset {
-    pub train_images: Tensor,
-    pub train_labels: Tensor,
+    train_images: Tensor,
+    train_labels: Tensor,
 }
 
 impl MnistDataset {
@@ -26,9 +35,16 @@ impl MnistDataset {
             train_labels,
         })
     }
+}
 
-    /// Get number of training samples
-    pub fn train_size(&self) -> usize {
+impl Dataset for MnistDataset {
+    fn train_size(&self) -> usize {
         self.train_images.dims()[0]
+    }
+
+    fn get_train_sample(&self, index: usize) -> Result<(Tensor, Tensor)> {
+        let image = self.train_images.get(index)?;
+        let label = self.train_labels.get(index)?;
+        Ok((image, label))
     }
 }

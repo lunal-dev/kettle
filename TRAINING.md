@@ -33,44 +33,25 @@ Attestable training provides:
 
 ## Quick Start
 
-### 1. Train the Model
+**See [examples/training/mnist/](examples/training/mnist/) for a complete working example.**
 
-The training binary auto-installs on first use. The MNIST dataset and configuration are built-in by default:
+### 1. Train a Model
 
 ```bash
+# Train with your dataset and config
+kettle train config.json --dataset /path/to/data --output ./training-output
+
 # Quick test (1 epoch)
-kettle train --quick
-
-# Full training (uses built-in MNIST config and auto-downloads dataset)
-kettle train
-```
-
-Or train with a custom configuration:
-
-```bash
-# Create custom model config
-cat > my_config.json << EOF
-{
-  "type": "mlp",
-  "input_size": 784,
-  "hidden_sizes": [128],
-  "output_size": 10,
-  "dropout": 0.0
-}
-EOF
-
-# Train with custom config
-kettle train my_config.json --output ./training-output
+kettle train config.json --dataset /path/to/data --quick
 ```
 
 This will:
 
 1. Auto-build training binary if needed (first run only)
-2. Auto-download MNIST dataset if not cached
-3. Hash all training inputs (dataset, config, binary)
-4. Build a merkle tree of inputs
-5. Execute deterministic training
-6. Generate a training passport
+2. Hash all training inputs (dataset, config, binary)
+3. Build a merkle tree of inputs
+4. Execute deterministic training
+5. Generate a training passport
 
 ### 2. Verify the Training Passport
 
@@ -92,34 +73,32 @@ This verifies:
 Train a model with attestable training.
 
 ```bash
-kettle train [CONFIG] [OPTIONS]
+kettle train CONFIG --dataset DATASET [OPTIONS]
 ```
 
 **Arguments:**
 
-- `config`: Path to model configuration JSON (optional, defaults to built-in MNIST config)
+- `config`: Path to model configuration JSON
+- `--dataset`, `-d`: Path to dataset directory (required)
 
 **Options:**
 
-- `--dataset`, `-d`: Dataset directory (optional, auto-downloads MNIST if not specified)
 - `--output`, `-o`: Output directory (default: `./training-output`)
 - `--quick`: Quick test mode (1 epoch)
 - `--rebuild-binary`: Force rebuild of training binary
 - `--tee`: Execute training in TEE with attestation (future)
 
-**Note:** Training uses default values defined in `training_constants.py`.
-
 **Examples:**
 
 ```bash
-# Quick test with built-in MNIST config
-kettle train --quick
+# Train with dataset
+kettle train config.json --dataset /path/to/data
 
-# Full training with built-in config
-kettle train
+# Quick test
+kettle train config.json --dataset /path/to/data --quick
 
-# Custom config
-kettle train my_config.json --output ./my-model
+# Custom output
+kettle train config.json --dataset /path/to/data --output ./my-model
 ```
 
 ### `kettle train-verify`
@@ -154,11 +133,11 @@ The training passport follows the same structure as build passports (version 1.0
       "candle_version": "0.9.1"
     },
     "dataset": {
-      "path": "/path/to/mnist",
+      "path": "/path/to/dataset",
       "hash": "sha256:..."
     },
     "model_config": {
-      "path": "mnist.json",
+      "path": "config.json",
       "hash": "sha256:..."
     },
     "master_seed": 42
@@ -209,23 +188,15 @@ Train twice with the same seed and compare checkpoint hashes:
 
 ```bash
 # First run
-kettle train mnist.json ./data --output ./run1 --seed 42
+kettle train config.json --dataset ./data --output ./run1
 
 # Second run
-kettle train mnist.json ./data --output ./run2 --seed 42
+kettle train config.json --dataset ./data --output ./run2
 
-# Compare final weights hashes
-# Both should have identical final_weights_hash in their passports
-diff <(jq .outputs.final_weights.hash run1/training-passport.json) \
-     <(jq .outputs.final_weights.hash run2/training-passport.json)
-```
-
-Or use the Rust binary directly:
-
-```bash
-kettle-train verify-determinism \
-  --checkpoint1 run1/checkpoints/final.safetensors \
-  --checkpoint2 run2/checkpoints/final.safetensors
+# Compare checkpoints
+kettle verify-determinism \
+  run1/checkpoints/final.safetensors \
+  run2/checkpoints/final.safetensors
 ```
 
 ### Rebuilding the Training Binary
@@ -245,23 +216,26 @@ attestable-builds/
 │   ├── training_tool.py      # Binary build/cache management
 │   ├── training_inputs.py    # Input verification and hashing
 │   ├── training_passport.py  # Passport schema
-│   └── training/             # Integrated Rust training binary
+│   └── training/             # Rust training binary
 │       ├── Cargo.toml
-│       ├── configs/
-│       │   └── mnist.json    # Built-in MNIST config
 │       └── src/
 │           ├── main.rs       # CLI entry point
 │           ├── train.rs      # Training loop
 │           ├── model.rs      # MLP neural network
-│           └── dataset.rs    # MNIST data loading
+│           └── dataset.rs    # Dataset trait + MNIST impl
+├── examples/
+│   └── training/
+│       └── mnist/            # MNIST example
+│           ├── config.json
+│           ├── download_mnist.py
+│           ├── train_mnist.py
+│           └── README.md
 └── TRAINING.md               # This file
 
 ~/.cache/kettle/training/     # Cached training binary
 ├── bin/kettle-train          # Built binary
 └── build-passport.json       # Binary's build passport
 ```
-
-The Rust training code is integrated directly in the main repository.
 
 ## Troubleshooting
 

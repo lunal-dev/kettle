@@ -7,7 +7,7 @@ use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 use std::path::Path;
 
-use crate::dataset::MnistDataset;
+use crate::dataset::Dataset;
 use crate::model::{Mlp, MLPConfig};
 
 /// Training configuration
@@ -36,11 +36,11 @@ impl Trainer {
         })
     }
 
-    /// Train a model on MNIST dataset
+    /// Train a model on dataset
     pub fn train(
         &mut self,
         model_config: &MLPConfig,
-        dataset: &MnistDataset,
+        dataset: &dyn Dataset,
         output_dir: &Path,
     ) -> Result<()> {
         // Create output directory
@@ -82,7 +82,7 @@ impl Trainer {
         &mut self,
         model: &Mlp,
         optimizer: &mut candle_nn::AdamW,
-        dataset: &MnistDataset,
+        dataset: &dyn Dataset,
     ) -> Result<f32> {
         let mut total_loss = 0.0;
         let mut num_batches = 0;
@@ -97,20 +97,16 @@ impl Trainer {
             let batch_indices = &indices[batch_start..batch_end];
 
             // Get batch
-            let batch_images = Tensor::stack(
-                &batch_indices
-                    .iter()
-                    .map(|&i| dataset.train_images.get(i))
-                    .collect::<Result<Vec<_>, _>>()?,
-                0,
-            )?;
-            let batch_labels = Tensor::stack(
-                &batch_indices
-                    .iter()
-                    .map(|&i| dataset.train_labels.get(i))
-                    .collect::<Result<Vec<_>, _>>()?,
-                0,
-            )?;
+            let batch_samples: Vec<(Tensor, Tensor)> = batch_indices
+                .iter()
+                .map(|&i| dataset.get_train_sample(i))
+                .collect::<Result<Vec<_>>>()?;
+
+            let (images, labels): (Vec<Tensor>, Vec<Tensor>) =
+                batch_samples.into_iter().unzip();
+
+            let batch_images = Tensor::stack(&images, 0)?;
+            let batch_labels = Tensor::stack(&labels, 0)?;
 
             // Forward pass
             let logits = model.forward(&batch_images, true)?;

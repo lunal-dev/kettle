@@ -22,5 +22,9 @@ builds/
 outputs/
 target
 
+# Example outputs (downloaded/generated locally)
+examples/training/*/data/
+examples/training/*/output/
+
 claude.md
 .claudeignore
