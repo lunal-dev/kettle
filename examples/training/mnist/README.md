@@ -46,4 +46,21 @@ python download.py
 kettle train
 ```
 
+## TEE Attestation
+
+Generate cryptographic attestation proof (requires AMD SEV-SNP and `attest-amd`):
+
+```bash
+kettle train --attestation
+```
+
+Creates:
+- `output/passport.json` - Training passport
+- `evidence.b64` - AMD SEV-SNP attestation report (sidecar)
+
+Verify:
+```bash
+kettle verify-attestation evidence.b64 --passport output/passport.json
+```
+
 See [TRAINING.md](../../../TRAINING.md) for general documentation.

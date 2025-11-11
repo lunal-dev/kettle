@@ -8,7 +8,7 @@ to include training-specific information and verification data.
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from ..passport_common import MerkleVerification
 from .constants import DEFAULT_MASTER_SEED, FINAL_CHECKPOINT_FILENAME
@@ -58,7 +58,7 @@ class TrainingPassport:
 
     def to_dict(self) -> dict:
         """Convert to dictionary for serialization."""
-        return {
+        result = {
             "version": self.version,
             "inputs": {
                 "binary": {
@@ -90,6 +90,8 @@ class TrainingPassport:
             },
             "merkle_verification": self.merkle_verification.to_dict(),
         }
+
+        return result
 
     @classmethod
     def from_dict(cls, data: dict) -> "TrainingPassport":

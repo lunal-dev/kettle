@@ -984,6 +984,12 @@ def train(
     output: Path = typer.Option(Path("./output"), "--output", "-o", help="Output directory (default: ./output)"),
     quick: bool = typer.Option(False, "--quick", help="Quick test mode (1 epoch)"),
     rebuild_binary: bool = typer.Option(False, "--rebuild-binary", help="Force rebuild of training binary"),
+    attestation: bool = typer.Option(
+        False,
+        "--attestation",
+        "-a",
+        help="Generate attestation report using attest-amd command",
+    ),
 ):
     """
     Train a model with attestable training.
@@ -1033,6 +1039,19 @@ def train(
 
         log("\n")
         log_success(f"Training passport: {passport_path}")
+
+        # Generate attestation if requested
+        if attestation:
+            # Load passport
+            with open(passport_path, "r") as f:
+                passport_data = json.load(f)
+
+            # Generate attestation using existing infrastructure (sidecar model)
+            attestation_path, _ = generate_attestation(passport_data)
+            log("\n")
+            log_success("Training complete with attestation")
+            log(f"  - Passport: {passport_path}", style="dim")
+            log(f"  - Attestation: {attestation_path}", style="dim")
 
     except Exception as e:
         log_error(f"Training failed: {e}")
