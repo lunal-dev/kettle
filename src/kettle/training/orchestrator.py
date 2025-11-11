@@ -17,7 +17,7 @@ from pathlib import Path
 
 from rich.console import Console
 
-from .training_constants import (
+from .constants import (
     DEFAULT_MASTER_SEED,
     DEFAULT_EPOCHS,
     DEFAULT_BATCH_SIZE,
@@ -30,9 +30,9 @@ from .training_constants import (
     TRAINING_RESULTS_FILENAME,
     TRAINING_PASSPORT_FILENAME,
 )
-from .training_inputs import TrainingInputs
-from .training_passport import TrainingPassport, create_training_passport
-from .training_tool import CandleTrainingTool
+from .inputs import TrainingInputs
+from .passport import TrainingPassport, create_training_passport
+from .candle.tool import CandleTrainingTool
 
 console = Console()
 
@@ -180,7 +180,7 @@ def train(
     if not final_checkpoint.exists():
         raise RuntimeError(f"Final checkpoint not found at {final_checkpoint}")
 
-    from .training_inputs import hash_file
+    from .inputs import hash_file
     final_checkpoint_hash = hash_file(final_checkpoint)
 
     # Load training results from Rust output

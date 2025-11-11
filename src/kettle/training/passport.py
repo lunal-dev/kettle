@@ -10,13 +10,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from .passport_common import MerkleVerification
-from .training_constants import DEFAULT_MASTER_SEED, FINAL_CHECKPOINT_FILENAME
+from ..passport_common import MerkleVerification
+from .constants import DEFAULT_MASTER_SEED, FINAL_CHECKPOINT_FILENAME
 
 
 def _get_candle_version() -> str:
     """Read Candle version from Cargo.toml."""
-    cargo_toml_path = Path(__file__).parent / "training" / "Cargo.toml"
+    cargo_toml_path = Path(__file__).parent / "candle" / "Cargo.toml"
     if not cargo_toml_path.exists():
         return "unknown"
 

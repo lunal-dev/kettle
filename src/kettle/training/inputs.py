@@ -15,8 +15,8 @@ from typing import Dict
 
 from pymerkle import InmemoryTree as MerkleTree
 
-from .training_constants import DEFAULT_MASTER_SEED
-from .utils import hash_file
+from .constants import DEFAULT_MASTER_SEED
+from ..utils import hash_file
 
 
 def hash_directory(dir_path: Path) -> Dict[str, str]:

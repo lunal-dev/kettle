@@ -56,7 +56,7 @@ This will:
 ### 2. Verify the Training Passport
 
 ```bash
-kettle train-verify training-output/training-passport.json
+kettle train-verify training-output/passport.json
 ```
 
 This verifies:
@@ -116,7 +116,7 @@ kettle train-verify <passport>
 **Example:**
 
 ```bash
-kettle train-verify training-output/training-passport.json
+kettle train-verify training-output/passport.json
 ```
 
 ## Training Passport Schema

@@ -998,7 +998,7 @@ def train(
       kettle train custom.json --dataset /path             # Explicit config
     """
     try:
-        from .training import train as train_impl
+        from .training import train
 
         # Handle quick mode
         if quick:
@@ -1023,7 +1023,7 @@ def train(
             raise typer.Exit(1)
 
         # Run training (auto-downloads dataset if missing)
-        passport_path = train_impl(
+        passport_path = train(
             config=actual_config,
             dataset_path=actual_dataset,
             output_dir=actual_output,
@@ -1077,7 +1077,7 @@ def verify_determinism_cmd(
         kettle verify-determinism run1/final.safetensors run2/final.safetensors
     """
     try:
-        from .training_inputs import hash_file
+        from .training.inputs import hash_file
 
         log_section("Verifying Determinism")
 

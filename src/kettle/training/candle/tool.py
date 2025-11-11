@@ -52,7 +52,7 @@ class CandleTrainingTool:
         self.build_passport_path = self.cache_dir / "build-passport.json"
 
         # Source is integrated in the package
-        self.source_dir = Path(__file__).parent / "training"
+        self.source_dir = Path(__file__).parent
 
         # Ensure directories exist
         self.cache_dir.mkdir(parents=True, exist_ok=True)

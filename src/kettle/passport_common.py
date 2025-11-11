@@ -81,7 +81,7 @@ class PassportVerifier:
         Returns:
             Tuple of (success: bool, message: str)
         """
-        from .training_inputs import hash_directory_combined
+        from .training.inputs import hash_directory_combined
 
         if not dir_path.exists():
             return False, f"{label} not found: {dir_path}"
