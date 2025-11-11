@@ -33,15 +33,15 @@ Each training example follows this standard structure:
 ## Usage
 
 ```bash
+# From example directory
 cd examples/training/mnist
-
-# Quick test (auto-downloads if needed)
 kettle train --quick
 
-# Full training
-kettle train
+# Or from repository root
+kettle train examples/training/mnist --quick
 
-# Or manually download first
+# Manual download
+cd examples/training/mnist
 python download.py
 kettle train
 ```

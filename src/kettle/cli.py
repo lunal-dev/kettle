@@ -992,9 +992,10 @@ def train(
     If dataset is missing and download.py exists next to config, auto-downloads dataset.
 
     Examples:
-      kettle train                                         # Use defaults (./config.json, ./data, ./output)
+      kettle train                                         # Use ./config.json, ./data, ./output
       kettle train --quick                                 # Quick test with defaults
-      kettle train custom.json --dataset /path             # Custom paths
+      kettle train examples/training/mnist                 # Use directory as base
+      kettle train custom.json --dataset /path             # Explicit config
     """
     try:
         from .training import train as train_impl
@@ -1003,16 +1004,29 @@ def train(
         if quick:
             log("[yellow]Quick mode: Training for 1 epoch only")
 
+        # Smart config argument handling
+        if config.is_dir():
+            # Directory mode: use as base for config, data, output
+            base_dir = config
+            actual_config = base_dir / "config.json"
+            actual_dataset = base_dir / "data" if dataset == Path("./data") else dataset
+            actual_output = base_dir / "output" if output == Path("./output") else output
+        else:
+            # File mode: treat as explicit config path
+            actual_config = config
+            actual_dataset = dataset
+            actual_output = output
+
         # Validate config path
-        if not config.exists():
-            log_error(f"Model configuration not found: {config}")
+        if not actual_config.exists():
+            log_error(f"Model configuration not found: {actual_config}")
             raise typer.Exit(1)
 
         # Run training (auto-downloads dataset if missing)
         passport_path = train_impl(
-            config=config,
-            dataset_path=dataset,
-            output_dir=output,
+            config=actual_config,
+            dataset_path=actual_dataset,
+            output_dir=actual_output,
             quick=quick,
             rebuild_binary=rebuild_binary,
         )
