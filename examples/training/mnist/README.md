@@ -63,4 +63,12 @@ Verify:
 kettle verify-attestation evidence.b64 --passport output/passport.json
 ```
 
-See [TRAINING.md](../../../TRAINING.md) for general documentation.
+## Passport Contents
+
+The training passport includes:
+- Complete build passport of the training binary (with all verified dependencies including Candle)
+- Dataset and configuration hashes
+- Training metrics embedded in checkpoint metadata
+- Final model weights hash
+
+See [TRAINING.md](../../../TRAINING.md#training-passport-schema) for the complete passport structure.

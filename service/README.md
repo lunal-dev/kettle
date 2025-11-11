@@ -6,7 +6,11 @@ REST API for TEE-attested Rust builds. Upload source code, get back cryptographi
 
 Upload a Rust project zip → Verifies inputs → Builds → Generates attestation → Returns build ID
 
+**Verification includes:** Git source, Cargo.lock, all dependencies, toolchain
+
 Download: passport.json, evidence.b64, custom_data.hex, artifacts
+
+See [main README](../README.md#phase-1-input-locking--verification) for detailed verification documentation.
 
 ## Installation
 

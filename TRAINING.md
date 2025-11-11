@@ -11,6 +11,33 @@ Attestable training provides:
 - **Self-attestation chain**: Training binary itself is built and verified by the attestable builds system
 - **Complete provenance**: Training passports link the entire chain: Source Code → Binary → Model
 
+## What Gets Verified
+
+### Binary Build (Phase 1)
+
+Before training begins, the `kettle-train` binary is built and verified:
+
+1. **Source Code** - Git commit, tree hash, and binary hash
+2. **Cargo.lock** - SHA256 hash of entire lockfile
+3. **Dependencies** - All crates verified against Cargo.lock checksums
+   - Candle ML framework and all its dependencies (`candle-core`, `candle-nn`, `candle-datasets`)
+   - All transitive dependencies (serde, safetensors, rand, etc.)
+   - Platform-specific crates are verified as a subset
+4. **Toolchain** - Rust compiler and Cargo binary hashes
+
+All verification results are captured in the build passport at `inputs.binary.build_passport.inputs.dependencies[]`.
+
+### Training Inputs (Phase 2)
+
+During training, additional inputs are verified:
+
+1. **Binary** - Complete build passport embedded in training passport
+2. **Dataset** - Directory hash of all training data
+3. **Model Config** - Configuration file hash
+4. **Master Seed** - Deterministic training seed
+
+All inputs are combined into a merkle tree for cryptographic verification.
+
 ## Architecture
 
 ```
@@ -19,7 +46,10 @@ Attestable training provides:
 ├─────────────────────────────────────────────────────────┤
 │                                                          │
 │  1. Build Training Binary (Rust + Candle)               │
-│     Source Code → kettle build → Binary + Build Passport│
+│     a. Parse Cargo.lock and verify all dependencies     │
+│     b. Verify cached .crate files against checksums     │
+│     c. Build binary with verified toolchain             │
+│     → Binary + Build Passport (with dependencies)       │
 │                                                          │
 │  2. Train Model                                          │
 │     Binary + Dataset + Config → kettle train             │
@@ -86,7 +116,7 @@ kettle train CONFIG --dataset DATASET [OPTIONS]
 - `--output`, `-o`: Output directory (default: `./training-output`)
 - `--quick`: Quick test mode (1 epoch)
 - `--rebuild-binary`: Force rebuild of training binary
-- `--tee`: Execute training in TEE with attestation (future)
+- `--attestation`, `-a`: Generate TEE attestation report (requires AMD SEV-SNP and `attest-amd`)
 
 **Examples:**
 
@@ -121,16 +151,66 @@ kettle train-verify training-output/passport.json
 
 ## Training Passport Schema
 
-The training passport follows the same structure as build passports (version 1.0):
+The training passport embeds the complete Phase 1 build passport to provide full provenance:
 
 ```json
 {
   "version": "1.0",
   "inputs": {
     "binary": {
-      "build_passport_hash": "sha256:...",
-      "commit_hash": "abc123...",
-      "candle_version": "0.9.1"
+      "build_passport": {
+        "version": "1.0",
+        "inputs": {
+          "git_source": {
+            "commit_hash": "232a80c...",
+            "tree_hash": "sha256:..."
+          },
+          "cargo_lock_hash": "sha256:...",
+          "dependencies": [
+            {
+              "name": "candle-core",
+              "version": "0.9.1",
+              "source": "registry+https://github.com/rust-lang/crates.io-index",
+              "checksum": "a9f51e2ecf6efe9737af8f993433c839f956d2b6ed4fd2dd4a7c6d8b0fa667ff",
+              "verified": true
+            },
+            {
+              "name": "candle-nn",
+              "version": "0.9.1",
+              "source": "registry+https://github.com/rust-lang/crates.io-index",
+              "checksum": "c1980d53280c8f9e2c6cbe1785855d7ff8010208b46e21252b978badf13ad69d",
+              "verified": true
+            },
+            {
+              "name": "safetensors",
+              "version": "0.4.5",
+              "source": "registry+https://github.com/rust-lang/crates.io-index",
+              "checksum": "sha256:...",
+              "verified": true
+            }
+            // ... 418+ more dependencies ...
+          ],
+          "toolchain": {
+            "rustc": {
+              "binary_hash": "sha256:...",
+              "version": "1.90.0"
+            },
+            "cargo": {
+              "binary_hash": "sha256:...",
+              "version": "1.90.0"
+            }
+          }
+        },
+        "outputs": {
+          "artifacts": [
+            {
+              "path": "/path/to/kettle-train",
+              "hash": "sha256:...",
+              "type": "binary"
+            }
+          ]
+        }
+      }
     },
     "dataset": {
       "path": "/path/to/dataset",
@@ -150,28 +230,39 @@ The training passport follows the same structure as build passports (version 1.0
     },
     "metrics": {
       "total_epochs": 10,
-      "final_train_loss": 0.023
+      "final_train_loss": 0.1899
     }
   },
   "outputs": {
-    "final_weights": {
-      "path": "final.safetensors",
-      "hash": "sha256:..."
-    }
+    "artifacts": [
+      {
+        "path": "/path/to/final.safetensors",
+        "hash": "sha256:...",
+        "type": "model_weights"
+      }
+    ]
   },
   "merkle_verification": {
     "root": "sha256:...",
-    "tree_size": 5
+    "tree_size": 4
   }
 }
 ```
 
-**Structure aligned with build passports:**
+**Key Structure:**
 
-- `inputs` - All training inputs (binary, dataset, config, weights, seed)
-- `process` - Deterministic proof and training metrics
-- `outputs` - Final model weights
-- `merkle_verification` - Cryptographic verification data
+- `inputs.binary.build_passport` - **Complete Phase 1 build passport** (not just a hash)
+  - All Candle dependencies at `inputs.binary.build_passport.inputs.dependencies[]`
+  - Each dependency includes name, version, checksum, and verification status
+- `inputs.dataset` - Dataset hash
+- `inputs.model_config` - Configuration hash
+- `inputs.master_seed` - Deterministic seed
+- `process.deterministic_proof` - CPU-only execution proof
+- `process.metrics` - Training metrics embedded in checkpoint
+- `outputs.artifacts` - Final model weights
+- `merkle_verification` - Merkle tree of all inputs
+
+This provides **complete provenance** from source code through dependencies to trained model.
 
 ## Deterministic Training
 
@@ -263,14 +354,6 @@ Ensure you're using:
 ### Memory Issues
 
 Training uses batch_size=256 by default. For custom batch sizes, modify `training_constants.py` or the Rust source in `src/kettle/training/` and rebuild with `kettle train --rebuild-binary`.
-
-## Future Work
-
-- TEE training with attestation (`--tee` flag)
-- Multi-GPU support (requires non-deterministic mode)
-- Additional model architectures (CNNs, Transformers)
-- Distributed training across multiple nodes
-- Integration with model hubs (Hugging Face)
 
 ## See Also
 
