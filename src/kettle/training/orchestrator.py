@@ -214,7 +214,13 @@ def train(
     console.print("[bold green]Training Summary:[/bold green]")
     console.print(f"Total epochs: {passport.total_epochs}")
     console.print(f"Final train loss: {passport.final_train_loss:.4f}")
-    console.print(f"Final weights hash: {passport.final_weights_hash[:16]}...")
+
+    # Display output artifacts
+    for artifact in passport.output_artifacts:
+        artifact_type = artifact.get("type", "unknown").replace("_", " ").title()
+        artifact_hash = artifact["hash"]
+        console.print(f"{artifact_type} hash: {artifact_hash[:16]}...")
+
     console.print(f"Merkle root: {passport.merkle_verification.root[:16]}...")
     console.print()
 
@@ -237,14 +243,30 @@ def verify_training_passport(passport_path: Path) -> bool:
     # Load passport
     passport = TrainingPassport.load(passport_path)
 
+    # Extract build passport info for display
+    build_passport = passport.binary_build_passport
+    git_source = build_passport.get("inputs", {}).get("git_source", {})
+    commit_hash = git_source.get("commit_hash", "unknown")
+
     console.print(f"Passport version: {passport.version}")
-    console.print(f"Binary commit: {passport.binary_commit_hash[:16]}...")
+    console.print(f"Binary commit: {commit_hash[:16]}...")
     console.print(f"Dataset hash: {passport.dataset_hash[:16]}...")
     console.print(f"Merkle root: {passport.merkle_verification.root[:16]}...")
     console.print()
 
+    # Verify build passport structure
+    console.print("[bold]Verifying build passport...[/bold]")
+    if not build_passport:
+        console.print(f"[red]✗ Build passport is empty")
+        return False
+    if build_passport.get("version") != "1.0":
+        console.print(f"[red]✗ Invalid build passport version: {build_passport.get('version')}")
+        return False
+    console.print(f"[green]✓ Build passport structure is valid")
+    console.print()
+
     # Verify inputs exist
-    console.print("[bold]Verifying inputs...[/bold]")
+    console.print("[bold]Verifying training inputs...[/bold]")
 
     dataset_path = Path(passport.dataset_path)
     if not dataset_path.exists():
@@ -257,18 +279,12 @@ def verify_training_passport(passport_path: Path) -> bool:
         console.print(f"[red]✗ Model config not found: {config_path}")
         return False
     console.print(f"[green]✓ Model config found")
-
-    final_weights = Path(passport.final_weights_path)
-    if not final_weights.exists():
-        console.print(f"[red]✗ Final weights not found: {final_weights}")
-        return False
-    console.print(f"[green]✓ Final weights found")
     console.print()
 
-    # Verify hashes
-    console.print("[bold]Verifying hashes...[/bold]")
+    # Verify input hashes
+    console.print("[bold]Verifying input hashes...[/bold]")
 
-    from .passport_common import PassportVerifier
+    from ..passport_common import PassportVerifier
 
     # Verify dataset hash
     success, message = PassportVerifier.verify_directory_hash(
@@ -287,15 +303,34 @@ def verify_training_passport(passport_path: Path) -> bool:
         console.print(f"[red]✗ {message}")
         return False
     console.print(f"[green]✓ Model config hash matches")
+    console.print()
 
-    # Verify weights hash
-    success, message = PassportVerifier.verify_file_hash(
-        final_weights, passport.final_weights_hash, "Final weights"
-    )
-    if not success:
-        console.print(f"[red]✗ {message}")
+    # Verify all output artifacts
+    console.print("[bold]Verifying output artifacts...[/bold]")
+
+    if not passport.output_artifacts:
+        console.print(f"[red]✗ No output artifacts found in passport")
         return False
-    console.print(f"[green]✓ Final weights hash matches")
+
+    for artifact in passport.output_artifacts:
+        artifact_path = Path(artifact["path"])
+        artifact_hash = artifact["hash"]
+        artifact_type = artifact.get("type", "unknown")
+
+        # Check file exists
+        if not artifact_path.exists():
+            console.print(f"[red]✗ {artifact_type} not found: {artifact_path}")
+            return False
+
+        # Verify hash
+        success, message = PassportVerifier.verify_file_hash(
+            artifact_path, artifact_hash, artifact_type.replace("_", " ").title()
+        )
+        if not success:
+            console.print(f"[red]✗ {message}")
+            return False
+        console.print(f"[green]✓ {artifact_type.replace('_', ' ').title()} hash matches")
+
     console.print()
 
     console.print("[bold green]✓ Passport verification successful![/bold green]")

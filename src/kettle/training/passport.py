@@ -14,41 +14,26 @@ from ..passport_common import MerkleVerification
 from .constants import DEFAULT_MASTER_SEED, FINAL_CHECKPOINT_FILENAME
 
 
-def _get_candle_version() -> str:
-    """Read Candle version from Cargo.toml."""
-    cargo_toml_path = Path(__file__).parent / "candle" / "Cargo.toml"
-    if not cargo_toml_path.exists():
-        return "unknown"
-
-    content = cargo_toml_path.read_text()
-    for line in content.splitlines():
-        if line.strip().startswith("candle-core"):
-            # Extract version like: candle-core = "0.9.1"
-            parts = line.split('"')
-            if len(parts) >= 2:
-                return parts[1]
-    return "unknown"
-
-
 @dataclass
 class TrainingPassport:
     """
     Complete training passport for attestable ML training.
 
     This passport provides a complete record of:
-    - The training binary and its build passport
+    - The training binary and its build passport (full Phase 1 passport)
     - All training inputs (dataset, config, weights)
     - Training outputs (checkpoints, final model)
     - Training metrics and metadata
     - Merkle tree verification data
+
+    Training is "an extra step after build" - the full build passport is composed
+    into the training passport to provide complete provenance.
     """
 
     version: str = "1.0"
 
-    # Binary information
-    binary_build_passport_hash: str = ""
-    binary_commit_hash: str = ""
-    candle_version: str = ""
+    # Binary information - full Phase 1 build passport
+    binary_build_passport: dict = field(default_factory=dict)
 
     # Training inputs
     dataset_hash: str = ""
@@ -57,9 +42,8 @@ class TrainingPassport:
     model_config_path: str = ""
     master_seed: int = DEFAULT_MASTER_SEED
 
-    # Training outputs
-    final_weights_hash: str = ""
-    final_weights_path: str = ""
+    # Training outputs - mirrors build passport artifacts pattern
+    output_artifacts: List[dict] = field(default_factory=list)
 
     # Training metrics
     total_epochs: int = 0
@@ -78,9 +62,7 @@ class TrainingPassport:
             "version": self.version,
             "inputs": {
                 "binary": {
-                    "build_passport_hash": self.binary_build_passport_hash,
-                    "commit_hash": self.binary_commit_hash,
-                    "candle_version": self.candle_version,
+                    "build_passport": self.binary_build_passport,
                 },
                 "dataset": {
                     "path": self.dataset_path,
@@ -104,10 +86,7 @@ class TrainingPassport:
                 },
             },
             "outputs": {
-                "final_weights": {
-                    "path": self.final_weights_path,
-                    "hash": self.final_weights_hash,
-                },
+                "artifacts": self.output_artifacts,
             },
             "merkle_verification": self.merkle_verification.to_dict(),
         }
@@ -125,23 +104,19 @@ class TrainingPassport:
         binary = inputs.get("binary", {})
         dataset = inputs.get("dataset", {})
         config = inputs.get("model_config", {})
-        final_weights = outputs.get("final_weights", {})
 
         deterministic = process.get("deterministic_proof", {})
         metrics = process.get("metrics", {})
 
         return cls(
             version=data.get("version", "1.0"),
-            binary_build_passport_hash=binary.get("build_passport_hash", ""),
-            binary_commit_hash=binary.get("commit_hash", ""),
-            candle_version=binary.get("candle_version", _get_candle_version()),
+            binary_build_passport=binary.get("build_passport", {}),
             dataset_hash=dataset.get("hash", ""),
             dataset_path=dataset.get("path", ""),
             model_config_hash=config.get("hash", ""),
             model_config_path=config.get("path", ""),
             master_seed=inputs.get("master_seed", DEFAULT_MASTER_SEED),
-            final_weights_hash=final_weights.get("hash", ""),
-            final_weights_path=final_weights.get("path", ""),
+            output_artifacts=outputs.get("artifacts", []),
             total_epochs=metrics.get("total_epochs", 0),
             final_train_loss=metrics.get("final_train_loss", 0.0),
             deterministic_backend=deterministic.get("backend", "cpu"),
@@ -173,40 +148,38 @@ def create_training_passport(
     Create a training passport from training results.
 
     Args:
-        binary_passport: Build passport of the training binary
+        binary_passport: Full Phase 1 build passport of the training binary
         training_inputs: Verified training inputs
         training_result: Results from training (metadata JSON)
         merkle_root: Merkle root of all inputs
         output_dir: Directory containing training outputs
 
     Returns:
-        Complete training passport
+        Complete training passport with full build passport composed
     """
-    import hashlib
+    from ..utils import hash_file
 
-    # Hash binary passport
-    passport_hash = hashlib.sha256(
-        json.dumps(binary_passport, sort_keys=True).encode()
-    ).hexdigest()
+    # Hash all training output artifacts (use absolute paths)
+    final_weights_path = (output_dir / FINAL_CHECKPOINT_FILENAME).resolve()
+    final_weights_hash = hash_file(final_weights_path)
 
-    # Get final weights hash from training_result (already computed in training.py)
-    final_weights_path = output_dir / FINAL_CHECKPOINT_FILENAME
-    final_weights_hash = training_result.get("final_checkpoint_hash", "")
-
-    # Get Candle version from Cargo.toml
-    candle_version = _get_candle_version()
+    # Create artifacts list mirroring build passport pattern
+    output_artifacts = [
+        {
+            "path": str(final_weights_path),
+            "hash": final_weights_hash,
+            "type": "model_weights",
+        },
+    ]
 
     passport = TrainingPassport(
-        binary_build_passport_hash=passport_hash,
-        binary_commit_hash=binary_passport.get("commit_hash", "unknown"),
-        candle_version=candle_version,
+        binary_build_passport=binary_passport,
         dataset_hash=training_inputs.dataset_hash,
-        dataset_path=str(training_inputs.dataset_dir),
+        dataset_path=str(Path(training_inputs.dataset_dir).resolve()),
         model_config_hash=training_inputs.model_config_hash,
-        model_config_path=str(training_inputs.model_config_path),
+        model_config_path=str(Path(training_inputs.model_config_path).resolve()),
         master_seed=training_inputs.master_seed,
-        final_weights_hash=final_weights_hash,
-        final_weights_path=str(final_weights_path),
+        output_artifacts=output_artifacts,
         total_epochs=training_result.get("total_epochs", 0),
         final_train_loss=training_result.get("final_train_loss", 0.0),
         merkle_verification=MerkleVerification(

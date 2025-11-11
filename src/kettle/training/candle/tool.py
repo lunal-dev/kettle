@@ -117,30 +117,60 @@ class CandleTrainingTool:
         self._generate_build_passport()
 
     def _generate_build_passport(self) -> None:
-        """Generate a build passport for the binary."""
-        # Get git commit hash from the main repo
-        repo_root = Path(__file__).parent.parent.parent
-        result = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            capture_output=True,
-            text=True,
-            cwd=str(repo_root),
+        """Generate a Phase 1 compliant build passport for the binary."""
+        from ...passport import generate_passport
+        from ...git import get_git_info
+        from ...toolchain import get_toolchain_info
+        from ...utils import hash_file
+
+        # Get git info from the main repo
+        repo_root = Path(__file__).parent.parent.parent.parent
+        git_info = get_git_info(repo_root)
+
+        # Get toolchain info
+        try:
+            toolchain = get_toolchain_info()
+        except Exception as e:
+            console.print(f"[yellow]Warning: Could not get toolchain info: {e}")
+            console.print("[yellow]Creating simplified passport without toolchain verification")
+            # Create a minimal passport if toolchain info fails
+            passport = {
+                "version": "1.0",
+                "inputs": {
+                    "cargo_lock_hash": "unavailable",
+                    "git_source": git_info if git_info else {},
+                },
+                "outputs": {
+                    "artifacts": [{
+                        "path": str(self.binary_path),
+                        "hash": hash_file(self.binary_path),
+                    }]
+                }
+            }
+            with open(self.build_passport_path, "w") as f:
+                json.dump(passport, f, indent=2)
+            console.print(f"[green]✓ Build passport saved to {self.build_passport_path}")
+            return
+
+        # Hash Cargo.lock
+        cargo_lock = self.source_dir / "Cargo.lock"
+        cargo_lock_hash = hash_file(cargo_lock) if cargo_lock.exists() else ""
+
+        # Get binary hash
+        binary_hash = hash_file(self.binary_path)
+        output_artifacts = [(self.binary_path, binary_hash)]
+
+        # Generate Phase 1 compliant passport
+        passport = generate_passport(
+            git_source=git_info,
+            cargo_lock_hash=cargo_lock_hash,
+            toolchain=toolchain,
+            verification_results=None,  # No dependency verification for training binary
+            output_artifacts=output_artifacts,
+            output_path=self.build_passport_path,
         )
-        commit_hash = result.stdout.strip() if result.returncode == 0 else "unknown"
 
-        # Create passport
-        passport = {
-            "version": "1.0",
-            "binary_path": str(self.binary_path),
-            "source_dir": str(self.source_dir),
-            "commit_hash": commit_hash,
-            "build_method": "cargo",
-        }
-
-        with open(self.build_passport_path, "w") as f:
-            json.dump(passport, f, indent=2)
-
-        console.print(f"[green]✓ Build passport saved to {self.build_passport_path}")
+        console.print(f"[green]✓ Phase 1 build passport saved to {self.build_passport_path}")
 
     def ensure_binary(self) -> Path:
         """
