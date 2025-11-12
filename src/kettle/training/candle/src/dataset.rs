@@ -96,6 +96,37 @@ impl TensorDataset {
             train_labels,
         })
     }
+
+    /// Validate dataset against model configuration
+    pub fn validate(&self, expected_input_size: usize, expected_output_size: usize) -> Result<()> {
+        // Check feature dimensions
+        let actual_input_size = self.train_images.dims()[1];
+        if actual_input_size != expected_input_size {
+            bail!(
+                "Feature dimension mismatch\n\
+                 Dataset has {} features but model expects {}\n\
+                 Check config.json input_size matches your dataset",
+                actual_input_size,
+                expected_input_size
+            );
+        }
+
+        // Check label values are in valid range [0, output_size)
+        let labels_vec = self.train_labels.to_vec1::<u32>()?;
+        if let Some(&max_label) = labels_vec.iter().max() {
+            if max_label >= expected_output_size as u32 {
+                bail!(
+                    "Invalid label value in dataset\n\
+                     Found label {} but model only supports classes [0, {})\n\
+                     Check config.json output_size matches your number of classes",
+                    max_label,
+                    expected_output_size
+                );
+            }
+        }
+
+        Ok(())
+    }
 }
 
 impl Dataset for TensorDataset {

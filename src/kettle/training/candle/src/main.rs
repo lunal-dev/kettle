@@ -59,6 +59,9 @@ fn main() -> Result<()> {
     let model_config =
         MLPConfig::from_file(&cli.config).context("Failed to load model configuration")?;
 
+    // Validate model configuration
+    model_config.validate().context("Invalid model configuration")?;
+
     // Load dataset
     let device = candle_core::Device::Cpu;
     let dataset = TensorDataset::load(
@@ -68,6 +71,11 @@ fn main() -> Result<()> {
         &model_config.dataset_keys.labels,
     )
     .context("Failed to load dataset - ensure train.safetensors exists in dataset directory")?;
+
+    // Validate dataset against model configuration
+    dataset
+        .validate(model_config.input_size, model_config.output_size)
+        .context("Dataset validation failed")?;
 
     // Create trainer and train with all parameters from CLI
     let mut trainer = Trainer::new(TrainConfig {

@@ -1,6 +1,6 @@
 //! Model architecture definitions for attestable training
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use candle_core::Tensor;
 use candle_nn::{linear, Linear, Module, VarBuilder};
 use serde::{Deserialize, Serialize};
@@ -49,6 +49,29 @@ impl MLPConfig {
         let content = std::fs::read_to_string(path)?;
         let config = serde_json::from_str(&content)?;
         Ok(config)
+    }
+
+    /// Validate configuration parameters
+    pub fn validate(&self) -> Result<()> {
+        if self.input_size == 0 {
+            bail!("input_size must be greater than 0");
+        }
+
+        if self.output_size == 0 {
+            bail!("output_size must be greater than 0");
+        }
+
+        if self.hidden_sizes.is_empty() {
+            bail!("hidden_sizes cannot be empty (must have at least one hidden layer)");
+        }
+
+        for (i, &size) in self.hidden_sizes.iter().enumerate() {
+            if size == 0 {
+                bail!("hidden_sizes[{}] must be greater than 0", i);
+            }
+        }
+
+        Ok(())
     }
 }
 
