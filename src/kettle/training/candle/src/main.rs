@@ -11,7 +11,7 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use std::path::PathBuf;
 
-use dataset::MnistDataset;
+use dataset::TensorDataset;
 use model::MLPConfig;
 use train::{TrainConfig, Trainer};
 
@@ -61,8 +61,13 @@ fn main() -> Result<()> {
 
     // Load dataset
     let device = candle_core::Device::Cpu;
-    let dataset = MnistDataset::load(&cli.dataset, &device)
-        .context("Failed to load dataset - ensure dataset files exist in dataset directory")?;
+    let dataset = TensorDataset::load(
+        &cli.dataset,
+        &device,
+        &model_config.dataset_keys.features,
+        &model_config.dataset_keys.labels,
+    )
+    .context("Failed to load dataset - ensure train.safetensors exists in dataset directory")?;
 
     // Create trainer and train with all parameters from CLI
     let mut trainer = Trainer::new(TrainConfig {

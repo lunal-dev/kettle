@@ -2,15 +2,19 @@
 """
 Download and verify MNIST dataset for attestable training.
 
-This script downloads the MNIST dataset and verifies checksums to ensure data integrity.
+This script downloads the MNIST dataset, verifies checksums, and converts to SafeTensors format.
 """
 
 import argparse
 import gzip
 import hashlib
+import struct
 import sys
 import urllib.request
 from pathlib import Path
+
+import numpy as np
+from safetensors.numpy import save_file
 
 
 # MNIST dataset file checksums
@@ -91,8 +95,29 @@ def download_mnist(output_dir: Path, verify: bool = True) -> None:
         # Remove gz file
         gz_path.unlink()
 
-    print("\n✓ MNIST dataset ready!")
-    print(f"Location: {output_dir.absolute()}")
+    print("\n✓ MNIST IDX files downloaded and verified!")
+
+    # Convert to SafeTensors format
+    print("\nConverting to SafeTensors format...")
+
+    def read_idx(path: Path) -> np.ndarray:
+        """Read IDX format file."""
+        with open(path, "rb") as f:
+            magic = struct.unpack(">I", f.read(4))[0]
+            dims = magic & 0xFF
+            shape = struct.unpack(">" + "I" * dims, f.read(4 * dims))
+            return np.frombuffer(f.read(), dtype=np.uint8).reshape(shape)
+
+    images = read_idx(output_dir / "train-images-idx3-ubyte").astype(np.float32).reshape(-1, 784) / 255.0
+    labels = read_idx(output_dir / "train-labels-idx1-ubyte").astype(np.uint32)
+
+    safetensors_path = output_dir / "train.safetensors"
+    save_file({"images": images, "labels": labels}, safetensors_path)
+
+    print(f"✓ Converted to {safetensors_path.name}")
+    print(f"  Images shape: {images.shape}")
+    print(f"  Labels shape: {labels.shape}")
+    print(f"\n✓ Dataset ready at: {output_dir.absolute()}")
 
 
 def main():

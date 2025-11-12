@@ -5,12 +5,42 @@ use candle_core::Tensor;
 use candle_nn::{linear, Linear, Module, VarBuilder};
 use serde::{Deserialize, Serialize};
 
+/// Dataset key configuration for SafeTensors files
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DatasetKeys {
+    #[serde(default = "DatasetKeys::default_features")]
+    pub features: String,
+    #[serde(default = "DatasetKeys::default_labels")]
+    pub labels: String,
+}
+
+impl DatasetKeys {
+    fn default_features() -> String {
+        "features".to_string()
+    }
+
+    fn default_labels() -> String {
+        "labels".to_string()
+    }
+}
+
+impl Default for DatasetKeys {
+    fn default() -> Self {
+        Self {
+            features: Self::default_features(),
+            labels: Self::default_labels(),
+        }
+    }
+}
+
 /// Configuration for a Multi-Layer Perceptron (MLP)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MLPConfig {
     pub input_size: usize,
     pub hidden_sizes: Vec<usize>,
     pub output_size: usize,
+    #[serde(default)]
+    pub dataset_keys: DatasetKeys,
 }
 
 impl MLPConfig {

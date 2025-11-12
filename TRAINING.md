@@ -96,6 +96,62 @@ This verifies:
 - Merkle tree verification passes
 - Complete chain of trust is intact
 
+## Dataset Format
+
+Training requires datasets in **SafeTensors format** for deterministic, verifiable loading.
+
+### Format Specification
+
+**File:** `train.safetensors` in your dataset directory
+
+**Tensor Requirements:**
+- Features: `(num_samples, num_features)` as float32
+- Labels: `(num_samples,)` as uint32
+- Sample counts must match
+
+**Key Configuration:**
+
+Keys are configured in `config.json` (defaults: `"features"` and `"labels"`):
+
+```json
+{
+  "type": "mlp",
+  "input_size": 784,
+  "hidden_sizes": [128],
+  "output_size": 10,
+  "dataset_keys": {
+    "features": "images",
+    "labels": "labels"
+  }
+}
+```
+
+If omitted, defaults to `"features"` and `"labels"`.
+
+### Creating Custom Datasets
+
+Example using Python:
+
+```python
+import numpy as np
+from safetensors.numpy import save_file
+
+# Your data
+features = np.random.rand(1000, 20).astype(np.float32)  # 1000 samples, 20 features
+labels = np.random.randint(0, 5, size=1000).astype(np.uint32)  # 5 classes
+
+# Save with custom key names
+save_file(
+    {"my_features": features, "my_labels": labels},
+    "data/train.safetensors"
+)
+
+# Update config.json to match:
+# "dataset_keys": {"features": "my_features", "labels": "my_labels"}
+```
+
+**Examples:** See [mnist/](examples/training/mnist/) (uses `"images"`/`"labels"`) and [iris/](examples/training/iris/) (uses `"features"`/`"labels"`).
+
 ## CLI Commands
 
 ### `kettle train`
@@ -313,13 +369,12 @@ attestable-builds/
 │           ├── main.rs       # CLI entry point
 │           ├── train.rs      # Training loop
 │           ├── model.rs      # MLP neural network
-│           └── dataset.rs    # Dataset trait + MNIST impl
+│           └── dataset.rs    # Dataset trait + SafeTensors loader
 ├── examples/
 │   └── training/
 │       └── mnist/            # MNIST example
 │           ├── config.json
-│           ├── download_mnist.py
-│           ├── train_mnist.py
+│           ├── download.py  # Downloads and converts to SafeTensors
 │           └── README.md
 └── TRAINING.md               # This file
 

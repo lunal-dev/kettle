@@ -155,7 +155,7 @@ curl -O http://localhost:8000/builds/$BUILD_ID/artifacts/myapp
 ```bash
 # Prepare training data
 cd examples/training/mnist
-python download.py  # Download MNIST dataset
+python download.py  # Downloads and converts to SafeTensors
 zip -r dataset.zip data/
 
 # Submit training job
@@ -220,8 +220,9 @@ trainings/{training_id}/
 
 ## Implementation
 
-The service calls existing CLI functions:
+The service reuses existing CLI functions:
 
+### Build Operations
 ```python
 verify_inputs()      # Verify git, Cargo.lock, dependencies, toolchain
 execute_build()      # Run cargo build
@@ -229,14 +230,27 @@ generate_passport()  # Create passport.json
 generate_attestation()  # Create evidence.b64
 ```
 
-All logic lives in the CLI. Service is just HTTP wrapper.
+### Training Operations
+```python
+train()              # Run attestable training (from training.orchestrator)
+generate_attestation()  # Create evidence.b64 (reused)
+```
+
+All logic lives in the CLI/orchestrator. Service is just an HTTP wrapper with async job management.
 
 ## Supported Projects
 
+### Builds
 Rust projects with:
 - `Cargo.toml`
 - `Cargo.lock`
 - Git repository (optional but recommended)
+
+### Training
+ML training with:
+- `config.json` (model configuration)
+- Dataset directory (zipped)
+- Supports SafeTensors dataset format and custom MLP architectures
 
 ## License
 

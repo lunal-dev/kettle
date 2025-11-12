@@ -1000,7 +1000,7 @@ def train(
     Examples:
       kettle train                                         # Use ./config.json, ./data, ./output
       kettle train --quick                                 # Quick test with defaults
-      kettle train examples/training/mnist                 # Use directory as base
+      kettle train examples/training/<example_name>        # Use directory as base
       kettle train custom.json --dataset /path             # Explicit config
     """
     try:

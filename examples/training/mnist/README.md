@@ -17,7 +17,7 @@ Dataset auto-downloads if missing.
 examples/training/mnist/
 ├── config.json    # Model configuration
 ├── data/          # Dataset (auto-downloaded, gitignored)
-├── download.py    # Dataset downloader (standard interface)
+├── download.py    # Dataset downloader (outputs SafeTensors)
 └── README.md
 ```
 
