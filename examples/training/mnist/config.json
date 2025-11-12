@@ -2,9 +2,5 @@
   "type": "mlp",
   "input_size": 784,
   "hidden_sizes": [128],
-  "output_size": 10,
-  "dataset_keys": {
-    "features": "images",
-    "labels": "labels"
-  }
+  "output_size": 10
 }
