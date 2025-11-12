@@ -101,8 +101,6 @@ make extract
 make help
 ```
 
-See [TESTING.md](TESTING.md) for detailed testing instructions.
-
 ### Manual Test
 
 #### 1. Create a test Rust project
