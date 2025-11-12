@@ -60,10 +60,11 @@ def train(
     console.print()
 
     # Auto-download dataset if missing
-    if not dataset_path.exists():
+    safetensors_file = dataset_path / "train.safetensors"
+    if not safetensors_file.exists():
         download_script = config.parent / "download.py"
         if download_script.exists():
-            console.print(f"[yellow]Dataset not found at {dataset_path}[/yellow]")
+            console.print(f"[yellow]Dataset not found at {safetensors_file}[/yellow]")
             console.print(f"[yellow]Running download script: {download_script}[/yellow]")
             console.print()
 
@@ -75,9 +76,9 @@ def train(
             console.print()
 
         # Validate dataset now exists
-        if not dataset_path.exists():
+        if not safetensors_file.exists():
             raise RuntimeError(
-                f"Dataset directory not found: {dataset_path}\n"
+                f"Dataset file not found: {safetensors_file}\n"
                 f"Expected download.py at: {download_script}"
             )
 
