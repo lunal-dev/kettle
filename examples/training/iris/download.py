@@ -6,13 +6,19 @@ This script downloads the Iris dataset from UCI ML repository and converts to Sa
 """
 
 import argparse
-import hashlib
 import sys
-import urllib.request
 from pathlib import Path
 
 import numpy as np
-from safetensors.numpy import save_file
+
+# Import shared utilities
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "src"))
+from kettle.training.dataset_utils import (
+    DownloadError,
+    VerificationError,
+    download_file,
+    save_safetensors_dataset,
+)
 
 
 IRIS_URL = "https://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data"
@@ -29,25 +35,8 @@ def download_iris(output_dir: Path, verify: bool = True) -> None:
         print(f"✓ {csv_path.name} already exists")
     else:
         print(f"Downloading Iris dataset...")
-        try:
-            urllib.request.urlretrieve(IRIS_URL, csv_path)
-        except Exception as e:
-            print(f"✗ Failed to download: {e}")
-            sys.exit(1)
-
-    # Verify checksum
-    if verify:
-        print(f"Verifying {csv_path.name}...")
-        with open(csv_path, "rb") as f:
-            actual_hash = hashlib.sha256(f.read()).hexdigest()
-
-        if actual_hash != IRIS_HASH:
-            print(f"✗ Hash mismatch!")
-            print(f"  Expected: {IRIS_HASH}")
-            print(f"  Got:      {actual_hash}")
-            sys.exit(1)
-
-        print(f"✓ {csv_path.name} verified")
+        download_file(IRIS_URL, csv_path, IRIS_HASH if verify else None)
+        print(f"✓ {csv_path.name} downloaded and verified")
 
     print("\n✓ Iris dataset downloaded!")
 
@@ -81,7 +70,7 @@ def download_iris(output_dir: Path, verify: bool = True) -> None:
 
     # Save to SafeTensors
     safetensors_path = output_dir / "train.safetensors"
-    save_file({"features": features, "labels": labels}, safetensors_path)
+    save_safetensors_dataset(features, labels, safetensors_path)
 
     print(f"✓ Converted to {safetensors_path.name}")
     print(f"  Features shape: {features.shape}")
@@ -112,7 +101,11 @@ def main():
     print("=" * 50)
     print()
 
-    download_iris(args.output, verify=not args.no_verify)
+    try:
+        download_iris(args.output, verify=not args.no_verify)
+    except (DownloadError, VerificationError) as e:
+        print(f"\n✗ Error: {e}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

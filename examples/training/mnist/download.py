@@ -7,14 +7,15 @@ This script downloads the MNIST dataset, verifies checksums, and converts to Saf
 
 import argparse
 import gzip
-import hashlib
 import struct
 import sys
-import urllib.request
 from pathlib import Path
 
 import numpy as np
-from safetensors.numpy import save_file
+
+# Import shared utilities
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "src"))
+from kettle.training.dataset_utils import DownloadError, VerificationError, save_safetensors_dataset
 
 
 # MNIST dataset file checksums
@@ -62,10 +63,10 @@ def download_mnist(output_dir: Path, verify: bool = True) -> None:
         # Download
         print(f"Downloading {gz_filename}...")
         try:
-            urllib.request.urlretrieve(MNIST_DOWNLOAD_URL + gz_filename, gz_path)
-        except Exception as e:
-            print(f"✗ Failed to download {gz_filename}: {e}")
-            sys.exit(1)
+            from kettle.training.dataset_utils import download_file
+            download_file(MNIST_DOWNLOAD_URL + gz_filename, gz_path)
+        except (DownloadError, Exception) as e:
+            raise DownloadError(f"Failed to download {gz_filename}: {e}")
 
         # Extract
         print(f"Extracting {gz_filename}...")
@@ -74,21 +75,22 @@ def download_mnist(output_dir: Path, verify: bool = True) -> None:
                 with open(output_path, "wb") as f_out:
                     f_out.write(f_in.read())
         except Exception as e:
-            print(f"✗ Failed to extract {gz_filename}: {e}")
-            sys.exit(1)
+            raise DownloadError(f"Failed to extract {gz_filename}: {e}")
 
         # Verify hash
         if verify:
             print(f"Verifying {filename}...")
+            import hashlib
             with open(output_path, "rb") as f:
                 actual_hash = hashlib.sha256(f.read()).hexdigest()
 
             if actual_hash != expected_hash:
-                print(f"✗ Hash mismatch for {filename}!")
-                print(f"  Expected: {expected_hash}")
-                print(f"  Got:      {actual_hash}")
-                print(f"  Dataset may be corrupted or tampered with.")
-                sys.exit(1)
+                output_path.unlink()
+                raise VerificationError(
+                    f"Hash mismatch for {filename}!\n"
+                    f"  Expected: {expected_hash}\n"
+                    f"  Got:      {actual_hash}"
+                )
 
             print(f"✓ {filename} verified")
 
@@ -112,11 +114,20 @@ def download_mnist(output_dir: Path, verify: bool = True) -> None:
     labels = read_idx(output_dir / "train-labels-idx1-ubyte").astype(np.uint32)
 
     safetensors_path = output_dir / "train.safetensors"
-    save_file({"images": images, "labels": labels}, safetensors_path)
+    save_safetensors_dataset(images, labels, safetensors_path, feature_key="features", label_key="labels")
 
     print(f"✓ Converted to {safetensors_path.name}")
-    print(f"  Images shape: {images.shape}")
+    print(f"  Features shape: {images.shape}")
     print(f"  Labels shape: {labels.shape}")
+
+    # Clean up .idx files (they're large and no longer needed)
+    print("\nCleaning up temporary .idx files...")
+    for filename in MNIST_FILES.keys():
+        idx_path = output_dir / filename
+        if idx_path.exists():
+            idx_path.unlink()
+    print("✓ Cleanup complete")
+
     print(f"\n✓ Dataset ready at: {output_dir.absolute()}")
 
 
@@ -143,7 +154,11 @@ def main():
     print("=" * 50)
     print()
 
-    download_mnist(args.output, verify=not args.no_verify)
+    try:
+        download_mnist(args.output, verify=not args.no_verify)
+    except (DownloadError, VerificationError) as e:
+        print(f"\n✗ Error: {e}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
