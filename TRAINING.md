@@ -150,7 +150,51 @@ save_file(
 # "dataset_keys": {"features": "my_features", "labels": "my_labels"}
 ```
 
-**Examples:** See [mnist/](examples/training/mnist/) (uses `"images"`/`"labels"`) and [iris/](examples/training/iris/) (uses `"features"`/`"labels"`).
+**Examples:** See [mnist/](examples/training/mnist/) and [iris/](examples/training/iris/) - both use default keys.
+
+### Why SafeTensors?
+
+SafeTensors was chosen for dataset format because it provides:
+
+- **Determinism**: Binary format with no parsing ambiguity (unlike CSV/JSON)
+- **Speed**: Fast zero-copy loading, no deserialization overhead
+- **Safety**: Cannot execute code (unlike pickle), resistant to attacks
+- **Verification**: Easy to hash entire file for cryptographic verification
+- **Simplicity**: Single file per dataset, standard in ML ecosystem
+
+This makes SafeTensors ideal for attestable builds where determinism and verifiability are critical.
+
+### Normalization
+
+**Features should be normalized** before saving to SafeTensors. Common patterns:
+
+- **Images**: Divide by 255 to get [0, 1] range
+- **Tabular**: Min-max scaling `(x - min) / (max - min)` or standardization `(x - mean) / std`
+
+Examples show normalization in download scripts. The training binary expects normalized f32 features.
+
+### Determinism Verification
+
+Train the same model twice and verify identical outputs:
+
+```bash
+# First training run
+kettle train config.json --dataset ./data --output ./run1 --seed 42
+
+# Second training run with same seed
+kettle train config.json --dataset ./data --output ./run2 --seed 42
+
+# Compare model weights
+sha256sum run1/checkpoints/final.safetensors
+sha256sum run2/checkpoints/final.safetensors
+# Hashes should be identical
+```
+
+For perfect bit-exact reproducibility, use:
+- Same seed
+- Same dataset and config
+- Same training binary version
+- Same OS and hardware (for CPU determinism)
 
 ## CLI Commands
 
@@ -393,9 +437,15 @@ If the training binary fails to build on first run:
 2. Check you have git installed: `git --version`
 3. Try rebuilding: `kettle train --rebuild-binary`
 
-### Training Fails
+### Common Issues
 
-If training fails, check that all dependencies are installed and try rebuilding the binary with `kettle train --rebuild-binary`.
+**Dataset not found:** Ensure `train.safetensors` exists in dataset directory (not just empty `data/` folder)
+
+**Key mismatch:** Add `dataset_keys` to config.json if your SafeTensors uses custom key names
+
+**Dimension mismatch:** Verify `input_size` and `output_size` in config match your dataset
+
+**Training fails:** Run `kettle train --rebuild-binary` to force rebuild of training binary
 
 ### Determinism Verification Fails
 
