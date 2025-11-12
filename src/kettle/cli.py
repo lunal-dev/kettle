@@ -1082,56 +1082,6 @@ def train_verify(
 
 
 
-@app.command(name="verify-determinism")
-def verify_determinism_cmd(
-    checkpoint1: Path = typer.Argument(..., help="Path to first checkpoint file"),
-    checkpoint2: Path = typer.Argument(..., help="Path to second checkpoint file"),
-):
-    """Verify deterministic training by comparing checkpoint hashes.
-
-    This command compares two checkpoint files to verify that training is deterministic.
-    If the hashes match, it proves that the same inputs produce identical outputs.
-
-    Example:
-        kettle verify-determinism run1/final.safetensors run2/final.safetensors
-    """
-    try:
-        from .training.inputs import hash_file
-
-        log_section("Verifying Determinism")
-
-        # Verify files exist
-        if not checkpoint1.exists():
-            log_error(f"Checkpoint 1 not found: {checkpoint1}")
-            raise typer.Exit(1)
-        if not checkpoint2.exists():
-            log_error(f"Checkpoint 2 not found: {checkpoint2}")
-            raise typer.Exit(1)
-
-        log(f"\nCheckpoint 1: {checkpoint1}")
-        hash1 = hash_file(checkpoint1)
-        log(f"  Hash: {hash1}")
-
-        log(f"\nCheckpoint 2: {checkpoint2}")
-        hash2 = hash_file(checkpoint2)
-        log(f"  Hash: {hash2}")
-
-        log("")
-        if hash1 == hash2:
-            log_success("✓ Checkpoints are identical - training is deterministic!")
-            log("  Same inputs produce the same outputs", style="dim")
-        else:
-            log_error("✗ Checkpoints differ - training is NOT deterministic!")
-            log("  Different hashes indicate non-determinism", style="dim")
-            raise typer.Exit(1)
-
-    except typer.Exit:
-        raise
-    except Exception as e:
-        log_error(f"Error: {e}")
-        raise typer.Exit(1)
-
-
 def main():
     """Entry point for CLI."""
     app()

@@ -175,26 +175,19 @@ Examples show normalization in download scripts. The training binary expects nor
 
 ### Determinism Verification
 
-Train the same model twice and verify identical outputs:
+Train twice and compare passport hashes to verify determinism:
 
 ```bash
-# First training run
-kettle train config.json --dataset ./data --output ./run1 --seed 42
+kettle train config.json --dataset ./data --output ./run1
+kettle train config.json --dataset ./data --output ./run2
 
-# Second training run with same seed
-kettle train config.json --dataset ./data --output ./run2 --seed 42
-
-# Compare model weights
-sha256sum run1/checkpoints/final.safetensors
-sha256sum run2/checkpoints/final.safetensors
-# Hashes should be identical
+# Compare hashes from passports
+jq '.outputs.artifacts[0].hash' run1/passport.json
+jq '.outputs.artifacts[0].hash' run2/passport.json
+# Should be identical
 ```
 
-For perfect bit-exact reproducibility, use:
-- Same seed
-- Same dataset and config
-- Same training binary version
-- Same OS and hardware (for CPU determinism)
+For perfect bit-exact reproducibility, use same seed, dataset, config, and training binary version.
 
 ## CLI Commands
 
@@ -375,7 +368,7 @@ Training is fully deterministic when:
 
 ### Verifying Determinism
 
-Train twice with the same seed and compare checkpoint hashes:
+Train twice and compare passport hashes:
 
 ```bash
 # First run
@@ -384,10 +377,10 @@ kettle train config.json --dataset ./data --output ./run1
 # Second run
 kettle train config.json --dataset ./data --output ./run2
 
-# Compare checkpoints
-kettle verify-determinism \
-  run1/checkpoints/final.safetensors \
-  run2/checkpoints/final.safetensors
+# Compare model hashes from passports
+jq '.outputs.artifacts[0].hash' run1/passport.json
+jq '.outputs.artifacts[0].hash' run2/passport.json
+# Should be identical
 ```
 
 ### Rebuilding the Training Binary
