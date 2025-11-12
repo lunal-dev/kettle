@@ -1,6 +1,8 @@
 # MNIST Training Example
 
-Demonstrates attestable training with the MNIST dataset.
+**[← Training Examples](../)** | **[Main README](../../../README.md)** | **[Training Documentation](../../../TRAINING.md)**
+
+Demonstrates attestable training with the MNIST handwritten digit dataset.
 
 ## Quick Start
 
@@ -9,66 +11,29 @@ cd examples/training/mnist
 kettle train --quick
 ```
 
-Dataset auto-downloads if missing.
+Dataset auto-downloads if missing. See [common usage patterns](../#common-usage-patterns) for more options.
 
-## Directory Structure
+## Dataset Details
 
-```
-examples/training/mnist/
-├── config.json    # Model configuration
-├── data/          # Dataset (auto-downloaded, gitignored)
-├── download.py    # Dataset downloader (outputs SafeTensors)
-└── README.md
-```
+**MNIST Dataset:**
+- 70,000 grayscale images (28×28 pixels)
+- 60,000 training samples + 10,000 test samples
+- 10 classes: handwritten digits 0-9
+- Pixel values normalized to [0, 1]
+- Labels as uint32 (0-9)
 
-## Interface
+**SafeTensors keys:** `"features"` and `"labels"`
 
-Each training example follows this standard structure:
-- `config.json` - Model configuration
-- `data/` - Dataset directory (gitignored)
-- `download.py` - Downloads dataset to `./data/`
+## Model Architecture
 
-`kettle train` uses these defaults and auto-downloads dataset via `download.py` if missing.
+Simple CNN suitable for MNIST:
+- Convolutional layers for spatial feature extraction
+- Pooling for dimensionality reduction
+- Fully connected layers for classification
 
-## Usage
+See `config.json` for complete architecture specification.
 
-```bash
-# From example directory
-cd examples/training/mnist
-kettle train --quick
+## Further Documentation
 
-# Or from repository root
-kettle train examples/training/mnist --quick
-
-# Manual download
-cd examples/training/mnist
-python download.py
-kettle train
-```
-
-## TEE Attestation
-
-Generate cryptographic attestation proof (requires AMD SEV-SNP and `attest-amd`):
-
-```bash
-kettle train --attestation
-```
-
-Creates:
-- `output/passport.json` - Training passport
-- `evidence.b64` - AMD SEV-SNP attestation report (sidecar)
-
-Verify:
-```bash
-kettle verify-attestation evidence.b64 --passport output/passport.json
-```
-
-## Passport Contents
-
-The training passport includes:
-- Complete build passport of the training binary (with all verified dependencies including Candle)
-- Dataset and configuration hashes
-- Training metrics embedded in checkpoint metadata
-- Final model weights hash
-
-See [TRAINING.md](../../../TRAINING.md#training-passport-schema) for the complete passport structure.
+- **[Training Examples Overview](../)** - Standard structure, TEE attestation, passport contents
+- **[TRAINING.md](../../../TRAINING.md)** - Complete training documentation and troubleshooting

@@ -1,5 +1,7 @@
 # Attestable Builds Service
 
+**[← Back to Main README](../README.md)** | **[Architecture](../ARCHITECTURE.md)** | **[Training Documentation](../TRAINING.md)**
+
 REST API for TEE-attested Rust builds and ML training. Upload source code or training data, get back cryptographically verified artifacts.
 
 ## What It Does

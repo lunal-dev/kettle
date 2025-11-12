@@ -1,5 +1,7 @@
 # Attestable Training with Candle
 
+**[← Main README](README.md)** | **[Examples](examples/training/)**
+
 This document describes how to use the attestable training feature, which extends the attestable builds system to machine learning model training using [Candle ML framework](https://github.com/huggingface/candle).
 
 ## Overview
@@ -63,7 +65,7 @@ All inputs are combined into a merkle tree for cryptographic verification.
 
 ## Quick Start
 
-**See [examples/training/mnist/](examples/training/mnist/) for a complete working example.**
+**See [examples/training/](examples/training/) for ready-to-run examples** (MNIST, Iris).
 
 ### 1. Train a Model
 
@@ -150,7 +152,7 @@ save_file(
 # "dataset_keys": {"features": "my_features", "labels": "my_labels"}
 ```
 
-**Examples:** See [mnist/](examples/training/mnist/) and [iris/](examples/training/iris/) - both use default keys.
+**Examples:** [examples/training/](examples/training/) directory has MNIST and Iris examples - both use default keys.
 
 ### Why SafeTensors?
 
