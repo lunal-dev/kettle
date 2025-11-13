@@ -164,6 +164,7 @@ attestable-builds build . --debug --verbose
 - `--release/--debug` - Build in release or debug mode (default: release)
 - `--verbose/-v` - Show all verification results
 - `--attestation/-a` - Generate attestation report using attest-amd command (saves to evidence.b64 and custom_data.hex)
+- `--allow-dirty` - Allow uncommitted changes in git (for testing only)
 
 **Outputs:**
 

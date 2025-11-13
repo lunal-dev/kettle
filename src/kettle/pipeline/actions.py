@@ -49,6 +49,7 @@ def _execute_build(inputs: Dict[str, Any], job_output_dir: Path) -> Dict[str, Jo
     release = inputs.get("release", True)
     attestation = inputs.get("attestation", False)
     verbose = inputs.get("verbose", False)
+    allow_dirty = inputs.get("allow_dirty", False)
 
     # Set output path
     output_dir = job_output_dir
@@ -56,7 +57,9 @@ def _execute_build(inputs: Dict[str, Any], job_output_dir: Path) -> Dict[str, Jo
     passport_path = output_dir / "passport.json"
 
     # Verify inputs
-    git_info, cargo_lock_hash, results, toolchain = verify_inputs(project_dir, verbose)
+    git_info, cargo_lock_hash, results, toolchain = verify_inputs(
+        project_dir, verbose, allow_dirty=allow_dirty
+    )
 
     # Execute build
     build_result = execute_build(project_dir, release)

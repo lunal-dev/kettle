@@ -151,6 +151,7 @@ Builds a Rust project with full attestable builds verification.
 - `release` (bool) - Build in release mode (default: true)
 - `attestation` (bool) - Generate TEE attestation (default: false)
 - `verbose` (bool) - Show verbose output (default: false)
+- `allow_dirty` (bool) - Allow uncommitted changes in git, for testing (default: false)
 - `output` (Path) - Output directory (default: job output dir)
 
 **Outputs:**

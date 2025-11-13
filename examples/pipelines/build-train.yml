@@ -9,6 +9,7 @@ env:
   RELEASE_MODE: true
   ATTESTATION_ENABLED: false  # Set to true for TEE attestation
   QUICK_MODE: true  # Set to false for full 10-epoch training
+  ALLOW_DIRTY: true  # Set to false in production (allow uncommitted changes for testing)
 
 # Jobs execute in dependency order
 jobs:
@@ -20,6 +21,7 @@ jobs:
       project_dir: ./src/kettle/training/candle
       release: ${{ env.RELEASE_MODE }}
       attestation: ${{ env.ATTESTATION_ENABLED }}
+      allow_dirty: ${{ env.ALLOW_DIRTY }}
       verbose: false
     outputs:
       - passport.json

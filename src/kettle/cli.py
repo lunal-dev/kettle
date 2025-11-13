@@ -77,26 +77,36 @@ def _display_verification_checks(
 
 
 
-def verify_git_source_strict(project_dir: Path) -> tuple:
+def verify_git_source_strict(project_dir: Path, allow_dirty: bool = False) -> tuple:
     """Verify git source with strict mode (fail on dirty working tree).
+
+    Args:
+        project_dir: Path to project directory
+        allow_dirty: If True, allow uncommitted changes (for testing)
 
     Returns:
         Tuple of (git_info, should_exit) where should_exit indicates if we should exit
 
     Raises:
-        typer.Exit: If working tree has uncommitted changes
+        typer.Exit: If working tree has uncommitted changes (unless allow_dirty=True)
     """
     git_info = get_git_info(project_dir)
     if git_info:
         # Check for uncommitted changes (strict mode)
         if not git_info["is_clean"]:
-            log_error("Working tree has uncommitted changes")
-            log("\nUncommitted files:")
-            for file in git_info["dirty_files"]:
-                log(f"  - {file}")
-            log("\nError: Builds require a clean git working tree.")
-            log("Commit or stash your changes before building.")
-            raise typer.Exit(1)
+            if allow_dirty:
+                log_warning("Working tree has uncommitted changes (--allow-dirty enabled)")
+                log("\nUncommitted files:")
+                for file in git_info["dirty_files"]:
+                    log(f"  - {file}", style="yellow")
+            else:
+                log_error("Working tree has uncommitted changes")
+                log("\nUncommitted files:")
+                for file in git_info["dirty_files"]:
+                    log(f"  - {file}")
+                log("\nError: Builds require a clean git working tree.")
+                log("Commit or stash your changes, or use --allow-dirty for testing.")
+                raise typer.Exit(1)
 
         log_success(f"Commit: {git_info['commit_hash']}")
         log_success(f"Tree hash: {git_info['tree_hash']}")
@@ -126,9 +136,14 @@ def print_verification_results(results, show_all: bool = False):
 
 
 def verify_inputs(
-    project_dir: Path, verbose: bool = False
+    project_dir: Path, verbose: bool = False, allow_dirty: bool = False
 ) -> tuple[dict | None, str, list[dict], dict]:
     """Verify all build inputs (git, Cargo.lock, dependencies, toolchain).
+
+    Args:
+        project_dir: Path to project directory
+        verbose: Show detailed verification results
+        allow_dirty: Allow uncommitted changes in git (for testing)
 
     Returns:
         Tuple of (git_info, cargo_lock_hash, verification_results, toolchain)
@@ -145,7 +160,7 @@ def verify_inputs(
 
     # Git source verification
     log("\n[1/4] Verifying git source...")
-    git_info = verify_git_source_strict(project_dir)
+    git_info = verify_git_source_strict(project_dir, allow_dirty=allow_dirty)
 
     # Cargo.lock hash
     log("\n[2/4] Hashing Cargo.lock...")
@@ -312,6 +327,11 @@ def build(
         "-a",
         help="Generate attestation report using attest-amd command",
     ),
+    allow_dirty: bool = typer.Option(
+        False,
+        "--allow-dirty",
+        help="Allow uncommitted changes in git (for testing only)",
+    ),
 ):
     """Build project with full input verification and output measurement.
 
@@ -324,7 +344,7 @@ def build(
     try:
         # Verify inputs
         git_info, cargo_lock_hash, results, toolchain = verify_inputs(
-            project_dir, verbose
+            project_dir, verbose, allow_dirty=allow_dirty
         )
 
         # Execute build
