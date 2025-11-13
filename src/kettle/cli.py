@@ -216,11 +216,13 @@ def execute_build(project_dir: Path, release: bool = True) -> dict:
     return build_result
 
 
-def generate_attestation(passport_data: dict) -> tuple[Path, Path]:
+def generate_attestation(passport_data: dict, output_dir: Path | None = None) -> tuple[Path, Path]:
     """Generate attestation using attest-amd command.
 
     Args:
         passport_data: Passport dictionary to hash for attestation
+        output_dir: Optional directory where evidence.b64 should be saved.
+                   If None, saves to current working directory.
 
     Returns:
         Tuple of (attestation_path, custom_data_path)
@@ -259,13 +261,19 @@ def generate_attestation(passport_data: dict) -> tuple[Path, Path]:
             # Fallback: save stdout if file wasn't created
             attestation_path.write_text(result.stdout.strip())
 
+        # Move to output directory if specified
+        if output_dir:
+            final_path = output_dir / "evidence.b64"
+            attestation_path.rename(final_path)
+            attestation_path = final_path
+
         log_success("Attestation generated successfully")
-        log_success(f"Attestation saved: {attestation_path} (base64 compressed bincode)")
-        # TODO: Uncomment when custom_data_path saving is enabled (lines 290-291)
+        log_success(f"Attestation saved: {attestation_path.resolve()} (base64 compressed bincode)")
+        # TODO: Uncomment when custom_data_path saving is enabled
         # log_success(f"Custom data saved: {custom_data_path}")
 
         # TODO: Return custom_data_path when saving is enabled
-        return attestation_path, None
+        return attestation_path.resolve(), None
 
     except subprocess.CalledProcessError as e:
         log_error(f"Attestation generation failed with exit code {e.returncode}")
@@ -1047,7 +1055,7 @@ def train(
                 passport_data = json.load(f)
 
             # Generate attestation using existing infrastructure (sidecar model)
-            attestation_path, _ = generate_attestation(passport_data)
+            attestation_path, _ = generate_attestation(passport_data, output_dir=Path(actual_output))
             log("\n")
             log_success("Training complete with attestation")
             log(f"  - Passport: {passport_path}", style="dim")

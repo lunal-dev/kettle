@@ -213,17 +213,31 @@ kettle train CONFIG --dataset DATASET [OPTIONS]
 - `--rebuild-binary`: Force rebuild of training binary
 - `--attestation`, `-a`: Generate TEE attestation report (requires AMD SEV-SNP and `attest-amd`)
 
+**Output Structure:**
+
+```
+<output-dir>/
+├── passport.json              # Training passport (always generated)
+├── evidence.b64              # TEE attestation (only with --attestation)
+└── checkpoints/
+    ├── final.safetensors     # Final trained model weights
+    └── training-results.json  # Training metadata
+```
+
 **Examples:**
 
 ```bash
 # Train with dataset
 kettle train config.json --dataset /path/to/data
 
+# Train with attestation
+kettle train config.json --dataset /path/to/data --attestation
+
 # Quick test
 kettle train config.json --dataset /path/to/data --quick
 
-# Custom output
-kettle train config.json --dataset /path/to/data --output ./my-model
+# Custom output with attestation
+kettle train config.json --dataset /path/to/data --output ./my-model --attestation
 ```
 
 ### `kettle train-verify`

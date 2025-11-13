@@ -78,23 +78,15 @@ async def build(source: UploadFile = File(...)):
             artifact_names.append(artifact_path.name)
 
         # Generate attestation
-        import os
-        old_cwd = Path.cwd()
         attestation_b64 = None
         attestation_error = None
         try:
-            os.chdir(build_dir)
-            generate_attestation(passport_data)
-
-            # Read attestation if it was created
-            attestation_path = build_dir / "evidence.b64"
+            attestation_path, _ = generate_attestation(passport_data, output_dir=build_dir)
             if attestation_path.exists():
                 attestation_b64 = attestation_path.read_text().strip()
         except Exception as e:
             attestation_error = str(e)
             print(f"Warning: Attestation failed: {e}")
-        finally:
-            os.chdir(old_cwd)
 
         # Return everything in one response
         response = {
@@ -171,17 +163,11 @@ def _run_training_job(training_id: str, config_path: Path, dataset_dir: Path,
         attestation_error = None
         if attestation:
             try:
-                old_cwd = Path.cwd()
-                os.chdir(training_dir)
-                generate_attestation(passport_data)
-
-                attestation_path = training_dir / "evidence.b64"
+                attestation_path, _ = generate_attestation(passport_data, output_dir=training_dir)
                 if attestation_path.exists():
                     attestation_b64 = attestation_path.read_text().strip()
             except Exception as e:
                 attestation_error = str(e)
-            finally:
-                os.chdir(old_cwd)
 
         # Success
         updates = {
