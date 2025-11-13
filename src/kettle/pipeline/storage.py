@@ -13,6 +13,11 @@ from typing import Dict, Optional
 from .schema import Job, JobStatus, Pipeline
 
 
+# Short UUID length for run IDs - balances readability vs collision risk
+# Collision probability: ~1 in 4 billion with 100k runs
+RUN_ID_LENGTH = 8
+
+
 class PipelineStorage:
     """Manages storage for pipeline execution artifacts."""
 
@@ -38,9 +43,9 @@ class PipelineStorage:
             pipeline: Pipeline to execute
 
         Returns:
-            Pipeline run ID (UUID)
+            Pipeline run ID (short UUID)
         """
-        run_id = str(uuid.uuid4())[:8]  # Short UUID for readability
+        run_id = str(uuid.uuid4())[:RUN_ID_LENGTH]
         run_dir = self.get_run_dir(run_id)
         run_dir.mkdir(parents=True, exist_ok=True)
 
@@ -53,10 +58,7 @@ class PipelineStorage:
             "status": "running",
         }
 
-        metadata_path = run_dir / "metadata.json"
-        with open(metadata_path, "w") as f:
-            json.dump(metadata, f, indent=2)
-
+        self._write_metadata(run_id, metadata)
         return run_id
 
     def get_run_dir(self, run_id: str) -> Path:
@@ -66,6 +68,38 @@ class PipelineStorage:
     def get_job_dir(self, run_id: str, job_id: str) -> Path:
         """Get the directory for a specific job."""
         return self.get_run_dir(run_id) / "jobs" / job_id
+
+    def _read_metadata(self, run_id: str) -> Dict:
+        """
+        Read metadata.json for a run.
+
+        Args:
+            run_id: Pipeline run ID
+
+        Returns:
+            Metadata dictionary
+
+        Raises:
+            ValueError: If run not found
+        """
+        metadata_path = self.get_run_dir(run_id) / "metadata.json"
+        if not metadata_path.exists():
+            raise ValueError(f"Pipeline run not found: {run_id}")
+
+        with open(metadata_path, "r") as f:
+            return json.load(f)
+
+    def _write_metadata(self, run_id: str, metadata: Dict):
+        """
+        Write metadata.json for a run.
+
+        Args:
+            run_id: Pipeline run ID
+            metadata: Metadata dictionary to write
+        """
+        metadata_path = self.get_run_dir(run_id) / "metadata.json"
+        with open(metadata_path, "w") as f:
+            json.dump(metadata, f, indent=2)
 
     def update_job_status(
         self, run_id: str, job: Job, error_message: Optional[str] = None
@@ -112,12 +146,8 @@ class PipelineStorage:
             status: Pipeline status (running, success, failed)
             error_message: Optional error message if pipeline failed
         """
-        run_dir = self.get_run_dir(run_id)
-        metadata_path = run_dir / "metadata.json"
-
         # Read existing metadata
-        with open(metadata_path, "r") as f:
-            metadata = json.load(f)
+        metadata = self._read_metadata(run_id)
 
         # Update status
         metadata["status"] = status
@@ -130,8 +160,7 @@ class PipelineStorage:
             metadata["error_message"] = error_message
 
         # Write back
-        with open(metadata_path, "w") as f:
-            json.dump(metadata, f, indent=2)
+        self._write_metadata(run_id, metadata)
 
     def get_pipeline_status(self, run_id: str) -> Dict:
         """
@@ -143,11 +172,4 @@ class PipelineStorage:
         Returns:
             Dictionary with pipeline status information
         """
-        run_dir = self.get_run_dir(run_id)
-        metadata_path = run_dir / "metadata.json"
-
-        if not metadata_path.exists():
-            raise ValueError(f"Pipeline run not found: {run_id}")
-
-        with open(metadata_path, "r") as f:
-            return json.load(f)
+        return self._read_metadata(run_id)

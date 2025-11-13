@@ -20,6 +20,15 @@ class ActionType(str, Enum):
     TRAIN_VERIFY = "train-verify"
 
 
+# Required inputs for each action type
+ACTION_REQUIREMENTS: Dict[ActionType, List[str]] = {
+    ActionType.BUILD: ["project_dir"],
+    ActionType.TRAIN: ["config", "dataset"],
+    ActionType.VERIFY: ["passport"],
+    ActionType.TRAIN_VERIFY: ["passport"],
+}
+
+
 class JobStatus(str, Enum):
     """Job execution status."""
 
@@ -145,37 +154,10 @@ class Pipeline:
 
     def _validate_job_inputs(self, job: Job):
         """Validate inputs for specific action types."""
-        action = job.action
-        inputs = job.inputs
+        required = ACTION_REQUIREMENTS.get(job.action, [])
+        missing = [req for req in required if req not in job.inputs]
 
-        if action == ActionType.BUILD:
-            required = ["project_dir"]
-            for req in required:
-                if req not in inputs:
-                    raise ValueError(
-                        f"Job '{job.id}': action 'build' requires input '{req}'"
-                    )
-
-        elif action == ActionType.TRAIN:
-            required = ["config", "dataset"]
-            for req in required:
-                if req not in inputs:
-                    raise ValueError(
-                        f"Job '{job.id}': action 'train' requires input '{req}'"
-                    )
-
-        elif action == ActionType.VERIFY:
-            required = ["passport"]
-            for req in required:
-                if req not in inputs:
-                    raise ValueError(
-                        f"Job '{job.id}': action 'verify' requires input '{req}'"
-                    )
-
-        elif action == ActionType.TRAIN_VERIFY:
-            required = ["passport"]
-            for req in required:
-                if req not in inputs:
-                    raise ValueError(
-                        f"Job '{job.id}': action 'train-verify' requires input '{req}'"
-                    )
+        if missing:
+            raise ValueError(
+                f"Job '{job.id}': action '{job.action.value}' requires inputs: {', '.join(missing)}"
+            )

@@ -13,6 +13,84 @@ from ..training.orchestrator import train as train_model, verify_training_passpo
 from .schema import ActionType, JobOutput
 
 
+def _get_path_input(inputs: Dict[str, Any], key: str, must_exist: bool = False) -> Path:
+    """
+    Extract and validate a path input.
+
+    Args:
+        inputs: Input dictionary
+        key: Input key to extract
+        must_exist: Whether the path must exist
+
+    Returns:
+        Resolved absolute path
+
+    Raises:
+        ValueError: If input is missing, invalid type, or doesn't exist when required
+    """
+    value = inputs.get(key)
+    if value is None:
+        raise ValueError(f"Required path input '{key}' is missing")
+
+    if not isinstance(value, (str, Path)):
+        raise ValueError(
+            f"Input '{key}' must be a path string, got {type(value).__name__}"
+        )
+
+    path = Path(value).resolve()
+
+    if must_exist and not path.exists():
+        raise ValueError(f"Input '{key}' path does not exist: {path}")
+
+    return path
+
+
+def _write_json(data: dict, path: Path) -> Path:
+    """
+    Write dict to JSON file with consistent formatting.
+
+    Args:
+        data: Dictionary to write
+        path: Path to write to (parent directories created if needed)
+
+    Returns:
+        Path to written file
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w") as f:
+        json.dump(data, f, indent=2)
+    return path
+
+
+def _read_json(path: Path) -> dict:
+    """
+    Read and validate JSON config file.
+
+    Args:
+        path: Path to JSON file
+
+    Returns:
+        Parsed dictionary
+
+    Raises:
+        ValueError: If file not found or invalid JSON
+    """
+    if not path.exists():
+        raise ValueError(f"File not found: {path}")
+
+    with open(path, "r") as f:
+        return json.load(f)
+
+
+# Action handler registry - maps action types to handler functions
+ACTION_HANDLERS = {
+    ActionType.BUILD: lambda inputs, output_dir: _execute_build(inputs, output_dir),
+    ActionType.TRAIN: lambda inputs, output_dir: _execute_train(inputs, output_dir),
+    ActionType.VERIFY: lambda inputs, output_dir: _execute_verify(inputs),
+    ActionType.TRAIN_VERIFY: lambda inputs, output_dir: _execute_train_verify(inputs),
+}
+
+
 def execute_action(
     action: ActionType, inputs: Dict[str, Any], job_output_dir: Path
 ) -> Dict[str, JobOutput]:
@@ -30,22 +108,17 @@ def execute_action(
     Raises:
         ValueError: If action fails or inputs are invalid
     """
-    if action == ActionType.BUILD:
-        return _execute_build(inputs, job_output_dir)
-    elif action == ActionType.TRAIN:
-        return _execute_train(inputs, job_output_dir)
-    elif action == ActionType.VERIFY:
-        return _execute_verify(inputs)
-    elif action == ActionType.TRAIN_VERIFY:
-        return _execute_train_verify(inputs)
-    else:
+    handler = ACTION_HANDLERS.get(action)
+    if not handler:
         raise ValueError(f"Unknown action: {action}")
+
+    return handler(inputs, job_output_dir)
 
 
 def _execute_build(inputs: Dict[str, Any], job_output_dir: Path) -> Dict[str, JobOutput]:
     """Execute build action."""
     # Extract inputs and resolve paths to absolute
-    project_dir = Path(inputs["project_dir"]).resolve()
+    project_dir = _get_path_input(inputs, "project_dir")
     release = inputs.get("release", True)
     attestation = inputs.get("attestation", False)
     verbose = inputs.get("verbose", False)
@@ -100,15 +173,12 @@ def _execute_train(
     # Handle inline dict config or external file path
     if isinstance(config_input, dict):
         # Inline config - write to job output dir
-        config = job_output_dir / "config.json"
-        job_output_dir.mkdir(parents=True, exist_ok=True)
-        with open(config, "w") as f:
-            json.dump(config_input, f, indent=2)
+        config = _write_json(config_input, job_output_dir / "config.json")
     else:
         # External config file
-        config = Path(config_input).resolve()
+        config = _get_path_input(inputs, "config")
 
-    dataset = Path(inputs["dataset"]).resolve()
+    dataset = _get_path_input(inputs, "dataset")
     output_dir = job_output_dir
     quick = inputs.get("quick", False)
     rebuild_binary = inputs.get("rebuild_binary", False)
@@ -137,9 +207,7 @@ def _execute_train(
 
     # Generate attestation if requested
     if attestation:
-        with open(passport_path, "r") as f:
-            passport_data = json.load(f)
-
+        passport_data = _read_json(passport_path)
         attestation_path, _ = generate_attestation(passport_data, output_dir=output_dir)
         outputs["evidence.b64"] = JobOutput(name="evidence.b64", path=attestation_path)
 
@@ -149,15 +217,11 @@ def _execute_train(
 def _execute_verify(inputs: Dict[str, Any]) -> Dict[str, JobOutput]:
     """Execute verify action."""
     # Extract inputs and resolve paths to absolute
-    passport_path = Path(inputs["passport"]).resolve()
-
-    if not passport_path.exists():
-        raise ValueError(f"Passport file not found: {passport_path}")
+    passport_path = _get_path_input(inputs, "passport", must_exist=True)
 
     # For verify action, we would implement verification logic here
     # For now, just validate that the passport exists and is valid JSON
-    with open(passport_path, "r") as f:
-        passport_data = json.load(f)
+    passport_data = _read_json(passport_path)
 
     if "version" not in passport_data:
         raise ValueError(f"Invalid passport: missing 'version' field")
@@ -169,10 +233,7 @@ def _execute_verify(inputs: Dict[str, Any]) -> Dict[str, JobOutput]:
 def _execute_train_verify(inputs: Dict[str, Any]) -> Dict[str, JobOutput]:
     """Execute train-verify action."""
     # Extract inputs and resolve paths to absolute
-    passport_path = Path(inputs["passport"]).resolve()
-
-    if not passport_path.exists():
-        raise ValueError(f"Passport file not found: {passport_path}")
+    passport_path = _get_path_input(inputs, "passport", must_exist=True)
 
     # Verify training passport
     try:
