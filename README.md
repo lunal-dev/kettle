@@ -1,14 +1,8 @@
-# Attestable Builds - Phase 1 POC
+# Attestable Builds
 
-**Cryptographic verification of build inputs for Rust projects**
+**Cryptographic verification of build inputs and TEE-attested build execution**
 
-This tool implements Phase 1 of attestable builds:
-
-- **Phase 1**: Establishing verifiable provenance for all build inputs
-
-## Overview
-
-Unlike reproducible builds which require bit-for-bit identical outputs, attestable builds shift the question from:
+Attestable builds provide cryptographic proof that a binary was built from specific sources using specific dependencies and toolchain, executed in a trusted environment. Unlike reproducible builds, which require bit-for-bit identical outputs, attestable builds shift the question from:
 
 - ❌ "Does this binary have hash X?"
 
@@ -16,61 +10,40 @@ To:
 
 - ✅ "Was this binary with hash X produced by process Y from sources Z in environment W?"
 
-This approach is more practical and resilient than reproducible builds while providing the same security guarantees through cryptographic attestation.
+This approach is more practical and resilient while providing strong security guarantees through cryptographic attestation.
 
-## Phase 1: Input Locking & Verification
+## Documentation
 
-Phase 1 establishes a complete chain of custody for all build inputs:
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - System architecture and implementation details
+- **[SECURITY.md](SECURITY.md)** - Security model, threat model, and trust assumptions
+- **[service/README.md](service/README.md)** - REST API service documentation
+- **[TRAINING.md](TRAINING.md)** - ML training attestation documentation
+- **[PIPELINES.md](PIPELINES.md)** - Pipeline orchestration system (GitHub Actions-like workflows)
 
-### What Gets Verified
+## How It Works
 
-1. **Source Code** - Complete git verification:
-   - Git commit hash (exact source code version)
-   - Git tree hash (cryptographic proof of source tree state)
-   - Git binary hash (cryptographic proof of git tool itself)
-   - Working tree cleanliness (no uncommitted changes)
-2. **Cargo.lock** - SHA256 hash of entire lockfile
-3. **Dependencies** - Verify actual `.crate` files in cargo cache against Cargo.lock checksums
-4. **Toolchain** - Hash `rustc` and `cargo` binaries to prove which compiler was used
+### Phase 1: Input Verification
 
-### Verification Strategy
+Verifies and records all build inputs:
 
-The tool verifies that cached dependencies are a **subset** of Cargo.lock:
+- **Source Code** - Git commit/tree hash, clean working tree, git binary hash
+- **Cargo.lock** - SHA256 hash of entire lockfile
+- **Dependencies** - Verify .crate files in cargo cache match Cargo.lock checksums
+- **Toolchain** - Hash rustc and cargo binaries
 
-- ✅ Every `.crate` file in cargo cache must be in Cargo.lock with matching checksum
-- ✅ Platform-specific dependencies can be absent (not all Cargo.lock deps are needed)
-- ❌ Extra crates in cache that aren't in Cargo.lock are flagged as suspicious
+Outputs a **passport.json** containing cryptographic hashes of all inputs and build outputs.
 
-This handles the reality that `Cargo.lock` contains dependencies for all platforms, but builds only download platform-specific ones.
+### Phase 2: TEE Attestation (Optional)
 
-## Phase 2: TEE Build Execution & Attestation
+Generates cryptographic attestation that the build executed in a TEE:
 
-Phase 2 executes the build inside a TEE environment and generates cryptographic attestation:
+- **Passport Binding** - SHA256(passport) embedded in attestation custom data
+- **Nonce** - Freshness token for replay protection
+- **TEE Signature** - Cryptographic proof from genuine TEE hardware (AMD SEV-SNP)
 
-### What Gets Attested
+Requires `attest-amd` command for attestation generation and verification.
 
-1. **Passport Binding** - SHA256 hash of the complete passport document
-   - Embedded in attestation report's custom data (bytes 0-31)
-   - Cryptographically binds all Phase 1 inputs to the attestation
-2. **Nonce** - 32-byte freshness token for replay protection
-   - Embedded in custom data (bytes 32-63)
-   - Timestamp-based for POC (challenge-response for production)
-3. **TEE Signature** - Cryptographic signature over attestation data
-   - Verified by `attest-amd verify` command
-   - Proves the attestation came from genuine TEE hardware
-
-### Attestation Report Structure
-
-The attestation report contains:
-
-- **Report ID**: Unique identifier for this attestation
-- **Timestamp**: When the attestation was generated
-- **Launch Measurement**: Hash of build runner code (for future use)
-- **Custom Data (64 bytes)**: `Hash(passport) || Nonce`
-  - Bytes 0-31: SHA256 of passport JSON
-  - Bytes 32-63: 32-byte nonce
-- **Platform Info**: TEE type, version, status
-- **Signature**: Cryptographic signature verified by attest-amd
+See **[ARCHITECTURE.md](ARCHITECTURE.md)** for detailed build flow and **[SECURITY.md](SECURITY.md)** for security guarantees.
 
 ## Installation
 
@@ -130,6 +103,7 @@ attestable-builds build test-project
 ```
 
 This command:
+
 - Verifies all Phase 1 inputs (git, Cargo.lock, dependencies, toolchain)
 - Executes cargo build
 - Measures output artifacts
@@ -145,6 +119,7 @@ attestable-builds build test-project --attestation
 ```
 
 This generates:
+
 - `passport.json` - Complete build manifest
 - `evidence.b64` - TEE attestation report (base64-encoded, via `attest-amd attest` command)
 - `custom_data.hex` - Custom data used in attestation (passport hash + nonce)
@@ -159,6 +134,7 @@ attestable-builds verify-attestation evidence.b64 custom_data.hex \
 ```
 
 This verifies:
+
 - ✓ Cryptographic signature (via attest-amd verify)
 - ✓ Passport binding (hash in attestation matches passport)
 - ✓ Nonce freshness (timestamp-based replay protection)
@@ -183,12 +159,14 @@ attestable-builds build . --debug --verbose
 ```
 
 **Options:**
+
 - `--output/-o PATH` - Output path for passport JSON (default: passport.json)
 - `--release/--debug` - Build in release or debug mode (default: release)
 - `--verbose/-v` - Show all verification results
 - `--attestation/-a` - Generate attestation report using attest-amd command (saves to evidence.b64 and custom_data.hex)
 
 **Outputs:**
+
 - `passport.json` - Build manifest with all verified inputs and measured outputs (always generated)
 - `evidence.b64` - TEE attestation report (only with `--attestation` flag)
 - `custom_data.hex` - Custom data for attestation verification (only with `--attestation` flag)
@@ -209,17 +187,21 @@ attestable-builds verify-attestation evidence.b64 custom_data.hex \
 ```
 
 **Requirements:**
+
 - `attest-amd` must be installed for cryptographic verification
 
 **Arguments:**
+
 - `ATTESTATION` - Path to evidence.b64 file
 - `CUSTOM_DATA` - Path to custom_data.hex file
 
 **Options:**
+
 - `--passport/-p PATH` - Path to passport JSON file (required)
 - `--max-age SECONDS` - Maximum nonce age in seconds (default: 3600)
 
 **Verifies:**
+
 - ✓ Cryptographic signature (via attest-amd verify)
 - ✓ Passport binding (hash in custom data matches passport)
 - ✓ Nonce freshness (timestamp-based replay protection)
@@ -229,7 +211,7 @@ attestable-builds verify-attestation evidence.b64 custom_data.hex \
 Verify a passport document against known values.
 
 ```bash
-# Verify passport with manifest file
+# Verify passport with manifest file (expected hashes)
 attestable-builds verify passport.json --manifest manifest.json
 
 # Verify passport against project directory
@@ -237,196 +219,40 @@ attestable-builds verify passport.json --project-dir ./test-project
 
 # Verify specific binary artifact
 attestable-builds verify passport.json --binary target/release/my-app
-
-# Strict mode - fail if optional checks cannot be performed
-attestable-builds verify passport.json --manifest manifest.json --strict
 ```
 
 **Options:**
-- `--manifest/-m PATH` - Path to verification manifest JSON containing expected values
-- `--project-dir/-p PATH` - Path to project directory (for git commit and Cargo.lock verification)
-- `--binary/-b PATH` - Path to binary artifact to verify against passport outputs
-- `--strict` - Fail if any optional checks cannot be performed
 
-**Verification manifest format:**
-```json
-{
-  "git_commit": "3ae40f0b47d1e499...",
-  "git_tree_hash": "5f7a8c9d2e4b1a3f...",
-  "cargo_lock_hash": "23b2e23aa04c93c3...",
-  "input_merkle_root": "5a9f5170360ed983...",
-  "toolchain": {
-    "rustc_binary_hash": "cb5d96f4c51e916f...",
-    "cargo_binary_hash": "2f50d54779378980..."
-  },
-  "binaries": {
-    "target/release/my-app": "d7fb5de4e41dbd3a..."
-  }
-}
-```
-
-**Verifies:**
-- Passport format and structure
-- Git commit hash (from manifest or project directory)
-- Git tree hash (from manifest)
-- Cargo.lock hash (from manifest or project directory)
-- Input merkle root (from manifest)
-- Toolchain binary hashes (from manifest)
-- Binary artifact hashes (from manifest or --binary)
-
-## Architecture
-
-### Module Structure
-
-```
-src/kettle/
-├── Phase 1: Input Verification
-│   ├── git.py        # Extract git commit hash and repository URL
-│   ├── cargo.py      # Parse Cargo.lock, hash lockfile
-│   ├── toolchain.py  # Hash rustc/cargo binaries
-│   ├── passport.py   # Generate passport document
-│   ├── merkle.py     # Merkle tree construction
-│   └── build.py      # Execute cargo build
-│
-├── Phase 2: Attestation Verification
-│   └── attestation.py  # Parse and verify attestation reports
-│
-├── utils.py      # Shared utilities (file hashing)
-└── cli.py        # CLI commands and output formatting
-```
-
-### Build Flow
-
-```
-┌─────────────────────────────────────────────────────────┐
-│ Phase 1: Input Verification                             │
-├─────────────────────────────────────────────────────────┤
-│                                                          │
-│  1. Git Source (optional, but strict if present)        │
-│     ├─ Find git binary: which git                       │
-│     ├─ Hash git binary: SHA256(git executable)          │
-│     ├─ Get commit hash: git rev-parse HEAD              │
-│     ├─ Get tree hash: git rev-parse HEAD^{tree}         │
-│     ├─ Check working tree: git status --porcelain       │
-│     ├─ FAIL if uncommitted changes exist                │
-│     └─ Get repo URL: git remote get-url origin          │
-│                                                          │
-│  2. Cargo.lock Hash                                      │
-│     └─ SHA256(Cargo.lock file)                          │
-│                                                          │
-│  3. Dependencies                                         │
-│     ├─ Scan ~/.cargo/registry/cache/ for .crate files   │
-│     ├─ For each cached crate:                           │
-│     │   ├─ Look up in Cargo.lock                        │
-│     │   ├─ SHA256(crate file)                           │
-│     │   └─ Compare to Cargo.lock checksum               │
-│     └─ Flag any crates NOT in Cargo.lock                │
-│                                                          │
-│  4. Toolchain                                            │
-│     ├─ Find rustc: rustup which rustc                   │
-│     ├─ Hash: SHA256(rustc binary)                       │
-│     ├─ Find cargo: rustup which cargo                   │
-│     └─ Hash: SHA256(cargo binary)                       │
-│                                                          │
-│  5. Generate Passport                                    │
-│     ├─ Include all verified inputs                      │
-│     └─ Write passport.json                              │
-│                                                          │
-└─────────────────────────────────────────────────────────┘
-```
-
-## Security Model
-
-### What Phase 1 Proves
-
-**Input Provenance:**
-
-1. **Exact source code** via:
-   - Git commit hash (specific commit)
-   - Git tree hash (cryptographic proof of source tree)
-   - Git binary hash (cryptographic proof of git tool)
-   - Clean working tree verification (no uncommitted changes)
-2. **Exact dependency versions** via Cargo.lock hash
-3. **Integrity of cached dependencies** via .crate file checksums
-4. **Exact build toolchain** via rustc/cargo binary hashes
-
-### Trust Assumptions
-
-**Must Trust:**
-
-- Git repository integrity
-- Cargo/crates.io infrastructure (for dependency checksums in Cargo.lock)
-- Rustup distribution system (for toolchain binaries)
-
-**Do NOT Need to Trust:**
-
-- Build environment outside verification
-- Network infrastructure (after verification)
-- Third parties performing verification
-
-### Threat Model
-
-**Defends Against:**
-
-- ✅ Tampered source code (wrong git commit or tree hash)
-- ✅ Tampered git binary (wrong git binary hash)
-- ✅ Uncommitted local changes (enforced clean working tree)
-- ✅ Substituted dependencies (wrong .crate files)
-- ✅ Modified toolchain binaries (wrong rustc/cargo)
-- ✅ Extra/unexpected crates in cache
-
-**Does NOT Defend Against:**
-
-- ❌ Compromise of source repository
-- ❌ Malicious code intentionally committed
-- ❌ Vulnerabilities in dependencies (verifies integrity, not security)
-- ❌ Bugs in rustc/cargo themselves
+- `--manifest/-m PATH` - Verification manifest JSON with expected hashes
+- `--project-dir/-p PATH` - Project directory (for git/Cargo.lock checks)
+- `--binary/-b PATH` - Binary artifact to verify
+- `--strict` - Fail if optional checks cannot be performed
 
 ## Example Output
 
 ```bash
-$ attestable-builds build test-project --verbose
-
-============================================================
-Phase 1: Input Verification
-============================================================
+$ attestable-builds build test-project
 
 [1/4] Verifying git source...
   ✓ Commit: 3ae40f0b47d1e499fb93e303fd39710e6963584e
   ✓ Tree hash: 5f7a8c9d2e4b1a3f6c8e7d9b4a2f1e3c5d7a9b8c
-  ✓ Git binary: /usr/bin/git
-    Hash: a1b2c3d4e5f6g7h8...
   ✓ Working tree: clean
-  ✓ Repository: git@github.com:lunal-dev/attestable-builds.git
 
 [2/4] Hashing Cargo.lock...
-  ✓ SHA256: 23b2e23aa04c93c350cac09ac73636e4ecedf564acc7f5d1c40a7e3fcf227c10
+  ✓ SHA256: 23b2e23aa04c93c3...
 
 [3/4] Verifying dependencies...
-  Found 11 external dependencies
-
-============================================================
-Verification Results: 11/11 passed
-============================================================
-
-VERIFIED:
-  • serde 1.0.228
-    Status: Checksum verified: 9a8e94ea...
-    Cargo.lock checksum: 9a8e94ea7f378bd32cbbd37198a4a91436180c5bb472411e48b5ec2e2124ae9e
-    Crate path: /root/.cargo/registry/cache/index.crates.io-1949cf8c6b5b557f/serde-1.0.228.crate
-    Computed checksum:   9a8e94ea7f378bd32cbbd37198a4a91436180c5bb472411e48b5ec2e2124ae9e
-    Match: ✓
+  ✓ Verified 11/11 dependencies
 
 [4/4] Verifying Rust toolchain...
-  ✓ rustc: rustc 1.90.0 (1159e78c4 2025-09-14)
-    Hash: cb5d96f4c51e916f...
-  ✓ cargo: cargo 1.90.0 (840b83a10 2025-07-30)
-    Hash: 2f50d54779378980...
+  ✓ rustc 1.90.0 (cb5d96f4...)
+  ✓ cargo 1.90.0 (2f50d547...)
 
-============================================================
-✓ All Phase 1 inputs verified successfully
-============================================================
+✓ All inputs verified successfully
+✓ Passport written to passport.json
 ```
+
+Use `--verbose` flag for detailed verification output.
 
 ## Implementation Status
 
@@ -454,8 +280,6 @@ VERIFIED:
 - Launch measurement and golden measurement verification
 - Public verification service
 - Integration with CI/CD pipelines
-
-See [CLAUDE.md](CLAUDE.md) for complete design specification.
 
 ## Comparison to Reproducible Builds
 
