@@ -47,10 +47,8 @@ See **[ARCHITECTURE.md](ARCHITECTURE.md)** for detailed build flow and **[SECURI
 
 ## Installation
 
-Requires Python 3.10+ and [uv](https://docs.astral.sh/uv/):
-
 ```bash
-# Install uv (if not already installed)
+# Install uv package manager (if not already installed)
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Clone and install
@@ -61,45 +59,14 @@ uv pip install -e .
 
 ## Quick Start
 
-### Docker Test (Easiest)
-
+**Build with verification:**
 ```bash
-# Build Docker image and run Phase 2 attestable build
-make test-docker
-
-# Extract outputs for inspection
-make extract
-
-# See all available commands
-make help
+attestable-builds build /path/to/rust/project
 ```
 
-### Manual Test
-
-#### 1. Create a test Rust project
-
+**Build with TEE attestation:**
 ```bash
-# Create project
-mkdir test-project && cd test-project
-cargo init --name simple-app
-
-# Add some dependencies
-cat >> Cargo.toml << EOF
-[dependencies]
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-EOF
-
-# Generate Cargo.lock and download dependencies
-cargo generate-lockfile
-cargo fetch
-```
-
-### 2. Build with verification and passport generation
-
-```bash
-cd ..
-attestable-builds build test-project
+attestable-builds build /path/to/rust/project --attestation
 ```
 
 This command:
@@ -114,8 +81,7 @@ Use `--verbose` to see detailed dependency verification.
 ### 3. Build with attestation
 
 ```bash
-# Build and generate attestation (requires attest-amd)
-attestable-builds build test-project --attestation
+attestable-builds verify /path/to/build/outputs --project-dir /path/to/rust/project
 ```
 
 This generates:
@@ -124,14 +90,12 @@ This generates:
 - `evidence.b64` - TEE attestation report (base64-encoded, via `attest-amd attest` command)
 - `custom_data.hex` - Custom data used in attestation (passport hash + nonce)
 
-### 4. Verify attestation report
+## Key Features
 
-```bash
-# Verify attestation against passport
-attestable-builds verify-attestation evidence.b64 custom_data.hex \
-    --passport passport.json \
-    --max-age 3600
-```
+**Build Verification**
+- Verifies all build inputs: source code (git), dependencies, and toolchain
+- Generates cryptographic passport containing complete build manifest
+- Optional TEE attestation for hardware-backed proof
 
 This verifies:
 
@@ -139,23 +103,25 @@ This verifies:
 - ✓ Passport binding (hash in attestation matches passport)
 - ✓ Nonce freshness (timestamp-based replay protection)
 
-**Note**: Requires `attest-amd` to be installed for cryptographic verification.
+**Merkle Inclusion Proofs**
+- Generate proofs that specific inputs are included in build
+- Efficient verification without revealing full dependency tree
+- Useful for supply chain transparency
 
-## CLI Commands
+**Remote TEE Builds**
+- Build projects in remote TEE environments via API
+- Automatic download of artifacts, passports, and attestations
 
-### `build [PROJECT_DIR]`
+## Usage
 
-Build project with full input verification and output measurement.
+### Building a Project
 
 ```bash
-# Build with Phase 1 verification
-attestable-builds build . --release
+# Build with input verification and passport generation
+attestable-builds build /path/to/project
 
-# Build with attestation generation
-attestable-builds build . --attestation
-
-# Build in debug mode
-attestable-builds build . --debug --verbose
+# Build with TEE attestation (requires attest-amd)
+attestable-builds build /path/to/project --attestation
 ```
 
 **Options:**
@@ -172,19 +138,11 @@ attestable-builds build . --debug --verbose
 - `evidence.b64` - TEE attestation report (only with `--attestation` flag)
 - `custom_data.hex` - Custom data for attestation verification (only with `--attestation` flag)
 
-### `verify-attestation [ATTESTATION] [CUSTOM_DATA]`
-
-Verify an attestation report against a passport document.
+### Verifying a Build
 
 ```bash
-# Basic verification
-attestable-builds verify-attestation evidence.b64 custom_data.hex \
-    --passport passport.json
-
-# Custom nonce age limit
-attestable-builds verify-attestation evidence.b64 custom_data.hex \
-    --passport passport.json \
-    --max-age 7200
+# Verify attestation and passport contents
+attestable-builds verify /path/to/build/outputs --project-dir /path/to/project
 ```
 
 **Requirements:**
@@ -207,9 +165,9 @@ attestable-builds verify-attestation evidence.b64 custom_data.hex \
 - ✓ Passport binding (hash in custom data matches passport)
 - ✓ Nonce freshness (timestamp-based replay protection)
 
-### `verify [PASSPORT]`
+Options: `--binary`, `--strict`
 
-Verify a passport document against known values.
+### Verifying Attestation Only
 
 ```bash
 # Verify passport with manifest file (expected hashes)
@@ -305,44 +263,44 @@ Use `--verbose` flag for detailed verification output.
 
 ✅ **Phase 1: Input Locking & Verification** - Complete
 
-- Git source verification with tree hash
-- Cargo.lock and dependency verification
-- Toolchain binary hashing
-- Passport generation
-- Build command with integrated verification and passport generation
+---
 
-✅ **Phase 2: Attestation Verification** - Complete
+Run `attestable-builds <command> --help` for detailed command documentation.
 
-- Attestation report generation via attest-amd
-- Cryptographic verification (delegated to attest-amd verify)
-- Passport binding verification
-- Nonce freshness verification
-- Passport validation against known values
+## How It Works
 
-⏳ **Phase 3: Production TEE Integration** - Future Work
+1. **Input Verification** - Before building, the system cryptographically verifies:
+   - Source code (git commit + tree hash)
+   - Dependency manifests and cached artifacts
+   - Build toolchain binaries
 
-- Real Azure Confidential Computing VM deployment
-- TEE build orchestration and automation
-- Challenge-response nonce protocol (replace timestamp-based)
-- Launch measurement and golden measurement verification
-- Public verification service
-- Integration with CI/CD pipelines
+2. **Build Execution** - Executes the build and measures output artifacts
+
+3. **Passport Generation** - Creates a JSON passport containing:
+   - All verified input hashes
+   - Input merkle tree root
+   - Build command and timestamp
+   - Output artifact hashes
+
+4. **TEE Attestation** (optional) - Generates hardware-backed attestation report:
+   - Binds passport hash to attestation
+   - Includes nonce for replay protection
+   - Signed by TEE hardware (AMD SEV-SNP)
+
+5. **Verification** - Third parties can verify:
+   - Attestation signature (proves TEE execution)
+   - Passport binding (proves inputs/outputs)
+   - Individual inputs via merkle proofs
 
 ## Comparison to Reproducible Builds
 
-| Aspect               | Reproducible Builds           | Attestable Builds (This POC)    |
-| -------------------- | ----------------------------- | ------------------------------- |
-| **Core Requirement** | Bit-for-bit identical outputs | Verifiable build process        |
-| **Trust Anchor**     | Output hash                   | TEE attestation + process chain |
-| **Toolchain**        | Must be deterministic         | Can use standard toolchains     |
-| **Verification**     | Rebuild and compare           | Check cryptographic proofs      |
-| **Complexity**       | High (env control)            | Medium (TEE setup)              |
-| **Maintenance**      | Brittle                       | More resilient                  |
-| **Speed**            | Requires rebuild              | Fast verification               |
-
-## Contributing
-
-This is a proof-of-concept implementation of Phase 1. Contributions welcome!
+| Aspect           | Reproducible Builds           | Attestable Builds               |
+| ---------------- | ----------------------------- | ------------------------------- |
+| **Requirement**  | Bit-for-bit identical outputs | Verifiable build process        |
+| **Trust Anchor** | Output hash                   | TEE attestation + process chain |
+| **Verification** | Rebuild and compare           | Check cryptographic proofs      |
+| **Complexity**   | High (strict env control)     | Medium (TEE setup)              |
+| **Speed**        | Slow (full rebuild)           | Fast (proof verification)       |
 
 ## License
 
