@@ -7,9 +7,9 @@ version: "1.0"
 # Environment variables (can be overridden at runtime)
 env:
   RELEASE_MODE: true
-  ATTESTATION_ENABLED: false  # Set to true for TEE attestation
-  QUICK_MODE: true  # Set to false for full 10-epoch training
-  ALLOW_DIRTY: true  # Set to false in production (allow uncommitted changes for testing)
+  ATTESTATION_ENABLED: false # Set to true for TEE attestation
+  QUICK_MODE: true # Set to false for full 10-epoch training
+  ALLOW_DIRTY: true # Set to false in production (allow uncommitted changes for testing)
 
 # Jobs execute in dependency order
 jobs:
@@ -18,7 +18,7 @@ jobs:
     name: Build Training Binary
     action: build
     inputs:
-      project_dir: ./src/kettle/training/candle
+      project_dir: src/kettle/training/candle
       release: ${{ env.RELEASE_MODE }}
       attestation: ${{ env.ATTESTATION_ENABLED }}
       allow_dirty: ${{ env.ALLOW_DIRTY }}
@@ -33,8 +33,15 @@ jobs:
     action: train
     depends_on: [build-binary]
     inputs:
-      config: ./examples/training/mnist/config.json
-      dataset: ./examples/training/mnist/data
+      config:
+        type: mlp
+        input_size: 784
+        hidden_sizes: [128]
+        output_size: 10
+        dataset_keys:
+          features: images
+          labels: labels
+      dataset: examples/training/mnist/data
       quick: ${{ env.QUICK_MODE }}
       attestation: ${{ env.ATTESTATION_ENABLED }}
       rebuild_binary: false

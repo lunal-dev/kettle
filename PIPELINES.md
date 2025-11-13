@@ -43,7 +43,14 @@ jobs:
     action: train
     depends_on: [build-binary]
     inputs:
-      config: ./examples/training/mnist/config.json
+      config:
+        type: mlp
+        input_size: 784
+        hidden_sizes: [128]
+        output_size: 10
+        dataset_keys:
+          features: images
+          labels: labels
       dataset: ./examples/training/mnist/data
       quick: ${{ env.QUICK_MODE }}
       attestation: ${{ env.ATTESTATION_ENABLED }}
@@ -178,7 +185,7 @@ Trains a machine learning model using Candle framework.
 
 **Required Inputs:**
 
-- `config` (Path) - Path to model configuration JSON
+- `config` (Path or Dict) - Model configuration (inline dict or path to JSON file)
 - `dataset` (Path) - Path to dataset directory
 
 **Optional Inputs:**
@@ -193,13 +200,20 @@ Trains a machine learning model using Candle framework.
 - `final.safetensors` - Trained model weights
 - `evidence.b64` - TEE attestation (only if attestation enabled)
 
-**Example:**
+**Example (inline config):**
 
 ```yaml
 train-mnist:
   action: train
   inputs:
-    config: ./config.json
+    config:
+      type: mlp
+      input_size: 784
+      hidden_sizes: [128]
+      output_size: 10
+      dataset_keys:
+        features: images
+        labels: labels
     dataset: ./data
     quick: false
     attestation: true
@@ -207,6 +221,19 @@ train-mnist:
     - passport.json
     - final.safetensors
     - evidence.b64
+```
+
+**Example (external config file):**
+
+```yaml
+train-mnist:
+  action: train
+  inputs:
+    config: ./config.json
+    dataset: ./data
+  outputs:
+    - passport.json
+    - final.safetensors
 ```
 
 ### `verify` - Verify Build Passport

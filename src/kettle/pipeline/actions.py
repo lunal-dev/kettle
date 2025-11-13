@@ -95,7 +95,19 @@ def _execute_train(
 ) -> Dict[str, JobOutput]:
     """Execute train action."""
     # Extract inputs and resolve paths to absolute
-    config = Path(inputs["config"]).resolve()
+    config_input = inputs["config"]
+
+    # Handle inline dict config or external file path
+    if isinstance(config_input, dict):
+        # Inline config - write to job output dir
+        config = job_output_dir / "config.json"
+        job_output_dir.mkdir(parents=True, exist_ok=True)
+        with open(config, "w") as f:
+            json.dump(config_input, f, indent=2)
+    else:
+        # External config file
+        config = Path(config_input).resolve()
+
     dataset = Path(inputs["dataset"]).resolve()
     output_dir = job_output_dir
     quick = inputs.get("quick", False)
