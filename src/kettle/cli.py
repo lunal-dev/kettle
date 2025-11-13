@@ -1088,6 +1088,51 @@ def train_verify(
         raise typer.Exit(1)
 
 
+@app.command()
+def pipeline(
+    pipeline_file: Path = typer.Argument(
+        ...,
+        help="Path to pipeline YAML file",
+        exists=True,
+    ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Show verbose output"
+    ),
+):
+    """
+    Execute a pipeline defined in YAML format.
+
+    Pipelines orchestrate multiple attestable build and training steps
+    in dependency order, with automatic output chaining between jobs.
+
+    Example:
+        kettle pipeline build-train.yml
+        kettle pipeline build-train.yml --verbose
+    """
+    try:
+        from .pipeline import execute_pipeline, parse_pipeline
+
+        log_section("Loading Pipeline")
+        pipeline_obj = parse_pipeline(pipeline_file)
+        log_success(f"Loaded pipeline: {pipeline_obj.name}")
+        log(f"  - Jobs: {len(pipeline_obj.jobs)}", style="dim")
+        log("\n")
+
+        # Execute pipeline
+        run_id = execute_pipeline(pipeline_obj, verbose=verbose)
+
+        log("\n")
+        log_success(f"Pipeline completed: {run_id}")
+
+    except Exception as e:
+        log_error(f"Pipeline execution failed: {e}")
+        if verbose:
+            import traceback
+            log(traceback.format_exc(), style="dim red")
+        raise typer.Exit(1)
 
 
 def main():

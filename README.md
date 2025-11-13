@@ -228,6 +228,52 @@ attestable-builds verify passport.json --binary target/release/my-app
 - `--binary/-b PATH` - Binary artifact to verify
 - `--strict` - Fail if optional checks cannot be performed
 
+### `pipeline [PIPELINE_FILE]`
+
+Execute multi-step attestable workflows using GitHub Actions-like YAML pipelines.
+
+```bash
+# Run a pipeline
+kettle pipeline build-train.yml
+
+# Verbose output
+kettle pipeline build-train.yml --verbose
+```
+
+**Features:**
+
+- GitHub Actions-like YAML syntax
+- Dependency management and automatic job ordering
+- Variable interpolation (`${{ env.VAR }}`, `${{ jobs.X.outputs.Y }}`)
+- Built-in actions: build, train, verify, train-verify
+- Attestation support at any pipeline stage
+
+**Example Pipeline:**
+
+```yaml
+name: Build and Train Pipeline
+version: "1.0"
+
+env:
+  ATTESTATION_ENABLED: false
+
+jobs:
+  build-binary:
+    action: build
+    inputs:
+      project_dir: ./training-binary
+      attestation: ${{ env.ATTESTATION_ENABLED }}
+
+  train-model:
+    action: train
+    depends_on: [build-binary]
+    inputs:
+      config: ./config.json
+      dataset: ./data
+```
+
+See **[PIPELINES.md](PIPELINES.md)** for complete documentation.
+
 ## Example Output
 
 ```bash

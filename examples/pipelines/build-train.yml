@@ -1,0 +1,50 @@
+# Complete Build and Train Pipeline
+# This pipeline demonstrates a full attestable build and training workflow
+
+name: Build and Train Pipeline
+version: "1.0"
+
+# Environment variables (can be overridden at runtime)
+env:
+  RELEASE_MODE: true
+  ATTESTATION_ENABLED: false  # Set to true for TEE attestation
+  QUICK_MODE: true  # Set to false for full 10-epoch training
+
+# Jobs execute in dependency order
+jobs:
+  # Job 1: Build the training binary
+  build-binary:
+    name: Build Training Binary
+    action: build
+    inputs:
+      project_dir: ./src/kettle/training/candle
+      release: ${{ env.RELEASE_MODE }}
+      attestation: ${{ env.ATTESTATION_ENABLED }}
+      verbose: false
+    outputs:
+      - passport.json
+      # - evidence.b64  # Only produced when ATTESTATION_ENABLED: true
+
+  # Job 2: Train MNIST model
+  train-mnist:
+    name: Train MNIST Model
+    action: train
+    depends_on: [build-binary]
+    inputs:
+      config: ./examples/training/mnist/config.json
+      dataset: ./examples/training/mnist/data
+      quick: ${{ env.QUICK_MODE }}
+      attestation: ${{ env.ATTESTATION_ENABLED }}
+      rebuild_binary: false
+    outputs:
+      - passport.json
+      - final.safetensors
+      # - evidence.b64  # Only produced when ATTESTATION_ENABLED: true
+
+  # Job 3: Verify training chain
+  verify-training:
+    name: Verify Training Chain
+    action: train-verify
+    depends_on: [train-mnist]
+    inputs:
+      passport: ${{ jobs.train-mnist.outputs.passport.json }}
