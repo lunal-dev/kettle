@@ -57,7 +57,7 @@ def execute_pipeline(
     console.print()
 
     # Create context
-    context = PipelineContext(pipeline)
+    context = PipelineContext(pipeline.env)
 
     # Get job execution order
     try:

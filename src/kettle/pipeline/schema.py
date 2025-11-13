@@ -5,6 +5,7 @@ Defines the structure of pipeline YAML files including jobs, inputs, outputs,
 and dependencies.
 """
 
+import re
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -27,6 +28,48 @@ ACTION_REQUIREMENTS: Dict[ActionType, List[str]] = {
     ActionType.VERIFY: ["passport"],
     ActionType.TRAIN_VERIFY: ["passport"],
 }
+
+
+def _validate_job_id(job_id: str) -> None:
+    """
+    Validate job ID format.
+
+    Job IDs must contain only alphanumeric characters, hyphens, and underscores.
+
+    Args:
+        job_id: Job identifier to validate
+
+    Raises:
+        ValueError: If job ID format is invalid
+    """
+    if not re.match(r'^[a-zA-Z0-9_-]+$', job_id):
+        raise ValueError(
+            f"Invalid job ID: '{job_id}'. "
+            "Job IDs must contain only letters, numbers, hyphens, and underscores"
+        )
+
+
+def _validate_name(name: str, field: str) -> None:
+    """
+    Validate name format for filesystem safety.
+
+    Args:
+        name: Name to validate
+        field: Field name for error messages
+
+    Raises:
+        ValueError: If name is invalid
+    """
+    if not name or not name.strip():
+        raise ValueError(f"{field} is required and cannot be empty")
+
+    # Check for filesystem-unsafe characters
+    invalid_chars = '<>:"/\\|?*'
+    if any(c in name for c in invalid_chars):
+        raise ValueError(
+            f"{field} '{name}' contains invalid characters. "
+            f"Avoid: {invalid_chars}"
+        )
 
 
 class JobStatus(str, Enum):
@@ -133,6 +176,9 @@ class Pipeline:
         if not self.name:
             raise ValueError("Pipeline name is required")
 
+        # Validate pipeline name format
+        _validate_name(self.name, "Pipeline name")
+
         if not self.version:
             raise ValueError("Pipeline version is required")
 
@@ -141,6 +187,12 @@ class Pipeline:
 
         # Validate each job
         for job_id, job in self.jobs.items():
+            # Validate job ID format
+            _validate_job_id(job_id)
+
+            # Validate job name format
+            _validate_name(job.name, "Job name")
+
             if job.id != job_id:
                 raise ValueError(
                     f"Job ID mismatch: key '{job_id}' != job.id '{job.id}'"
@@ -148,6 +200,10 @@ class Pipeline:
 
             # Validate action-specific inputs
             self._validate_job_inputs(job)
+
+            # Validate dependencies reference valid job IDs
+            for dep_id in job.depends_on:
+                _validate_job_id(dep_id)
 
         # Validate dependency graph (checks for circular dependencies)
         self.get_job_order()

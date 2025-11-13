@@ -10,21 +10,20 @@ import re
 from pathlib import Path
 from typing import Any, Dict
 
-from .schema import JobOutput, Pipeline
+from .schema import JobOutput
 
 
 class PipelineContext:
     """Manages pipeline execution context and variable interpolation."""
 
-    def __init__(self, pipeline: Pipeline):
+    def __init__(self, env: Dict[str, Any]):
         """
         Initialize pipeline context.
 
         Args:
-            pipeline: Pipeline definition with env vars and jobs
+            env: Environment variables dictionary
         """
-        self.pipeline = pipeline
-        self.env = pipeline.env
+        self.env = env
         self.job_outputs: Dict[str, Dict[str, JobOutput]] = {}
 
     def register_job_outputs(self, job_id: str, outputs: Dict[str, JobOutput]):
