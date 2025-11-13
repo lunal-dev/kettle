@@ -124,10 +124,9 @@ def _execute_build(inputs: Dict[str, Any], job_output_dir: Path) -> Dict[str, Jo
     verbose = inputs.get("verbose", False)
     allow_dirty = inputs.get("allow_dirty", False)
 
-    # Set output path
-    output_dir = job_output_dir
-    output_dir.mkdir(parents=True, exist_ok=True)
-    passport_path = output_dir / "passport.json"
+    # Ensure output directory exists
+    job_output_dir.mkdir(parents=True, exist_ok=True)
+    passport_path = job_output_dir / "passport.json"
 
     # Verify inputs
     git_info, cargo_lock_hash, results, toolchain = verify_inputs(
@@ -157,7 +156,7 @@ def _execute_build(inputs: Dict[str, Any], job_output_dir: Path) -> Dict[str, Jo
 
     # Generate attestation if requested
     if attestation:
-        attestation_path, _ = generate_attestation(passport_data, output_dir=output_dir)
+        attestation_path, _ = generate_attestation(passport_data, output_dir=job_output_dir)
         outputs["evidence.b64"] = JobOutput(name="evidence.b64", path=attestation_path)
 
     return outputs
@@ -179,19 +178,18 @@ def _execute_train(
         config = _get_path_input(inputs, "config")
 
     dataset = _get_path_input(inputs, "dataset")
-    output_dir = job_output_dir
     quick = inputs.get("quick", False)
     rebuild_binary = inputs.get("rebuild_binary", False)
     attestation = inputs.get("attestation", False)
 
     # Ensure output directory exists
-    output_dir.mkdir(parents=True, exist_ok=True)
+    job_output_dir.mkdir(parents=True, exist_ok=True)
 
     # Train model
     passport_path = train_model(
         config=config,
         dataset_path=dataset,
-        output_dir=output_dir,
+        output_dir=job_output_dir,
         quick=quick,
         rebuild_binary=rebuild_binary,
     )
@@ -201,14 +199,14 @@ def _execute_train(
     }
 
     # Check for model weights
-    model_path = output_dir / "checkpoints" / "final.safetensors"
+    model_path = job_output_dir / "checkpoints" / "final.safetensors"
     if model_path.exists():
         outputs["final.safetensors"] = JobOutput(name="final.safetensors", path=model_path)
 
     # Generate attestation if requested
     if attestation:
         passport_data = _read_json(passport_path)
-        attestation_path, _ = generate_attestation(passport_data, output_dir=output_dir)
+        attestation_path, _ = generate_attestation(passport_data, output_dir=job_output_dir)
         outputs["evidence.b64"] = JobOutput(name="evidence.b64", path=attestation_path)
 
     return outputs
