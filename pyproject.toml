@@ -36,6 +36,13 @@ kettle-service = "service.app:app"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+kettle = [
+    "training/candle/Cargo.toml",
+    "training/candle/Cargo.lock",
+    "training/candle/src/**/*.rs",
+]
+
 [dependency-groups]
 dev = [
     "pytest>=8.4.2",
