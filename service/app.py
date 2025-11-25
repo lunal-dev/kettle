@@ -4,11 +4,15 @@ import json
 import os
 import shutil
 import zipfile
+from datetime import datetime
 from pathlib import Path
+from typing import List
 from uuid import uuid4
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
+from kettle.workload.executor import WorkloadExecutor, generate_workload_passport
+from datetime import timezone
 
 from kettle.cli import execute_build, generate_attestation, verify_inputs
 from kettle.passport import generate_passport
@@ -145,6 +149,224 @@ def get_build_config(build_id: str, name: str):
     if not path.exists():
         raise HTTPException(404)
     return FileResponse(path)
+
+
+@app.post("/builds/{build_id}/run-workload")
+async def run_workload(
+    build_id: str,
+    expected_input_root: str = Form(...),
+    workload: UploadFile = File(...),
+    tools: List[UploadFile] = File(default=[]),
+    scripts: List[UploadFile] = File(default=[])
+):
+    """
+    Upload and execute workload in one atomic operation.
+
+    Party B calls this with:
+    - expected_input_root: The input_merkle_root from Party A's build
+    - workload: workload.yaml file
+    - tools: Optional executable tools
+    - scripts: Optional helper scripts
+
+    Returns summary + workload_passport + attestation immediately.
+    """
+
+    # Verify build exists
+    build_dir = BUILDS / build_id
+    if not build_dir.exists():
+        raise HTTPException(404, "Build not found")
+
+    # Create workload directory
+    workload_id = str(uuid4())[:8]
+    workload_dir = build_dir / "workloads" / workload_id
+    workload_dir.mkdir(parents=True)
+
+    try:
+        # 1. Save workload.yaml
+        workload_yaml_path = workload_dir / "workload.yaml"
+        workload_yaml_path.write_bytes(await workload.read())
+        workload_content = workload_yaml_path.read_text()
+
+        # Parse and validate workload
+        from kettle.workload.parser import parse_workload_yaml, parse_workload_dict
+        import hashlib
+
+        workload_data = parse_workload_yaml(workload_content)
+        workload_obj = parse_workload_dict(workload_data)
+
+        workload_hash = hashlib.sha256(workload_content.encode()).hexdigest()
+
+        # 2. Save tools
+        tools_dir = None
+        if tools:
+            tools_dir = workload_dir / "tools"
+            tools_dir.mkdir()
+            for tool_file in tools:
+                tool_path = tools_dir / tool_file.filename
+                tool_path.write_bytes(await tool_file.read())
+                tool_path.chmod(0o755)  # Make executable
+
+        # 3. Save scripts
+        scripts_dir = None
+        if scripts:
+            scripts_dir = workload_dir / "scripts"
+            scripts_dir.mkdir()
+            for script_file in scripts:
+                script_path = scripts_dir / script_file.filename
+                script_path.write_bytes(await script_file.read())
+
+        # 4. Execute workload immediately
+
+        executor = WorkloadExecutor(
+            workload_path=workload_yaml_path,
+            build_location=build_dir
+        )
+
+        # This will verify input_merkle_root matches expected
+        result = executor.execute()
+
+        # 5. Generate workload passport
+        workload_passport = generate_workload_passport(
+            build_passport_path=build_dir / "passport.json",
+            workload_path=workload_yaml_path,
+            workload_result=result,
+            tools_dir=tools_dir,
+            scripts_dir=scripts_dir,
+        )
+
+        # Save passport
+        passport_path = workload_dir / "workload-passport.json"
+        passport_path.write_text(json.dumps(workload_passport, indent=2))
+
+        # 6. Generate attestation
+        old_cwd = Path.cwd()
+        attestation_b64 = None
+        attestation_error = None
+        try:
+            os.chdir(workload_dir)
+            generate_attestation(workload_passport)
+
+            attestation_path = workload_dir / "evidence.b64"
+            if attestation_path.exists():
+                attestation_b64 = attestation_path.read_text().strip()
+        except Exception as e:
+            attestation_error = str(e)
+            print(f"Warning: Attestation failed: {e}")
+        finally:
+            os.chdir(old_cwd)
+
+        # 7. Save full results (Party A can access these)
+        full_results_dir = workload_dir / "full-results"
+        full_results_dir.mkdir(exist_ok=True)
+        for result_path_str, result_data in result.full_results.items():
+            # Save each result file
+            result_filename = Path(result_path_str).name
+            result_file = full_results_dir / result_filename
+
+            if result_data["type"] == "json":
+                result_file.write_text(json.dumps(result_data["content"], indent=2))
+            elif result_data["type"] == "text":
+                result_file.write_text(result_data["content"])
+
+        # 8. Save summary metadata
+        summary_data = {
+            "status": result.status,
+            "execution_time_seconds": result.execution_time_seconds,
+            "summary": result.summary,
+            "workload_hash": workload_hash,
+            "executed_at": datetime.now(timezone.utc).isoformat()
+        }
+
+        summary_path = workload_dir / "summary.json"
+        summary_path.write_text(json.dumps(summary_data, indent=2))
+
+        # 9. Return response (Party B gets this immediately)
+        response = {
+            "build_id": build_id,
+            "workload_id": workload_id,
+            "status": result.status,
+            "execution_time_seconds": result.execution_time_seconds,
+            "summary": result.summary,
+            "workload_hash": workload_hash,
+            "workload_passport": workload_passport,
+            "attestation": attestation_b64,
+        }
+
+        if attestation_error:
+            response["attestation_status"] = "failed"
+            response["attestation_error"] = attestation_error
+        elif attestation_b64:
+            response["attestation_status"] = "success"
+        else:
+            response["attestation_status"] = "unavailable"
+
+        return response
+
+    except Exception as e:
+        # Clean up on failure
+        if workload_dir.exists():
+            shutil.rmtree(workload_dir)
+
+        raise HTTPException(500, f"Workload execution failed: {str(e)}")
+
+
+@app.get("/builds/{build_id}/workloads/{workload_id}/results")
+async def get_workload_results(build_id: str, workload_id: str):
+    """
+    Get full workload results.
+
+    Party A calls this to see complete execution details including:
+    - Full result files
+    - Summary
+    - Workload passport
+    - Attestation
+    """
+
+    workload_dir = BUILDS / build_id / "workloads" / workload_id
+
+    if not workload_dir.exists():
+        raise HTTPException(404, "Workload not found")
+
+    # Read summary
+    summary_path = workload_dir / "summary.json"
+    if not summary_path.exists():
+        raise HTTPException(400, "Workload not executed")
+
+    summary = json.loads(summary_path.read_text())
+
+    # Read workload passport
+    passport_path = workload_dir / "workload-passport.json"
+    workload_passport = json.loads(passport_path.read_text()) if passport_path.exists() else None
+
+    # Read attestation
+    attestation_path = workload_dir / "evidence.b64"
+    attestation = attestation_path.read_text().strip() if attestation_path.exists() else None
+
+    # Read full results
+    full_results_dir = workload_dir / "full-results"
+    full_results = {}
+    if full_results_dir.exists():
+        for file_path in full_results_dir.iterdir():
+            if file_path.is_file():
+                try:
+                    # Try to parse as JSON
+                    full_results[file_path.name] = {
+                        "type": "json",
+                        "content": json.loads(file_path.read_text())
+                    }
+                except json.JSONDecodeError:
+                    # Fall back to text
+                    full_results[file_path.name] = {
+                        "type": "text",
+                        "content": file_path.read_text()
+                    }
+
+    return {
+        "summary": summary,
+        "full_results": full_results,
+        "workload_passport": workload_passport,
+        "attestation": attestation
+    }
 
 
 if __name__ == "__main__":
