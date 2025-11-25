@@ -1,0 +1,146 @@
+{
+  "version": "1.0",
+  "inputs": {
+    "cargo_lock_hash": "23b2e23aa04c93c350cac09ac73636e4ecedf564acc7f5d1c40a7e3fcf227c10",
+    "toolchain": {
+      "rustc": {
+        "binary_hash": "e6abf55ab1859e7c990be77fd593f51661ea99fb2fde626ae9f4108aaa34e7fa",
+        "version": "rustc 1.90.0 (1159e78c4 2025-09-14)"
+      },
+      "cargo": {
+        "binary_hash": "51de284e8bb0d03dcee595a0fb1cb3a952fe9e7e4b953a8b1467b7f71725b561",
+        "version": "cargo 1.90.0 (840b83a10 2025-07-30)"
+      }
+    },
+    "dependencies": [
+      {
+        "name": "serde",
+        "version": "1.0.228",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "checksum": "9a8e94ea7f378bd32cbbd37198a4a91436180c5bb472411e48b5ec2e2124ae9e",
+        "verified": true
+      },
+      {
+        "name": "serde_core",
+        "version": "1.0.228",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "checksum": "41d385c7d4ca58e59fc732af25c3983b67ac852c1a25000afe1175de458b67ad",
+        "verified": true
+      },
+      {
+        "name": "syn",
+        "version": "2.0.107",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "checksum": "2a26dbd934e5451d21ef060c018dae56fc073894c5a7896f882928a76e6d081b",
+        "verified": true
+      },
+      {
+        "name": "serde_json",
+        "version": "1.0.145",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "checksum": "402a6f66d8c709116cf22f558eab210f5a50187f702eb4d7e5ef38d9a7f1c79c",
+        "verified": true
+      },
+      {
+        "name": "unicode-ident",
+        "version": "1.0.19",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "checksum": "f63a545481291138910575129486daeaf8ac54aee4387fe7906919f7830c7d9d",
+        "verified": true
+      },
+      {
+        "name": "quote",
+        "version": "1.0.41",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "checksum": "ce25767e7b499d1b604768e7cde645d14cc8584231ea6b295e9c9eb22c02e1d1",
+        "verified": true
+      },
+      {
+        "name": "itoa",
+        "version": "1.0.15",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "checksum": "4a5f13b858c8d314ee3e8f639011f7ccefe71f97f96e50151fb991f267928e2c",
+        "verified": true
+      },
+      {
+        "name": "serde_derive",
+        "version": "1.0.228",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "checksum": "d540f220d3187173da220f885ab66608367b6574e925011a9353e4badda91d79",
+        "verified": true
+      },
+      {
+        "name": "ryu",
+        "version": "1.0.20",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "checksum": "28d3b2b1366ec20994f1fd18c3c594f05c5dd4bc44d8bb0c1c632c8d6829481f",
+        "verified": true
+      },
+      {
+        "name": "memchr",
+        "version": "2.7.6",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "checksum": "f52b00d39961fc5b2736ea853c9cc86238e165017a493d1d5c8eac6bdc4cc273",
+        "verified": true
+      },
+      {
+        "name": "proc-macro2",
+        "version": "1.0.101",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "checksum": "89ae43fd86e4158d6db51ad8e2b80f313af9cc74f5c0e03ccb87de09998732de",
+        "verified": true
+      }
+    ],
+    "input_merkle_root": "1b2d157e33d46f4101069853d2d63a2ff6f48d3f9129a3758e8b002d33de02d9",
+    "source": {
+      "type": "git",
+      "commit_hash": "86957e0e4c5307e347a24976c701152533ed4501",
+      "tree_hash": "ce0efdd1efd3dffb6b83f7e3678791f498087a48",
+      "git_binary_hash": "5a39a7909c023f92a84b77b49e6b008f3f152b833135b96d73ac7c403314a88a"
+    }
+  },
+  "build_process": {
+    "command": "cargo build --locked --release",
+    "timestamp": "2025-11-21T00:33:31.065272+00:00"
+  },
+  "outputs": {
+    "artifacts": [
+      {
+        "path": "/tmp/kettle/e86f01cb/source/target/release/simple-app",
+        "hash": "1d1ea25c371d4f6de8d6e3c26fdad2238fdae7d98d9807eff99ac7b891bc8ad2",
+        "name": "simple-app"
+      }
+    ]
+  },
+  "workload": {
+    "name": "Security Audit",
+    "description": "Run security analysis on built artifacts",
+    "workload_hash": "2503716cf3dfa44ca0d0b7dee42aea845029016a3df576d470e3913f0bf6c6da",
+    "tools": [],
+    "scripts": [],
+    "timestamp": "2025-11-21T00:41:10.688159+00:00",
+    "timeout_seconds": 300,
+    "sandbox": {
+      "network_blocked": false,
+      "max_memory_mb": 2048,
+      "timeout_seconds": 300
+    }
+  },
+  "execution": {
+    "status": "SUCCESS",
+    "exit_code": 0,
+    "execution_time_seconds": 0.6195385456085205,
+    "steps": [
+      {
+        "name": "Run security scan",
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "duration_seconds": 0.6190168857574463
+      }
+    ],
+    "full_results_hash": "18b96d4c1c37503d3fb7c7825c4402620abb23795abf3f661363bf091e1f4ee5",
+    "summary": {
+      "content": "\u001b[0m\u001b[0m\u001b[1m\u001b[32m    Fetching\u001b[0m advisory database from `https://github.com/RustSec/advisory-db.git`\n\u001b[0m\u001b[0m\u001b[1m\u001b[32m      Loaded\u001b[0m 873 security advisories (from /home/lunaluser/.cargo/advisory-db)\n\u001b[0m\u001b[0m\u001b[1m\u001b[32m    Updating\u001b[0m crates.io index\n\u001b[0m\u001b[0m\u001b[1m\u001b[32m    Scanning\u001b[0m Cargo.lock for vulnerabilities (12 crate dependencies)"
+    }
+  }
+}
