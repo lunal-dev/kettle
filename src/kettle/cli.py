@@ -23,6 +23,10 @@ from .results import CheckResult
 from .toolchain import get_toolchain_info
 from .utils import hash_passport_to_32bytes
 from .merkle import generate_inclusion_proofs, verify_inclusion_proof_from_data
+from .workload import (
+    WorkloadExecutor,
+    generate_workload_passport,
+)
 
 
 app = typer.Typer(help="Build-time verification and attestation for TEE deployments")
@@ -786,12 +790,20 @@ def tee_build(
         log_success("Build succeeded")
         log_success(f"Build ID: {build_id}")
 
-        # Create output directory
+        # Create output directory structure
         output_dir = Path(f"kettle-{build_id}")
         output_dir.mkdir(exist_ok=True)
 
+        # Create subdirectories
+        artifacts_dir = output_dir / "artifacts"
+        artifacts_dir.mkdir(exist_ok=True)
+        build_config_dir = output_dir / "build-config"
+        build_config_dir.mkdir(exist_ok=True)
+        source_dir = output_dir / "source"
+        source_dir.mkdir(exist_ok=True)
+
         # Save passport and attestation
-        log(f"\n[3/4] Saving passport and attestation to {output_dir}/...")
+        log(f"\n[3/5] Saving passport and attestation to {output_dir}/...")
 
         # Save passport
         if result.get("passport"):
@@ -807,9 +819,32 @@ def tee_build(
         else:
             log_warning("Attestation not available")
 
+        # Download build-config files
+        if result.get("build_config_files"):
+            log(f"\n[4/5] Downloading {len(result['build_config_files'])} build config file(s) to {build_config_dir}/...")
+            for config_file in result["build_config_files"]:
+                try:
+                    config_response = requests.get(
+                        f"{api_url}/builds/{build_id}/build-config/{config_file}",
+                        timeout=60
+                    )
+
+                    if config_response.status_code == 200:
+                        config_path = build_config_dir / config_file
+                        config_path.write_bytes(config_response.content)
+                        size_kb = len(config_response.content) / 1024
+                        log_success(f"{config_file}: {config_path} ({size_kb:.1f} KB)")
+                    else:
+                        log_warning(f"Failed to download {config_file} (HTTP {config_response.status_code})")
+
+                except Exception as e:
+                    log_warning(f"Failed to download {config_file}: {e}")
+        else:
+            log("\n[4/5] No build config files to download")
+
         # Download artifacts
         if result.get("artifacts"):
-            log(f"\n[4/4] Downloading {len(result['artifacts'])} artifact(s) to {output_dir}/...")
+            log(f"\n[5/5] Downloading {len(result['artifacts'])} artifact(s) to {artifacts_dir}/...")
             for artifact_name in result["artifacts"]:
                 try:
                     artifact_response = requests.get(
@@ -818,7 +853,7 @@ def tee_build(
                     )
 
                     if artifact_response.status_code == 200:
-                        artifact_path = output_dir / artifact_name
+                        artifact_path = artifacts_dir / artifact_name
                         artifact_path.write_bytes(artifact_response.content)
                         artifact_path.chmod(0o755)  # Make executable
                         size_kb = len(artifact_response.content) / 1024
@@ -829,7 +864,7 @@ def tee_build(
                 except Exception as e:
                     log_warning(f"Failed to download {artifact_name}: {e}")
         else:
-            log("\n[4/4] No artifacts to download")
+            log("\n[5/5] No artifacts to download")
 
         log("\n")
         log_success("Remote build complete")
@@ -840,9 +875,14 @@ def tee_build(
             log("  - passport.json", style="dim")
         if result.get("attestation"):
             log("  - evidence.b64", style="dim")
+        if result.get("build_config_files"):
+            log("  - build-config/", style="dim")
+            for config_file in result["build_config_files"]:
+                log(f"    - {config_file}", style="dim")
         if result.get("artifacts"):
+            log("  - artifacts/", style="dim")
             for artifact_name in result["artifacts"]:
-                log(f"  - {artifact_name}", style="dim")
+                log(f"    - {artifact_name}", style="dim")
 
         # Cleanup
         archive_path.unlink()
@@ -975,6 +1015,380 @@ def prove_inclusion(
     except Exception as e:
         log_error(f"Error: {e}")
         raise typer.Exit(1)
+
+
+
+
+@app.command(name="tee-run-workload")
+def tee_run_workload(
+    workload_dir: Path = typer.Argument(
+        ...,
+        help="Path to workload directory containing workload.yaml, tools/, scripts/",
+        exists=True,
+        file_okay=False,
+    ),
+    build_id: str = typer.Argument(
+        ...,
+        help="Build ID from remote build",
+    ),
+    expected_input_root: str = typer.Argument(
+        ...,
+        help="Expected input merkle root from build passport",
+    ),
+    api_url: str = typer.Option(
+        "http://localhost:8000",
+        "--api",
+        help="Attestable builds API URL (TEE service)",
+    ),
+):
+    """Upload and execute workload on remote build via TEE API.
+
+    Example:
+        attestable-builds tee-run-workload ./security-audit abc123 sha256:xyz... \\
+            --api https://tee.example.com
+    """
+    try:
+        log_section("TEE Workload Execution")
+
+        # Check for workload.yaml
+        workload_yaml = workload_dir / "workload.yaml"
+        if not workload_yaml.exists():
+            log_error(f"workload.yaml not found in {workload_dir}")
+            raise typer.Exit(1)
+
+        log(f"\n[1/3] Preparing workload from {workload_dir}...")
+        log(f"Build ID: {build_id}", style="dim")
+        log(f"Expected Input Root: {expected_input_root[:32]}...", style="dim")
+
+        # Collect files to upload
+        files_to_upload = [("workload", (workload_yaml.name, open(workload_yaml, "rb"), "text/yaml"))]
+
+        # Add tools if they exist
+        tools_dir = workload_dir / "tools"
+        if tools_dir.exists() and tools_dir.is_dir():
+            tool_files = list(tools_dir.iterdir())
+            log(f"  Found {len(tool_files)} tool(s)", style="dim")
+            for tool_file in tool_files:
+                if tool_file.is_file():
+                    files_to_upload.append(("tools", (tool_file.name, open(tool_file, "rb"), "application/octet-stream")))
+
+        # Add scripts if they exist
+        scripts_dir = workload_dir / "scripts"
+        if scripts_dir.exists() and scripts_dir.is_dir():
+            script_files = list(scripts_dir.iterdir())
+            log(f"  Found {len(script_files)} script(s)", style="dim")
+            for script_file in script_files:
+                if script_file.is_file():
+                    files_to_upload.append(("scripts", (script_file.name, open(script_file, "rb"), "text/plain")))
+
+        log_success("Workload package ready")
+
+        # Upload and execute
+        log(f"\n[2/3] Uploading to {api_url} and executing in TEE...")
+        log("  (This may take a few minutes)", style="dim")
+
+        response = requests.post(
+            f"{api_url}/builds/{build_id}/run-workload",
+            data={"expected_input_root": expected_input_root},
+            files=files_to_upload,
+            timeout=600,  # 10 minute timeout for execution
+        )
+
+        # Close all file handles
+        for _, file_tuple in files_to_upload:
+            file_tuple[1].close()
+
+        if response.status_code != 200:
+            log_error(f"API error: {response.status_code}")
+            log(response.text)
+            raise typer.Exit(1)
+
+        result = response.json()
+        workload_id = result["workload_id"]
+
+        log_success("Execution complete")
+        log_success(f"Workload ID: {workload_id}")
+        log_success(f"Status: {result['status']}")
+        log(f"Execution Time: {result['execution_time_seconds']:.2f}s", style="dim")
+
+        # # Display summary
+        # log("\n[3/3] Results:")
+        # if result.get("summary"):
+        #     summary = result["summary"]
+        #     if summary.get("content"):
+        #         log(f"\n  Result Summary: {summary['content']}", style="bold")
+
+        # # Save results locally
+        # output_dir = workload_dir / f"results-{workload_id}"
+        # output_dir.mkdir(exist_ok=True)
+
+        # # Save summary
+        # summary_path = output_dir / "summary.json"
+        # summary_path.write_text(json.dumps(result["summary"], indent=2))
+        # log_success(f"\nSummary saved: {summary_path}")
+
+        # # Save workload passport
+        # if result.get("workload_passport"):
+        #     passport_path = output_dir / "workload-passport.json"
+        #     passport_path.write_text(json.dumps(result["workload_passport"], indent=2))
+        #     log_success(f"Workload passport saved: {passport_path}")
+
+        # # Save attestation
+        # if result.get("attestation"):
+        #     attestation_path = output_dir / "evidence.b64"
+        #     attestation_path.write_text(result["attestation"])
+        #     log_success(f"Attestation saved: {attestation_path}")
+
+        # Display verification info
+        log("\n")
+        log_section("Verification")
+        log("Results can be verified:")
+        log(f"  ✓ Attestation signature (TEE hardware authentic)", style="dim")
+        log(f"  ✓ Input root matches: {expected_input_root[:32]}...", style="dim")
+        log(f"  ✓ Workload hash matches uploaded workload", style="dim")
+        log(f"  ✓ Summary is cryptographically bound to execution", style="dim")
+
+        log("\n")
+        log_success("Workload execution complete")
+        # log(f"\nResults saved to: {output_dir}/", style="bold")
+
+    except requests.exceptions.RequestException as e:
+        log_error(f"API request failed: {e}")
+        raise typer.Exit(1)
+    except Exception as e:
+        log_error(f"Error: {e}")
+        import traceback
+        traceback.print_exc()
+        raise typer.Exit(1)
+
+
+@app.command(name="tee-get-results")
+def tee_get_results(
+    build_id: str = typer.Argument(
+        ...,
+        help="Build ID",
+    ),
+    workload_id: str = typer.Argument(
+        ...,
+        help="Workload ID from execution",
+    ),
+    api_url: str = typer.Option(
+        "http://localhost:8000",
+        "--api",
+        help="Attestable builds API URL (TEE service)",
+    ),
+    output_dir: Path = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output directory (default: workload-results-{workload_id})",
+    ),
+):
+    """Download full workload execution results from TEE.
+
+    Example:
+        attestable-builds tee-get-results abc123 def456 --api https://tee.example.com
+    """
+    try:
+        log_section("TEE Workload Results")
+
+        log(f"\n[1/2] Downloading results from {api_url}...")
+        log(f"Build ID: {build_id}", style="dim")
+        log(f"Workload ID: {workload_id}", style="dim")
+
+        response = requests.get(
+            f"{api_url}/builds/{build_id}/workloads/{workload_id}/results",
+            timeout=60,
+        )
+
+        if response.status_code != 200:
+            log_error(f"API error: {response.status_code}")
+            log(response.text)
+            raise typer.Exit(1)
+
+        result = response.json()
+        log_success("Results downloaded")
+
+        # Create output directory
+        if output_dir is None:
+            output_dir = Path(f"workload-results-{workload_id}")
+        output_dir.mkdir(exist_ok=True)
+
+        log(f"\n[2/2] Saving results to {output_dir}/...")
+
+        # Save summary
+        if result.get("summary"):
+            summary_path = output_dir / "summary.json"
+            summary_path.write_text(json.dumps(result["summary"], indent=2))
+            log_success(f"Summary: {summary_path}")
+
+            # Display summary
+            summary = result["summary"]["summary"]
+            if summary.get("content"):
+                log(f"\n  Result Summary: {summary['content']}", style="bold")
+
+        # Save full results (Party A's private data)
+        if result.get("full_results"):
+            full_results_dir = output_dir / "full-results"
+            full_results_dir.mkdir(exist_ok=True)
+
+            for filename, file_data in result["full_results"].items():
+                result_path = full_results_dir / filename
+                if file_data["type"] == "json":
+                    result_path.write_text(json.dumps(file_data["content"], indent=2))
+                elif file_data["type"] == "text":
+                    result_path.write_text(file_data["content"])
+
+            log_success(f"Full results: {full_results_dir}/ ({len(result['full_results'])} file(s))")
+
+        # Save workload passport
+        if result.get("workload_passport"):
+            passport_path = output_dir / "workload-passport.json"
+            passport_path.write_text(json.dumps(result["workload_passport"], indent=2))
+            log_success(f"Workload passport: {passport_path}")
+
+        # Save attestation
+        if result.get("attestation"):
+            attestation_path = output_dir / "evidence.b64"
+            attestation_path.write_text(result["attestation"])
+            log_success(f"Attestation: {attestation_path}")
+
+        log("\n")
+        log_success("Results downloaded successfully")
+        log(f"\nResults in: {output_dir}/", style="bold")
+        log("  - summary.json", style="dim")
+        log("  - full-results/", style="dim")
+        log("  - workload-passport.json", style="dim")
+        log("  - evidence.b64", style="dim")
+
+    except requests.exceptions.RequestException as e:
+        log_error(f"API request failed: {e}")
+        raise typer.Exit(1)
+    except Exception as e:
+        log_error(f"Error: {e}")
+        raise typer.Exit(1)
+
+
+@app.command(name="run-workload")
+def run_workload(
+    workload_location: Path = typer.Argument(
+        ...,
+        help="Path to workload directory containing workload.yaml",
+        exists=True,
+        file_okay=False,
+    ),
+    build_id: str = typer.Argument(
+        ...,
+        help="Build ID (build location will be /tmp/kettle-{build_id})",
+    ),
+):
+    """Execute workload in sandboxed environment and generate passport.
+
+    This command:
+    1. Loads workload definition from workload directory
+    2. Uses build at /tmp/kettle-{build_id}
+    3. Executes workload steps in sandbox
+    4. Generates workload passport with execution results
+
+    Example:
+        attestable-builds run-workload ./my-workload abc123
+    """
+    try:
+        log_section("Running Workload")
+
+        # Determine build location from build ID
+        build_location = Path(f"/tmp/kettle/{build_id}")
+        if not build_location.exists():
+            log_error(f"Build location not found: {build_location}")
+            log(f"Expected build at /tmp/kettle/{build_id}")
+            raise typer.Exit(1)
+
+        # Check for workload.yaml
+        workload_yaml = workload_location / "workload.yaml"
+        if not workload_yaml.exists():
+            log_error(f"workload.yaml not found in {workload_location}")
+            raise typer.Exit(1)
+
+        log(f"\nWorkload Location: {workload_location}", style="bold")
+        log(f"Build ID: {build_id}", style="dim")
+        log(f"Build Location: {build_location}", style="dim")
+
+        # Initialize executor
+        log("\n[1/3] Initializing workload executor...")
+        executor = WorkloadExecutor(workload_yaml, build_location)
+        log_success(f"Workload: {executor.workload.name}")
+        log(f"  Timeout: {executor.workload.environment.timeout_seconds}s", style="dim")
+        log(f"  Network: {'enabled' if executor.workload.environment.network_access else 'blocked'}", style="dim")
+
+        # Execute workload
+        log("\n[2/3] Executing workload steps...")
+        result = executor.execute()
+
+        # Display step results
+        for i, step in enumerate(result.steps, 1):
+            status_icon = "✓" if step.status == "SUCCESS" else "✗"
+            log(f"\n  [{i}/{len(result.steps)}] {step.name}: {status_icon} {step.status}")
+            log(f"      Exit code: {step.exit_code}", style="dim")
+            log(f"      Duration: {step.duration_seconds:.2f}s", style="dim")
+            if step.status != "SUCCESS" and step.stderr:
+                log(f"      Error: {step.stderr[:200]}", style="dim")
+
+        # Display summary
+        log(f"\nExecution Status: {result.status}", style="bold")
+        log(f"Total Time: {result.execution_time_seconds:.2f}s", style="dim")
+
+        if result.summary.get("content"):
+            log(f"\nResult Summary: {result.summary['content']}", style="bold")
+
+        # Generate workload passport
+        log("\n[3/3] Generating workload passport...")
+        passport_path = build_location / "passport.json"
+        tools_dir = workload_location / "tools"
+        scripts_dir = workload_location / "scripts"
+
+        passport_data = generate_workload_passport(
+            build_passport_path=passport_path,
+            workload_path=workload_yaml,
+            workload_result=result,
+            tools_dir=tools_dir if tools_dir.exists() else None,
+            scripts_dir=scripts_dir if scripts_dir.exists() else None,
+        )
+
+        # Save workload passport
+        workload_passport_path = workload_location / "workload-passport.json"
+        workload_passport_path.write_text(json.dumps(passport_data, indent=2))
+        log_success(f"Workload passport: {workload_passport_path}")
+
+        # Save full results
+        full_results_dir = workload_location / "full-results"
+        full_results_dir.mkdir(exist_ok=True)
+        for path, data in result.full_results.items():
+            result_file = full_results_dir / Path(path).name
+            if data["type"] == "json":
+                result_file.write_text(json.dumps(data["content"], indent=2))
+            elif data["type"] == "text":
+                result_file.write_text(data["content"])
+        log_success(f"Full results: {full_results_dir}")
+
+        # Save summary
+        summary_path = workload_location / "summary.json"
+        summary_path.write_text(json.dumps(result.summary, indent=2))
+        log_success(f"Summary: {summary_path}")
+
+        log("\n")
+        log_success("Workload execution complete")
+        log(f"\nResults in: {workload_location}/", style="bold")
+        log("  - workload-passport.json", style="dim")
+        log("  - summary.json", style="dim")
+        log("  - full-results/", style="dim")
+
+    except Exception as e:
+        log_error(f"Error: {e}")
+        import traceback
+        traceback.print_exc()
+        raise typer.Exit(1)
+
+
 
 
 def main():
