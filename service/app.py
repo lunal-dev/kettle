@@ -7,10 +7,13 @@ import threading
 import zipfile
 from datetime import datetime
 from pathlib import Path
+from typing import List
 from uuid import uuid4
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse
+from kettle.workload.executor import WorkloadExecutor, generate_workload_passport
+from datetime import timezone
 
 from kettle.cli import execute_build, generate_attestation, verify_inputs
 from kettle.passport import generate_passport
@@ -55,6 +58,13 @@ async def build(source: UploadFile = File(...)):
         git_info, cargo_lock_hash, results, toolchain = verify_inputs(project_dir, verbose=False)
         build_result = execute_build(project_dir, release=True)
 
+        # Create build-config directory and copy Cargo.lock
+        build_config_dir = build_dir / "build-config"
+        build_config_dir.mkdir()
+        cargo_lock_path = project_dir / "Cargo.lock"
+        if cargo_lock_path.exists():
+            shutil.copy2(cargo_lock_path, build_config_dir / "Cargo.lock")
+
         # Generate passport
         output_artifacts = [(a["path"], a["hash"]) for a in build_result["artifacts"]]
         passport_path = build_dir / "passport.json"
@@ -77,6 +87,9 @@ async def build(source: UploadFile = File(...)):
             shutil.copy2(artifact_path, artifacts_dir / artifact_path.name)
             artifact_names.append(artifact_path.name)
 
+        # List build-config files
+        build_config_files = [f.name for f in build_config_dir.iterdir() if f.is_file()]
+
         # Generate attestation
         attestation_b64 = None
         attestation_error = None
@@ -95,6 +108,7 @@ async def build(source: UploadFile = File(...)):
             "passport": passport_data,
             "attestation": attestation_b64,
             "artifacts": artifact_names,
+            "build_config_files": build_config_files,
         }
 
         # Add attestation status if it failed
