@@ -1,10 +1,14 @@
 """Execute cargo build and collect output artifacts."""
 
+import subprocess
 from pathlib import Path
 from subprocess import CalledProcessError
 
 from kettle.subprocess_utils import run_command
-from kettle.utils import hash_file
+from kettle.utils import hash_file, hash_passport_to_32bytes
+from kettle.logger import log, log_error, log_section, log_success
+from kettle.passport import generate_passport
+from kettle.verification import verify_inputs
 
 
 def run_cargo_build(project_dir: Path, release: bool = True) -> dict:
@@ -63,3 +67,171 @@ def run_cargo_build(project_dir: Path, release: bool = True) -> dict:
             "stdout": "",
             "stderr": "cargo command not found",
         }
+
+
+def execute_build(project_dir: Path, release: bool = True) -> dict:
+    """Execute cargo build and measure output artifacts with logging.
+
+    Args:
+        project_dir: Path to Cargo project directory
+        release: Whether to build in release mode
+
+    Returns:
+        Build result dictionary with success status and artifacts
+
+    Raises:
+        typer.Exit: If build fails
+    """
+    import typer
+
+    log_section("Building Project")
+    log(f"\nMode: {'release' if release else 'debug'}", style="dim")
+    log(f"Command: cargo build --locked {'--release' if release else ''}", style="dim")
+
+    build_result = run_cargo_build(project_dir, release=release)
+
+    if not build_result["success"]:
+        log_error("Build failed")
+        if build_result["stderr"]:
+            log(f"\n{build_result['stderr']}")
+        raise typer.Exit(1)
+
+    log_success("Build successful")
+    log_success(f"Artifacts: {len(build_result['artifacts'])}")
+
+    for artifact in build_result['artifacts']:
+        log(f"  - {artifact['name']}", style="bold")
+        log(f"    SHA256: {artifact['hash']}", style="dim")
+
+    return build_result
+
+
+def generate_attestation(passport_data: dict) -> tuple[Path, Path]:
+    """Generate attestation using attest-amd command.
+
+    Args:
+        passport_data: Passport dictionary to hash for attestation
+
+    Returns:
+        Tuple of (attestation_path, custom_data_path)
+        - attestation_path: Path to evidence.b64 (base64 compressed bincode)
+        - custom_data_path: Path to custom_data.hex (for verification)
+
+    Raises:
+        typer.Exit: If attestation generation fails
+    """
+    import typer
+
+    log_section("Generating Attestation")
+
+    # Hash passport to 32-byte custom data
+    custom_data = hash_passport_to_32bytes(passport_data)
+    log_success("Custom data generated (128 hex chars)")
+    log(f"  - Passport hash: {custom_data[:64]}", style="dim")
+    log(f"  - Nonce: {custom_data[64:80]}...", style="dim")
+
+    # Call attest-amd command
+    try:
+        log(f"\nRunning: sudo attest-amd attest --custom-data {custom_data[:16]}...", style="dim")
+        result = subprocess.run(
+            ["sudo", "attest-amd", "attest", "--custom-data", custom_data],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+        # attest-amd saves to evidence.b64 automatically
+        attestation_path = Path("evidence.b64")
+        if not attestation_path.exists():
+            # Fallback: save stdout if file wasn't created
+            attestation_path.write_text(result.stdout.strip())
+
+        log_success("Attestation generated successfully")
+        log_success(f"Attestation saved: {attestation_path} (base64 compressed bincode)")
+
+        return attestation_path, None
+
+    except subprocess.CalledProcessError as e:
+        log_error(f"Attestation generation failed with exit code {e.returncode}")
+        if e.stderr:
+            log(f"\n{e.stderr}")
+        raise typer.Exit(1)
+    except FileNotFoundError:
+        log_error("attest-amd command not found")
+        log("Install attest-amd or run without --attestation flag")
+        raise typer.Exit(1)
+
+
+def run_build_workflow(
+    project_dir: Path,
+    output: Path,
+    release: bool,
+    verbose: bool,
+    attestation: bool,
+) -> None:
+    """Complete build workflow: verify inputs → build → generate passport → attestation.
+
+    This orchestrates the entire build command workflow:
+    1. Verifies all inputs (git, Cargo.lock, deps, toolchain)
+    2. Executes cargo build
+    3. Measures output artifacts
+    4. Generates passport with inputs and outputs
+    5. Optionally generates attestation
+
+    Args:
+        project_dir: Path to Cargo project directory
+        output: Output path for passport JSON
+        release: Whether to build in release mode
+        verbose: Show all results
+        attestation: Generate attestation report using attest-amd
+
+    Raises:
+        typer.Exit: If any step fails
+    """
+    import typer
+
+    try:
+        # Verify inputs
+        git_info, cargo_lock_hash, results, toolchain = verify_inputs(
+            project_dir, verbose
+        )
+
+        # Execute build
+        build_result = execute_build(project_dir, release)
+
+        # Generate passport with outputs
+        log_section("Generating Passport")
+
+        output_artifacts = [(artifact['path'], artifact['hash']) for artifact in build_result['artifacts']]
+
+        passport_data = generate_passport(
+            git_source=git_info,
+            cargo_lock_hash=cargo_lock_hash,
+            toolchain=toolchain,
+            verification_results=results,
+            output_artifacts=output_artifacts,
+            output_path=output,
+        )
+
+        log_success(f"Passport generated: {output}")
+        log_success(f"Manifest generated: manifest.json")
+
+        if git_info:
+            log(f"  - Source commit: {git_info['commit_hash'][:8]}...", style="dim")
+        log(f"  - {len(results)} dependencies verified", style="dim")
+        log(f"  - Toolchain: {toolchain['rustc_version'].split()[1]}", style="dim")
+        log(f"  - {len(output_artifacts)} artifact(s) measured", style="dim")
+
+        # Generate attestation if requested
+        if attestation:
+            attestation_path, custom_data_path = generate_attestation(passport_data)
+            log("\n")
+            log_success("Build complete with attestation")
+            log(f"  - Passport: {output}", style="dim")
+            log(f"  - Attestation: {attestation_path}", style="dim")
+
+    except typer.Exit:
+        raise
+    except Exception as e:
+        log_error(f"Error: {e}")
+        raise typer.Exit(1)
