@@ -1,7 +1,12 @@
 """Merkle tree calculation for input verification using pymerkle."""
 
+import json
+from pathlib import Path
+
 from pymerkle import InmemoryTree as MerkleTree
 from pymerkle import verify_inclusion, MerkleProof
+
+from kettle.logger import log, log_error, log_section, log_success, log_warning
 
 
 def calculate_input_merkle_root(
@@ -231,3 +236,102 @@ def verify_inclusion_proof_from_data(proof_data: dict, expected_root: bytes) -> 
     except Exception as e:
         print(f"Verification error: {e}")
         return False
+
+
+def gen_inclusion_proof(
+    passport: Path,
+    hashes: list[str],
+    output: Path | None,
+) -> None:
+    """Complete Merkle inclusion proof workflow: generate and verify proofs.
+
+    Args:
+        passport: Path to passport JSON file
+        hashes: List of hash values to prove inclusion for (supports partial matching)
+        output: Optional output path to save proofs to JSON file
+
+    Raises:
+        typer.Exit: If proof generation/verification fails
+    """
+    import typer
+
+    try:
+        log_section("Merkle Inclusion Proof")
+
+        # Load passport
+        log(f"\nLoading passport: {passport}")
+        passport_data = json.loads(passport.read_text())
+
+        log(f"Generating proofs for {len(hashes)} hash(es)...\n")
+
+        # Generate proofs
+        result = generate_inclusion_proofs(passport_data, hashes)
+
+        # Display generation results
+        log(f"Merkle Root: {result['merkle_root']}", style="bold")
+        log(f"Tree Size: {result['tree_size']} leaves\n")
+
+        if result['proofs']:
+            log_success(f"Generated {len(result['proofs'])} proof(s):")
+            for proof in result['proofs']:
+                log(f"\n  Target: {proof['target_hash']}", style="bold")
+                log(f"  Label: {proof['label']}", style="dim")
+                log(f"  Leaf Index: {proof['leaf_index']}", style="dim")
+                log(f"  Leaf Hash: {proof['leaf_value'][:32]}...", style="dim")
+                log(f"  Proof Size: {len(json.dumps(proof['proof']))} bytes", style="dim")
+
+        if result['not_found']:
+            log("\n")
+            log_warning(f"{len(result['not_found'])} hash(es) not found:")
+            for missing in result['not_found']:
+                log(f"  - {missing}", style="dim")
+
+        # Verify the proofs immediately
+        if result['proofs']:
+            log("\n")
+            log_section("Verifying Proofs")
+
+            merkle_root = bytes.fromhex(result['merkle_root'])
+            all_valid = True
+
+            for i, proof in enumerate(result['proofs'], 1):
+                log(f"\n[{i}/{len(result['proofs'])}] {proof['label']}", style="bold")
+                log(f"  Target: {proof['target_hash']}", style="dim")
+
+                is_valid = verify_inclusion_proof_from_data(proof, merkle_root)
+
+                if is_valid:
+                    log_success("  Proof VALID")
+                else:
+                    log_error("  Proof INVALID")
+                    all_valid = False
+
+            # Final verification result
+            log("\n")
+            if all_valid:
+                log_success(f"All {len(result['proofs'])} proof(s) verified successfully")
+            else:
+                log_error("Some proofs failed verification")
+                if output:
+                    output.write_text(json.dumps(result, indent=2))
+                    log_warning(f"Proofs saved to: {output} (contains invalid proofs)")
+                raise typer.Exit(1)
+
+        # Save if requested
+        if output and result['proofs']:
+            output.write_text(json.dumps(result, indent=2))
+            log("\n")
+            log_success(f"Proofs saved to: {output}")
+        elif output:
+            log_warning("No proofs generated, file not saved")
+
+        # Exit with error if some hashes weren't found
+        if result['not_found'] and not result['proofs']:
+            raise typer.Exit(1)
+
+    except json.JSONDecodeError as e:
+        log_error(f"Invalid JSON in passport: {e}")
+        raise typer.Exit(1)
+    except Exception as e:
+        log_error(f"Error: {e}")
+        raise typer.Exit(1)
