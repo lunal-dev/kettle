@@ -54,19 +54,78 @@ def display_checks(checks: dict[str, CheckResult], title: str = "Results"):
     console.print()
 
 
+def display_verification_checks(
+    checks: dict,
+    title: str,
+    success_message: str,
+    failure_message: str,
+) -> bool:
+    """Display verification check results in consistent format.
+
+    Args:
+        checks: Dict of check results with 'verified' and 'message' keys
+        title: Title to display above results
+        success_message: Message to show if all checks pass
+        failure_message: Message to show if any checks fail
+
+    Returns:
+        True if all checks passed, False otherwise
+    """
+    # Convert dict checks to CheckResult format
+    check_results = {}
+    for check_name, check_data in checks.items():
+        # Determine if this is a warning/skip
+        message = check_data["message"]
+        is_skip = any(word in message.lower() for word in ["mock", "not implemented", "skipped", "no "])
+
+        check_results[check_name.replace('_', ' ').title()] = CheckResult(
+            verified=check_data["verified"],
+            message=message,
+            details={"critical": not is_skip}
+        )
+
+    # Use the display_checks function
+    display_checks(check_results, title)
+
+    # Check if all critical checks passed
+    all_passed = all(
+        result.verified or not result.details.get("critical", True)
+        for result in check_results.values()
+    )
+
+    # Show final message
+    if all_passed:
+        log_success(success_message)
+    else:
+        log_error(failure_message)
+
+    return all_passed
+
+
 def display_dependency_results(
-    results: list[dict], title: str = "Dependency Verification"
+    results: list[dict], title: str = "Dependency Verification", verbose: bool = False
 ):
     """Display dependency verification results.
 
     Args:
         results: List of dependency verification result dictionaries
         title: Section title to display
+        verbose: Show detailed hash information
     """
+    import hashlib
+
     log_section(title)
 
     verified = [r for r in results if r.get("verified")]
     failed = [r for r in results if not r.get("verified")]
+
+    # If verbose, add detailed hash info to results
+    if verbose:
+        for r in results:
+            if r.get("crate_path") and r.get("dependency", {}).get("checksum"):
+                actual_hash = hashlib.sha256(r["crate_path"].read_bytes()).hexdigest()
+                match = actual_hash == r["dependency"]["checksum"]
+                r["message"] += f" | Match: {'✓' if match else '✗'}"
 
     if verified:
         console.print(f"[green]✓ {len(verified)} dependencies verified[/green]")
