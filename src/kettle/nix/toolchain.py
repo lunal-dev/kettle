@@ -33,7 +33,7 @@ def get_nix_toolchain_info() -> dict:
     nix_hash = hashlib.sha256(nix_path.read_bytes()).hexdigest()
 
     return {
-        "nix_path": nix_path,
+        "nix_path": str(nix_path),
         "nix_hash": nix_hash,
         "nix_version": nix_version,
     }
