@@ -8,7 +8,7 @@ from typing import Optional
 from ..merkle import MerkleTree
 from ..utils import hash_file
 from .parser import parse_flake_lock, hash_flake_lock, extract_direct_inputs
-from .verifier import verify_all
+from .verification import verify_flake_inputs
 from .toolchain import get_nix_toolchain_info
 from .build import run_nix_build
 from ..logger import log, log_error, log_section, log_success, log_warning
@@ -48,7 +48,7 @@ def generate_nix_passport(
         print(f"Parsed {len(inputs)} direct flake inputs")
 
     # 2. Verify inputs
-    verification_results = verify_all(inputs)
+    verification_results = verify_flake_inputs(inputs)
     verified_count = sum(1 for v in verification_results if v["verified"])
 
     if verbose:
