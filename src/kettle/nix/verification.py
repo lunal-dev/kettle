@@ -107,9 +107,9 @@ def verify_flake_input(input_data: dict) -> dict:
         input_data: Input dictionary from extract_direct_inputs()
 
     Returns:
-        Dict with verification result:
+        Dict with verification result (standardized format matching Cargo):
         {
-          "input": {...},
+          "dependency": {"name": str, "version": str (optional), ...metadata},
           "verified": bool,
           "message": str
         }
@@ -117,9 +117,17 @@ def verify_flake_input(input_data: dict) -> dict:
     input_name = input_data.get("name", "unknown")
     expected_narHash = input_data.get("narHash")
 
+    # Standardized dependency format (matching Cargo output format)
+    # Include all input metadata in the dependency object
+    dependency = {
+        "name": input_name,
+        "narHash": expected_narHash,
+        "type": input_data.get("type"),
+    }
+
     if not expected_narHash:
         return {
-            "input": input_data,
+            "dependency": dependency,
             "verified": False,
             "message": "No narHash in flake.lock",
         }
@@ -128,7 +136,7 @@ def verify_flake_input(input_data: dict) -> dict:
     store_path = _find_nix_store_path(input_data)
     if not store_path:
         return {
-            "input": input_data,
+            "dependency": dependency,
             "verified": False,
             "message": f"Store path not found for {input_name}",
         }
@@ -140,13 +148,13 @@ def verify_flake_input(input_data: dict) -> dict:
         # Show abbreviated store path (last component)
         store_name = store_path.name if len(store_path.name) < 40 else store_path.name[:37] + "..."
         return {
-            "input": input_data,
+            "dependency": dependency,
             "verified": True,
             "message": f"narHash verified: {expected_narHash[:32]}... (store: {store_name})",
         }
     else:
         return {
-            "input": input_data,
+            "dependency": dependency,
             "verified": False,
             "message": f"narHash mismatch for {input_name} (store: {store_path})",
         }

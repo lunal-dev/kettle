@@ -11,8 +11,6 @@ from .parser import parse_flake_lock, hash_flake_lock, extract_direct_inputs
 from .verification import verify_flake_inputs
 from .toolchain import get_nix_toolchain_info
 from .build import run_nix_build
-from ..logger import log, log_error, log_section, log_success, log_warning
-
 
 def generate_nix_passport(
     project_dir: Path,
@@ -92,7 +90,6 @@ def generate_nix_passport(
 
     input_merkle_root = merkle_tree.get_state().hex()
 
-    log("building passport structure...")
     # 6. Build passport structure
     passport = {
         "version": "1.0",
@@ -108,9 +105,9 @@ def generate_nix_passport(
             },
             "flake_inputs": [
                 {
-                    "name": v["input"]["name"],
-                    "narHash": v["input"].get("narHash"),
-                    "type": v["input"].get("type"),
+                    "name": v["dependency"]["name"],
+                    "narHash": v["dependency"].get("narHash"),
+                    "type": v["dependency"].get("type"),
                     "verified": v["verified"],
                 }
                 for v in verification_results
@@ -129,7 +126,6 @@ def generate_nix_passport(
 
 
 
-    log(f"built passport :{passport}")
 
     # Add git source if present
     if git_source:

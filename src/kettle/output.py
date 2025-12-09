@@ -131,8 +131,14 @@ def display_dependency_results(
         console.print(f"[green]✓ {len(verified)} dependencies verified[/green]")
         for r in verified:
             dep = r.get("dependency", {})
+            name = dep.get('name', 'unknown')
+            version = dep.get('version', '')
+
+            # Format: "name-version" if version exists, otherwise just "name"
+            dep_label = f"{name}-{version}" if version else name
+
             log(
-                f"  • {dep.get('name', 'unknown')}-{dep.get('version', '?')}: {r.get('message', '')}",
+                f"  • {dep_label}: {r.get('message', '')}",
                 style="dim",
             )
         console.print()
@@ -141,8 +147,14 @@ def display_dependency_results(
         console.print(f"[red]✗ {len(failed)} dependencies failed verification[/red]")
         for r in failed:
             dep = r.get("dependency", {})
+            name = dep.get('name', 'unknown')
+            version = dep.get('version', '')
+
+            # Format: "name-version" if version exists, otherwise just "name"
+            dep_label = f"{name}-{version}" if version else name
+
             log_error(
-                f"  {dep.get('name', 'unknown')}-{dep.get('version', '?')}: {r.get('message', '')}"
+                f"  {dep_label}: {r.get('message', '')}"
             )
         console.print()
 
