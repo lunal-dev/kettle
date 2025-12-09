@@ -11,6 +11,29 @@ from kettle.passport import generate_passport
 from kettle.verification import verify_inputs
 
 
+def detect_build_system(project_dir: Path) -> str:
+    """Detect build system from project files.
+
+    Args:
+        project_dir: Path to project directory
+
+    Returns:
+        "nix" if flake.nix exists, "cargo" if Cargo.toml exists
+
+    Raises:
+        ValueError: If no supported build system detected
+    """
+    if (project_dir / "flake.nix").exists():
+        return "nix"
+    elif (project_dir / "Cargo.toml").exists():
+        return "cargo"
+    else:
+        raise ValueError(
+            "No supported build system detected. "
+            "Expected flake.nix (Nix) or Cargo.toml (Cargo)."
+        )
+
+
 def run_cargo_build(project_dir: Path, release: bool = True) -> dict:
     """Execute cargo build and return artifacts with measurements.
 
@@ -169,19 +192,20 @@ def run_build_workflow(
     verbose: bool,
     attestation: bool,
 ) -> None:
-    """Complete build workflow: verify inputs → build → generate passport → attestation.
+    """Complete build workflow: auto-detect build system and execute.
 
     This orchestrates the entire build command workflow:
-    1. Verifies all inputs (git, Cargo.lock, deps, toolchain)
-    2. Executes cargo build
-    3. Measures output artifacts
-    4. Generates passport with inputs and outputs
-    5. Optionally generates attestation
+    1. Detects build system (flake.nix → Nix, Cargo.toml → Cargo)
+    2. Verifies all inputs (git, lock file, deps, toolchain)
+    3. Executes build
+    4. Measures output artifacts
+    5. Generates passport with inputs and outputs
+    6. Optionally generates attestation
 
     Args:
-        project_dir: Path to Cargo project directory
+        project_dir: Path to project directory
         output: Output path for passport JSON
-        release: Whether to build in release mode
+        release: Whether to build in release mode (Cargo only)
         verbose: Show all results
         attestation: Generate attestation report using attest-amd
 
@@ -189,40 +213,71 @@ def run_build_workflow(
         typer.Exit: If any step fails
     """
     import typer
+    from . import nix
 
     try:
-        # Verify inputs
-        git_info, cargo_lock_hash, results, toolchain = verify_inputs(
-            project_dir, verbose
-        )
+        # Detect build system
+        try:
+            build_system = detect_build_system(project_dir)
+        except ValueError as e:
+            log_error(str(e))
+            raise typer.Exit(1)
 
-        # Execute build
-        build_result = execute_build(project_dir, release)
+        log(f"Detected build system: {build_system}", style="bold cyan")
 
-        # Generate passport with outputs
-        log_section("Generating Passport")
+        # Dispatch to appropriate workflow
+        if build_system == "nix":
+            # Nix workflow
+            git_info, flake_lock_hash, results, toolchain = nix.verify_nix_inputs(
+                project_dir, verbose
+            )
 
-        output_artifacts = [(artifact['path'], artifact['hash']) for artifact in build_result['artifacts']]
+            log_section("Building and Generating Passport")
+            passport_data = nix.generate_nix_passport(
+                project_dir=project_dir,
+                output_path=output,
+                git_source=git_info,
+                verbose=verbose,
+            )
 
-        passport_data = generate_passport(
-            git_source=git_info,
-            cargo_lock_hash=cargo_lock_hash,
-            toolchain=toolchain,
-            verification_results=results,
-            output_artifacts=output_artifacts,
-            output_path=output,
-        )
+            log_success(f"Passport generated: {output}")
+            if git_info:
+                log(f"  - Source commit: {git_info['commit_hash'][:8]}...", style="dim")
+            log(f"  - {len(results)} flake inputs verified", style="dim")
+            log(f"  - Toolchain: {toolchain['nix_version']}", style="dim")
+            log(f"  - {len(passport_data['outputs']['artifacts'])} artifact(s) measured", style="dim")
 
-        log_success(f"Passport generated: {output}")
-        log_success(f"Manifest generated: manifest.json")
+        else:  # cargo
+            # Existing Cargo workflow
+            git_info, cargo_lock_hash, results, toolchain = verify_inputs(
+                project_dir, verbose
+            )
 
-        if git_info:
-            log(f"  - Source commit: {git_info['commit_hash'][:8]}...", style="dim")
-        log(f"  - {len(results)} dependencies verified", style="dim")
-        log(f"  - Toolchain: {toolchain['rustc_version'].split()[1]}", style="dim")
-        log(f"  - {len(output_artifacts)} artifact(s) measured", style="dim")
+            build_result = execute_build(project_dir, release)
 
-        # Generate attestation if requested
+            log_section("Generating Passport")
+
+            output_artifacts = [(artifact['path'], artifact['hash']) for artifact in build_result['artifacts']]
+
+            passport_data = generate_passport(
+                git_source=git_info,
+                cargo_lock_hash=cargo_lock_hash,
+                toolchain=toolchain,
+                verification_results=results,
+                output_artifacts=output_artifacts,
+                output_path=output,
+            )
+
+            log_success(f"Passport generated: {output}")
+            log_success(f"Manifest generated: manifest.json")
+
+            if git_info:
+                log(f"  - Source commit: {git_info['commit_hash'][:8]}...", style="dim")
+            log(f"  - {len(results)} dependencies verified", style="dim")
+            log(f"  - Toolchain: {toolchain['rustc_version'].split()[1]}", style="dim")
+            log(f"  - {len(output_artifacts)} artifact(s) measured", style="dim")
+
+        # Generate attestation if requested (same for both)
         if attestation:
             attestation_path, custom_data_path = generate_attestation(passport_data)
             log("\n")

@@ -48,7 +48,7 @@ app = typer.Typer(help="Build-time verification and attestation for TEE deployme
 def build(
     project_dir: Path = typer.Argument(
         ".",
-        help="Path to Cargo project directory",
+        help="Path to project directory",
         exists=True,
         file_okay=False,
     ),
@@ -61,7 +61,7 @@ def build(
     release: bool = typer.Option(
         True,
         "--release/--debug",
-        help="Build in release mode (default) or debug mode",
+        help="Build in release mode (default) or debug mode (Cargo only)",
     ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show all results"),
     attestation: bool = typer.Option(
@@ -73,11 +73,14 @@ def build(
 ):
     """Build project with full input verification and output measurement.
 
+    Auto-detects build system (Nix or Cargo) and executes appropriate workflow.
+
     This command:
-    1. Verifies all inputs (git, Cargo.lock, deps, toolchain)
-    2. Executes cargo build
-    3. Measures output artifacts
-    4. Generates passport with inputs and outputs
+    1. Detects build system (flake.nix → Nix, Cargo.toml → Cargo)
+    2. Verifies all inputs (git, lock file, deps, toolchain)
+    3. Executes build
+    4. Measures output artifacts
+    5. Generates passport with inputs and outputs
     """
     run_build_workflow(project_dir, output, release, verbose, attestation)
 
@@ -219,7 +222,7 @@ def verify(
 def tee_build(
     project_dir: Path = typer.Argument(
         ".",
-        help="Path to Cargo project directory",
+        help="Path to project directory",
         exists=True,
         file_okay=False,
     ),

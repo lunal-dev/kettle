@@ -104,7 +104,7 @@ def get_git_info(repo_path: Path) -> dict | None:
             "commit_hash": commit_hash,
             "repository_url": repository_url,
             "tree_hash": tree_hash,
-            "git_path": git_path,
+            "git_path": str(git_path),
             "git_binary_hash": git_binary_hash,
             "is_clean": is_clean,
             "dirty_files": dirty_files,

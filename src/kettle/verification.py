@@ -114,6 +114,8 @@ def run_verify_passport_workflow(
 ) -> None:
     """Complete passport verification workflow with display.
 
+    Auto-detects build system (Cargo or Nix) from passport and verifies accordingly.
+
     Args:
         passport: Path to passport JSON file
         manifest: Path to verification manifest JSON file (optional)
@@ -125,19 +127,27 @@ def run_verify_passport_workflow(
         typer.Exit: If verification fails
     """
     import typer
+    import json
+    from . import nix
 
     try:
         log_section("Passport Verification")
 
-        # Gather verification inputs
+        # Detect build system from passport
+        passport_data = json.loads(passport.read_text())
+        build_system = passport_data.get("build_system", "cargo")  # Default to cargo for backwards compat
+
+        log(f"Build system: {build_system}", style="bold cyan")
+
+        # Gather verification inputs based on build system
         git_commit = None
-        cargo_lock_hash = None
+        lock_file_hash = None
 
         if manifest:
             log(f"\n[1/2] Loading verification manifest: {manifest.name}")
         elif project_dir:
             log(f"\n[1/2] Gathering verification data from project...")
-            # Get git commit
+            # Get git commit (same for both)
             git_info = get_git_info(project_dir)
             if git_info:
                 git_commit = git_info["commit_hash"]
@@ -145,25 +155,43 @@ def run_verify_passport_workflow(
             else:
                 log_warning("Not a git repository")
 
-            # Get Cargo.lock hash
-            cargo_lock = project_dir / "Cargo.lock"
-            if cargo_lock.exists():
-                cargo_lock_hash = hash_cargo_lock(cargo_lock)
-                log_success(f"Cargo.lock hash: {cargo_lock_hash[:16]}...")
-            else:
-                log_warning("Cargo.lock not found")
+            # Get lock file hash based on build system
+            if build_system == "nix":
+                flake_lock = project_dir / "flake.lock"
+                if flake_lock.exists():
+                    lock_file_hash = nix.hash_flake_lock(flake_lock)
+                    log_success(f"flake.lock hash: {lock_file_hash[:16]}...")
+                else:
+                    log_warning("flake.lock not found")
+            else:  # cargo
+                cargo_lock = project_dir / "Cargo.lock"
+                if cargo_lock.exists():
+                    lock_file_hash = hash_cargo_lock(cargo_lock)
+                    log_success(f"Cargo.lock hash: {lock_file_hash[:16]}...")
+                else:
+                    log_warning("Cargo.lock not found")
 
         log(f"\n[2/2] Verifying passport: {passport.name}")
 
-        # Run verification
-        results = verify_build_passport(
-            passport_path=passport,
-            manifest_path=manifest,
-            git_commit=git_commit,
-            cargo_lock_hash=cargo_lock_hash,
-            binary_path=binary,
-            strict=strict,
-        )
+        # Run verification based on build system
+        if build_system == "nix":
+            results = nix.verify_nix_build_passport(
+                passport_path=passport,
+                manifest_path=manifest,
+                git_commit=git_commit,
+                flake_lock_hash=lock_file_hash,
+                binary_path=binary,
+                strict=strict,
+            )
+        else:  # cargo
+            results = verify_build_passport(
+                passport_path=passport,
+                manifest_path=manifest,
+                git_commit=git_commit,
+                cargo_lock_hash=lock_file_hash,
+                binary_path=binary,
+                strict=strict,
+            )
 
         # Show passport metadata
         if results["passport"]:
@@ -303,9 +331,18 @@ def run_combined_verify_workflow(
         phase_title = "Phase 2: Passport Content Verification" if has_attestation else "Passport Verification"
         log_section(phase_title)
 
+        # Detect build system from passport
+        import json
+        from . import nix
+
+        passport_data = json.loads(passport_path.read_text())
+        build_system = passport_data.get("build_system", "cargo")  # Default to cargo for backwards compat
+
+        log(f"Build system: {build_system}", style="bold cyan")
+
         # Gather verification inputs
         git_commit = None
-        cargo_lock_hash = None
+        lock_file_hash = None
         manifest_path = None
 
         if project_dir:
@@ -316,7 +353,7 @@ def run_combined_verify_workflow(
                 log(f"Loading verification manifest: {manifest_path.name}")
             else:
                 log(f"Gathering verification data from project directory...")
-                # Get git commit
+                # Get git commit (same for both)
                 git_info = get_git_info(project_dir)
                 if git_info:
                     git_commit = git_info["commit_hash"]
@@ -324,25 +361,43 @@ def run_combined_verify_workflow(
                 else:
                     log_warning("Not a git repository")
 
-                # Get Cargo.lock hash
-                cargo_lock = project_dir / "Cargo.lock"
-                if cargo_lock.exists():
-                    cargo_lock_hash = hash_cargo_lock(cargo_lock)
-                    log_success(f"Cargo.lock hash: {cargo_lock_hash[:16]}...")
-                else:
-                    log_warning("Cargo.lock not found")
+                # Get lock file hash based on build system
+                if build_system == "nix":
+                    flake_lock = project_dir / "flake.lock"
+                    if flake_lock.exists():
+                        lock_file_hash = nix.hash_flake_lock(flake_lock)
+                        log_success(f"flake.lock hash: {lock_file_hash[:16]}...")
+                    else:
+                        log_warning("flake.lock not found")
+                else:  # cargo
+                    cargo_lock = project_dir / "Cargo.lock"
+                    if cargo_lock.exists():
+                        lock_file_hash = hash_cargo_lock(cargo_lock)
+                        log_success(f"Cargo.lock hash: {lock_file_hash[:16]}...")
+                    else:
+                        log_warning("Cargo.lock not found")
 
         log(f"\nVerifying passport: {passport_path.name}")
 
-        # Run passport verification
-        passport_results = verify_build_passport(
-            passport_path=passport_path,
-            manifest_path=manifest_path,
-            git_commit=git_commit,
-            cargo_lock_hash=cargo_lock_hash,
-            binary_path=binary,
-            strict=strict,
-        )
+        # Run passport verification based on build system
+        if build_system == "nix":
+            passport_results = nix.verify_nix_build_passport(
+                passport_path=passport_path,
+                manifest_path=manifest_path,
+                git_commit=git_commit,
+                flake_lock_hash=lock_file_hash,
+                binary_path=binary,
+                strict=strict,
+            )
+        else:  # cargo
+            passport_results = verify_build_passport(
+                passport_path=passport_path,
+                manifest_path=manifest_path,
+                git_commit=git_commit,
+                cargo_lock_hash=lock_file_hash,
+                binary_path=binary,
+                strict=strict,
+            )
 
         # Show passport metadata
         if passport_results["passport"]:
