@@ -354,62 +354,100 @@ def _verify_binary_hash(provenance: dict, binary_path: Path, strict: bool) -> di
     }
 
 
-def _verify_input_merkle(passport: dict, strict: bool) -> dict:
+def _verify_input_merkle(provenance: dict, strict: bool) -> dict:
     """Verify input merkle root can be recalculated from inputs.
 
     Mirrors the Cargo version but uses Nix-specific fields.
     """
-    recorded_root = passport.get("inputs", {}).get("input_merkle_root")
-    if not recorded_root:
+    try:
+        # Extract data from SLSA structure
+        predicate = provenance.get("predicate", {})
+        build_def = predicate.get("buildDefinition", {})
+        run_details = predicate.get("runDetails", {})
+
+        # External parameters
+        ext_params = build_def.get("externalParameters", {})
+        source = ext_params.get("source", {})
+        source_digest = source.get("digest", {})
+
+        # Internal parameters
+        int_params = build_def.get("internalParameters", {})
+        toolchain = int_params.get("toolchain", {}).get("nix", {})
+        lockfile_hash = int_params.get("lockfileHash", {}).get("sha256")
+
+        # Dependencies (resolvedDependencies)
+        resolved_deps = build_def.get("resolvedDependencies", [])
+
+        # Git binary hash from byproducts
+        byproducts = run_details.get("byproducts", [])
+        git_binary_byproduct = next(
+            (bp for bp in byproducts if bp.get("name") == "git_binary_hash"),
+            None
+        )
+        git_binary_hash = None
+        if git_binary_byproduct:
+            git_binary_hash = git_binary_byproduct.get("digest", {}).get("sha256")
+
+        # Recalculate merkle root
+        merkle_tree = MerkleTree(algorithm='sha256')
+
+        # Add git info if present
+        if source_digest.get("gitCommit"):
+            merkle_tree.append_entry(source_digest["gitCommit"].encode())
+        if source_digest.get("gitTree"):
+            merkle_tree.append_entry(source_digest["gitTree"].encode())
+        if git_binary_hash:
+            merkle_tree.append_entry(git_binary_hash.encode())
+
+        # Add flake.lock hash
+        if lockfile_hash:
+            merkle_tree.append_entry(lockfile_hash.encode())
+
+        # Add flake input narHashes (sorted by name)
+        # Extract narHash from annotations in resolved dependencies
+        for dep in sorted(resolved_deps, key=lambda x: x.get("name", "")):
+            annotations = dep.get("annotations", {})
+            narHash = annotations.get("narHash")
+            if narHash:
+                merkle_tree.append_entry(narHash.encode())
+
+        # Add nix toolchain
+        nix_hash = toolchain.get("digest", {}).get("sha256")
+        nix_version = toolchain.get("version")
+        if nix_hash:
+            merkle_tree.append_entry(nix_hash.encode())
+        if nix_version:
+            merkle_tree.append_entry(nix_version.encode())
+
+        computed_root = merkle_tree.get_state().hex()
+
+        # Get expected root from byproducts
+        merkle_byproduct = next(
+            (bp for bp in byproducts if bp.get("name") == "input_merkle_root"),
+            None
+        )
+        expected_root = None
+        if merkle_byproduct:
+            expected_root = merkle_byproduct.get("digest", {}).get("sha256")
+
+        if computed_root == expected_root:
+            return {
+                "verified": True,
+                "message": f"Input merkle root verified: {computed_root[:16]}...",
+            }
+
+        expected_str = expected_root[:16] if expected_root else "None"
         return {
             "verified": False,
-            "message": "No input_merkle_root in passport",
+            "message": f"Input merkle root mismatch: expected {expected_str}..., computed {computed_root[:16]}...",
+            "fail": True,
+        }
+    except Exception as e:
+        return {
+            "verified": False,
+            "message": f"Failed to verify input merkle root: {e}",
             "fail": strict,
         }
-
-    # Recalculate merkle root
-    merkle_tree = MerkleTree(algorithm='sha256')
-    inputs_data = passport.get("inputs", {})
-
-    # Add git info if present
-    git_source = inputs_data.get("source")
-    if git_source:
-        merkle_tree.append_entry(git_source["commit_hash"].encode())
-        merkle_tree.append_entry(git_source["tree_hash"].encode())
-        merkle_tree.append_entry(git_source["git_binary_hash"].encode())
-
-    # Add flake.lock hash
-    flake_lock_hash = inputs_data.get("flake_lock_hash")
-    if flake_lock_hash:
-        merkle_tree.append_entry(flake_lock_hash.encode())
-
-    # Add flake input narHashes (sorted by name)
-    flake_inputs = inputs_data.get("flake_inputs", [])
-    for input_data in sorted(flake_inputs, key=lambda x: x.get("name", "")):
-        narHash = input_data.get("narHash")
-        if narHash:
-            merkle_tree.append_entry(narHash.encode())
-
-    # Add nix toolchain
-    toolchain = inputs_data.get("toolchain", {}).get("nix", {})
-    if toolchain.get("binary_hash"):
-        merkle_tree.append_entry(toolchain["binary_hash"].encode())
-    if toolchain.get("version"):
-        merkle_tree.append_entry(toolchain["version"].encode())
-
-    recalculated_root = merkle_tree.get_state().hex()
-
-    if recalculated_root == recorded_root:
-        return {
-            "verified": True,
-            "message": f"Input merkle root verified: {recorded_root[:16]}...",
-        }
-
-    return {
-        "verified": False,
-        "message": f"Input merkle root mismatch: expected {recorded_root[:16]}..., got {recalculated_root[:16]}...",
-        "fail": True,
-    }
 
 
 def verify_nix_build_provenance(

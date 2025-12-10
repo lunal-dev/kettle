@@ -1,5 +1,6 @@
 """Execute nix build and collect output artifacts."""
 
+import shutil
 from pathlib import Path
 from subprocess import CalledProcessError
 
@@ -15,10 +16,13 @@ def run_nix_build(project_dir: Path) -> dict:
     This builds the default flake package and prints the /nix/store/
     output paths to stdout without creating a 'result' symlink.
 
+    All executable binaries found in /nix/store/.../bin/ are copied to
+    ./build directory in the project directory for convenient access.
+
     Returns:
         dict with:
             - success: bool
-            - artifacts: list of dicts with 'path', 'hash', 'name', 'store_path'
+            - artifacts: list of dicts with 'path' (local ./build path), 'hash', 'name', 'store_path'
             - store_paths: list of /nix/store/ paths
             - stdout: str
             - stderr: str
@@ -36,7 +40,14 @@ def run_nix_build(project_dir: Path) -> dict:
             if line.strip()
         ]
 
-        # Find all binaries in the store paths
+        # Resolve project_dir to absolute path to avoid path resolution issues
+        project_dir = project_dir.resolve()
+
+        # Create ./build directory in project dir
+        build_dir = project_dir / "build"
+        build_dir.mkdir(parents=True, exist_ok=True)
+
+        # Find all binaries in the store paths and copy to ./build
         artifacts = []
         for store_path_str in store_paths:
             store_path = Path(store_path_str)
@@ -50,9 +61,16 @@ def run_nix_build(project_dir: Path) -> dict:
                     if item.is_file():
                         # Check if executable (has any execute bit set)
                         if item.stat().st_mode & 0o111:
+                            # Copy binary to ./build directory
+                            local_binary_path = build_dir / item.name
+                            shutil.copy(item, local_binary_path)  # Use copy() instead of copy2() to avoid metadata permission issues on Linux
+
+                            # Make sure executable permissions are preserved
+                            local_binary_path.chmod(item.stat().st_mode)
+
                             artifacts.append({
-                                "path": str(item),
-                                "hash": hash_file(item),
+                                "path": str(local_binary_path),
+                                "hash": hash_file(local_binary_path),
                                 "name": item.name,
                                 "store_path": str(store_path),
                             })
