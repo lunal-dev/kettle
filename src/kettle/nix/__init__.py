@@ -9,18 +9,17 @@ This module provides Nix-specific functionality for:
 """
 
 from .parser import parse_flake_lock, hash_flake_lock, extract_direct_inputs
-from .verifier import verify_flake_input, verify_all
+from .verification import verify_flake_input, verify_flake_inputs, verify_nix_inputs
 from .toolchain import get_nix_toolchain_info
 from .build import run_nix_build
 from .passport import generate_nix_passport, verify_nix_build_passport
-from .verification import verify_nix_inputs
 
 __all__ = [
     "parse_flake_lock",
     "hash_flake_lock",
     "extract_direct_inputs",
     "verify_flake_input",
-    "verify_all",
+    "verify_flake_inputs",
     "get_nix_toolchain_info",
     "run_nix_build",
     "generate_nix_passport",
