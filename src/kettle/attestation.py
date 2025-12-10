@@ -71,7 +71,7 @@ def verify_attestation(
     # Step 2: Cryptographic verification via attest-amd
     try:
         result = run_command(
-            ["./attest-amd", "verify", str(attestation_path), custom_data_hex, "--check-custom-data"]
+            ["attest-amd", "verify", str(attestation_path), custom_data_hex, "--check-custom-data"]
         )
 
         # Parse JSON output from stdout

@@ -235,10 +235,11 @@ def run_build_workflow(
 
         # Ensure output directory exists
         output_dir = output_dir.resolve()
-        output_dir.mkdir(parents=True, exist_ok=True)
+        build_dir = output_dir / "build"
+        build_dir.mkdir(parents=True, exist_ok=True)
 
         # Define output paths
-        provenance_path = output_dir / "provenance.json"
+        provenance_path = build_dir / "provenance.json"
         manifest_path = output_dir / "manifest.json"
 
         # Dispatch to appropriate workflow
@@ -304,7 +305,7 @@ def run_build_workflow(
 
         # Generate attestation if requested (same for both)
         if attestation:
-            attestation_path, custom_data_path = generate_attestation(provenance_data, output_dir)
+            attestation_path, custom_data_path = generate_attestation(provenance_data, build_dir)
             log("\n")
             log_success("Build complete with attestation")
             log(f"  - Provenance: {provenance_path}", style="dim")

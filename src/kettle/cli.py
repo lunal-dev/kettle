@@ -79,10 +79,15 @@ def build(
     2. Verifies all inputs (git, lock file, deps, toolchain)
     3. Executes build
     4. Measures output artifacts
-    5. Generates SLSA v1.2 provenance and manifest in output directory
+    5. Generates SLSA v1.2 provenance and manifest
 
-    By default, provenance.json and manifest.json are written to the project directory.
-    Use --output to specify a different directory.
+    Build artifacts are stored:
+    - manifest.json → project directory
+    - provenance.json → ./build/
+    - evidence.b64 → ./build/ (if --attestation is used)
+    - binaries → ./build/ (Nix builds)
+
+    Use --output to specify a different project directory.
     """
     # Default output to project directory if not specified
     if output is None:
@@ -218,8 +223,19 @@ def verify(
         help="Fail if any optional checks cannot be performed",
     ),
 ):
-    """
-    Verify a SLSA provenance document and it's attestation
+    """Verify SLSA provenance document and attestation.
+
+    This command verifies both:
+    1. Attestation report (evidence.b64) - cryptographic TEE verification
+    2. Provenance content (provenance.json) - build parameters verification
+
+    Expected directory structure:
+    - build_dir/build/provenance.json
+    - build_dir/build/evidence.b64
+    - build_dir/manifest.json (optional verification manifest)
+
+    Example:
+        attestable-builds verify ./my-project --project-dir ./my-project
     """
     run_combined_verify_workflow(build_dir, project_dir, binary, strict)
 
