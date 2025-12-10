@@ -126,3 +126,73 @@ def build_byproduct(name: str, digest_value: str, digest_alg: str = "sha256") ->
         "name": name,
         "digest": {digest_alg: digest_value}
     }
+
+
+def generate_verification_manifest(provenance: dict, launch_measurement: str = None) -> dict:
+    """Generate verification manifest from SLSA provenance statement.
+
+    Extracts deterministic values from provenance that can be verified later.
+    Excludes non-deterministic outputs like binary hashes.
+
+    Args:
+        provenance: SLSA v1.2 provenance statement
+        launch_measurement: Optional TEE launch measurement (platform-specific)
+
+    Returns:
+        Verification manifest with deterministic build parameters
+    """
+    predicate = provenance.get("predicate", {})
+    build_def = predicate.get("buildDefinition", {})
+    run_details = predicate.get("runDetails", {})
+
+    manifest = {}
+
+    # Extract source information
+    source = build_def.get("externalParameters", {}).get("source", {})
+    source_digest = source.get("digest", {})
+    if "gitCommit" in source_digest:
+        manifest["git_commit"] = source_digest["gitCommit"]
+    if "gitTree" in source_digest:
+        manifest["git_tree"] = source_digest["gitTree"]
+
+    # Extract lockfile hash
+    internal_params = build_def.get("internalParameters", {})
+    lockfile_hash = internal_params.get("lockfileHash", {})
+    if "sha256" in lockfile_hash:
+        manifest["lockfile_hash"] = lockfile_hash["sha256"]
+
+    # Extract toolchain hashes
+    toolchain = internal_params.get("toolchain", {})
+    if toolchain:
+        manifest["toolchain"] = {}
+        for tool_name, tool_info in toolchain.items():
+            if isinstance(tool_info, dict) and "digest" in tool_info:
+                tool_digest = tool_info["digest"].get("sha256")
+                if tool_digest:
+                    manifest["toolchain"][f"{tool_name}_hash"] = tool_digest
+
+    # Extract byproducts (input_merkle_root, git_binary_hash, etc.)
+    byproducts = run_details.get("byproducts", [])
+    for byproduct in byproducts:
+        name = byproduct.get("name")
+        digest = byproduct.get("digest", {}).get("sha256")
+        if name and digest:
+            manifest[name] = digest
+
+    # Extract dependencies
+    resolved_deps = build_def.get("resolvedDependencies", [])
+    if resolved_deps:
+        manifest["dependencies"] = []
+        for dep in resolved_deps:
+            dep_entry = {
+                "name": dep.get("name"),
+                "digest": dep.get("digest", {}).get("sha256"),
+                "uri": dep.get("uri"),
+            }
+            manifest["dependencies"].append(dep_entry)
+
+    # Add launch measurement if provided
+    if launch_measurement:
+        manifest["launch_measurement"] = launch_measurement
+
+    return manifest
