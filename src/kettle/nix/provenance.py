@@ -1,35 +1,82 @@
-"""Nix-specific passport generation and verification."""
+"""Nix-specific SLSA v1.2 provenance generation and verification."""
 
 import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
+import uuid
+
+from urllib.parse import quote
 
 from ..merkle import MerkleTree
+from ..slsa import (
+    generate_slsa_statement,
+    build_subject,
+    build_source_descriptor,
+    build_byproduct,
+)
 from ..utils import hash_file
 from .parser import parse_flake_lock, hash_flake_lock, extract_direct_inputs
 from .verification import verify_flake_inputs
 from .toolchain import get_nix_toolchain_info
 from .build import run_nix_build
 
-def generate_nix_passport(
+
+def convert_nix_input_to_purl(dep: dict) -> dict:
+    """Convert Nix flake input to SLSA ResourceDescriptor with PURL.
+
+    Args:
+        dep: Dependency dict with name, narHash, type
+
+    Returns:
+        ResourceDescriptor with PURL URI
+    """
+    name = dep["name"]
+    nar_hash = dep.get("narHash", "")
+    input_type = dep.get("type", "")
+
+    # Build PURL: pkg:nix/name?narHash=sha256:hash&type=github
+    qualifiers = []
+    if nar_hash:
+        qualifiers.append(f"narHash={quote(nar_hash)}")
+    if input_type:
+        qualifiers.append(f"type={quote(input_type)}")
+
+    purl = f"pkg:nix/{quote(name)}"
+    if qualifiers:
+        purl += "?" + "&".join(qualifiers)
+
+    descriptor = {
+        "uri": purl,
+        "name": name,
+    }
+
+    # Extract hash from narHash if available (format: sha256-base64)
+    if nar_hash and nar_hash.startswith("sha256-"):
+        # Note: narHash uses base64, not hex. Store as-is in annotations
+        descriptor["annotations"] = {"narHash": nar_hash}
+
+    return descriptor
+
+
+def generate_nix_provenance(
     project_dir: Path,
     output_path: Path,
     git_source: Optional[dict] = None,
     verbose: bool = False,
 ) -> dict:
-    """Generate passport for Nix build.
+    """Generate SLSA v1.2 provenance for Nix build.
 
-    This mirrors generate_passport() but for Nix flakes.
+    This mirrors generate_provenance() but for Nix flakes.
 
     Args:
         project_dir: Path to project directory containing flake.nix/flake.lock
-        output_path: Path where passport.json will be written
+        output_path: Path where provenance.json will be written
         git_source: Optional git source info from verify_git_source_strict()
         verbose: Enable verbose output
 
     Returns:
-        Dict containing the generated passport data
+        SLSA v1.2 provenance statement (in-toto format)
 
     Raises:
         RuntimeError: If Nix build fails
@@ -90,96 +137,145 @@ def generate_nix_passport(
 
     input_merkle_root = merkle_tree.get_state().hex()
 
-    # 6. Build passport structure
-    passport = {
-        "version": "1.0",
-        "build_system": "nix",
-        "inputs": {
-            "flake_lock_hash": flake_lock_hash,
-            "toolchain": {
-                "nix": {
-                    "binary_hash": toolchain["nix_hash"],
-                    "version": toolchain["nix_version"],
-                    "path": toolchain["nix_path"],
-                }
-            },
-            "flake_inputs": [
-                {
-                    "name": v["dependency"]["name"],
-                    "narHash": v["dependency"].get("narHash"),
-                    "type": v["dependency"].get("type"),
-                    "verified": v["verified"],
-                }
-                for v in verification_results
-            ],
-            "input_merkle_root": input_merkle_root,
+    # 6. Generate timestamps
+    started_on = datetime.now(timezone.utc)
+    invocation_id = f"build-{started_on.strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:8]}"
+
+    # 7. Convert artifacts to (path, hash) tuples
+    output_artifacts = [
+        (artifact["path"], artifact["hash"])
+        for artifact in build_result["artifacts"]
+    ]
+
+    # Build SLSA components (Nix-specific logic)
+
+    # 1. Subject (build outputs)
+    subject = build_subject(output_artifacts)
+
+    # 2. Build type
+    build_type = "https://attestable-builds.dev/kettle/nix@v1"
+
+    # 3. External parameters (user-controlled)
+    external_parameters = {
+        "buildCommand": "nix build --no-link --print-out-paths"
+    }
+    if git_source:
+        external_parameters["source"] = build_source_descriptor(git_source)
+
+    # 4. Internal parameters (platform-controlled)
+    internal_parameters = {
+        "toolchain": {
+            "nix": {
+                "version": toolchain["nix_version"],
+                "digest": {"sha256": toolchain["nix_hash"]},
+            }
         },
-        "build_process": {
-            "command": "nix build --no-link --print-out-paths",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-        },
-        "outputs": {
-            "artifacts": build_result["artifacts"],
-            "store_paths": build_result["store_paths"],
-        },
+        "lockfileHash": {"sha256": flake_lock_hash},
     }
 
+    # 5. Resolved dependencies (convert to PURL format)
+    resolved_dependencies = []
+    for input_data in inputs:
+        resolved_dependencies.append(convert_nix_input_to_purl(input_data))
 
+    # 6. Builder ID
+    builder_id = "https://attestable-builds.dev/kettle-tee/v1"
 
+    # 7. Metadata
+    metadata = {
+        "invocationId": invocation_id,
+        "startedOn": started_on.isoformat() + "Z",
+    }
 
-    # Add git source if present
-    if git_source:
-        passport["inputs"]["source"] = git_source
+    # 8. Byproducts (input merkle root, git binary hash)
+    byproducts = [
+        build_byproduct("input_merkle_root", input_merkle_root)
+    ]
+    if git_source and git_source.get("git_binary_hash"):
+        byproducts.append(build_byproduct("git_binary_hash", git_source["git_binary_hash"]))
+
+    # Generate SLSA statement with generic interface
+    statement = generate_slsa_statement(
+        subject=subject,
+        build_type=build_type,
+        external_parameters=external_parameters,
+        internal_parameters=internal_parameters,
+        resolved_dependencies=resolved_dependencies,
+        builder_id=builder_id,
+        metadata=metadata,
+        byproducts=byproducts,
+    )
+
+    # Add store_paths to annotations (Nix-specific)
+    if build_result.get("store_paths"):
+        if "annotations" not in statement["predicate"]["runDetails"]:
+            statement["predicate"]["runDetails"]["annotations"] = {}
+        statement["predicate"]["runDetails"]["annotations"]["nix_store_paths"] = build_result["store_paths"]
 
     # Write to disk
-    output_path.write_text(json.dumps(passport, indent=2))
+    output_path.write_text(json.dumps(statement, indent=2))
 
     if verbose:
-        print(f"Passport written to {output_path}")
+        print(f"Provenance written to {output_path}")
 
-    return passport
+    return statement
+
+
+# Backward compatibility alias
+generate_nix_passport = generate_nix_provenance
 
 
 # ============================================================================
-# Nix Passport Verification Functions
+# Nix Provenance Verification Functions
 # ============================================================================
 
 
-def _load_passport(passport_path: Path) -> tuple[dict | None, dict | None]:
-    """Load and validate basic passport structure."""
+def _load_provenance(provenance_path: Path) -> tuple[dict | None, dict | None]:
+    """Load and validate SLSA provenance structure."""
     try:
-        passport = json.loads(passport_path.read_text())
-        required_fields = ["version", "inputs", "outputs"]
-        missing = [f for f in required_fields if f not in passport]
+        provenance = json.loads(provenance_path.read_text())
+
+        # Validate SLSA v1.2 structure
+        required_fields = ["_type", "subject", "predicateType", "predicate"]
+        missing = [f for f in required_fields if f not in provenance]
 
         if missing:
             return None, {
                 "verified": False,
-                "message": f"Missing required fields: {', '.join(missing)}",
+                "message": f"Missing required SLSA fields: {', '.join(missing)}",
             }
 
-        return passport, None
+        # Validate it's actually a SLSA provenance
+        if provenance.get("predicateType") != "https://slsa.dev/provenance/v1":
+            return None, {
+                "verified": False,
+                "message": f"Invalid predicateType: expected SLSA provenance v1",
+            }
+
+        return provenance, None
     except json.JSONDecodeError as e:
         return None, {"verified": False, "message": f"Invalid JSON: {e}"}
     except Exception as e:
-        return None, {"verified": False, "message": f"Error loading passport: {e}"}
+        return None, {"verified": False, "message": f"Error loading provenance: {e}"}
 
 
-def _verify_flake_lock(passport: dict, expected_hash: str, strict: bool) -> dict:
+def _verify_flake_lock(provenance: dict, expected_hash: str, strict: bool) -> dict:
     """Verify flake.lock hash matches expected value.
 
     Mirrors _verify_cargo_lock() but for Nix.
     """
-    passport_hash = passport.get("inputs", {}).get("flake_lock_hash")
+    # Extract from SLSA structure: predicate.buildDefinition.internalParameters.lockfileHash
+    lockfile = provenance.get("predicate", {}).get("buildDefinition", {}).get("internalParameters", {}).get("lockfileHash", {})
+    provenance_hash = lockfile.get("sha256")
 
-    if not passport_hash:
+    if not provenance_hash:
         return {
             "verified": False,
-            "message": "No flake.lock hash in passport",
+            "message": "No flake.lock hash in provenance",
             "fail": strict,
         }
 
-    if passport_hash == expected_hash:
+    if provenance_hash == expected_hash:
         return {"verified": True, "message": "flake.lock hash matches"}
 
     return {
@@ -189,22 +285,23 @@ def _verify_flake_lock(passport: dict, expected_hash: str, strict: bool) -> dict
     }
 
 
-def _verify_nix_toolchain(passport: dict, nix_hash: Optional[str], strict: bool) -> dict:
+def _verify_nix_toolchain(provenance: dict, nix_hash: Optional[str], strict: bool) -> dict:
     """Verify Nix toolchain hash matches expected value.
 
     Mirrors _verify_toolchain_hashes() but for Nix (single binary instead of rustc+cargo).
     """
-    toolchain = passport.get("inputs", {}).get("toolchain", {}).get("nix", {})
-    passport_nix_hash = toolchain.get("binary_hash")
+    # Extract from SLSA structure: predicate.buildDefinition.internalParameters.toolchain.nix
+    toolchain = provenance.get("predicate", {}).get("buildDefinition", {}).get("internalParameters", {}).get("toolchain", {}).get("nix", {})
+    provenance_nix_hash = toolchain.get("digest", {}).get("sha256")
 
-    if not passport_nix_hash:
+    if not provenance_nix_hash:
         return {
             "verified": False,
-            "message": "No nix binary hash in passport",
+            "message": "No nix binary hash in provenance",
             "fail": strict,
         }
 
-    if nix_hash and passport_nix_hash != nix_hash:
+    if nix_hash and provenance_nix_hash != nix_hash:
         return {
             "verified": False,
             "message": f"Nix binary hash mismatch",
@@ -213,12 +310,12 @@ def _verify_nix_toolchain(passport: dict, nix_hash: Optional[str], strict: bool)
 
     return {
         "verified": True,
-        "message": f"Nix toolchain verified: {passport_nix_hash[:16]}...",
+        "message": f"Nix toolchain verified: {provenance_nix_hash[:16]}...",
     }
 
 
-def _verify_binary_hash(passport: dict, binary_path: Path, strict: bool) -> dict:
-    """Verify binary artifact hash matches passport record."""
+def _verify_binary_hash(provenance: dict, binary_path: Path, strict: bool) -> dict:
+    """Verify binary artifact hash matches provenance record."""
     if not binary_path.exists():
         return {
             "verified": False,
@@ -227,22 +324,23 @@ def _verify_binary_hash(passport: dict, binary_path: Path, strict: bool) -> dict
         }
 
     actual_hash = hash_file(binary_path)
-    artifacts = passport.get("outputs", {}).get("artifacts", [])
+    # Extract from SLSA structure: subject[] array
+    subjects = provenance.get("subject", [])
     binary_name = binary_path.name
 
-    # Find matching artifact by name
-    matching_artifact = next(
-        (a for a in artifacts if a.get("name") == binary_name), None
+    # Find matching subject by name
+    matching_subject = next(
+        (s for s in subjects if s.get("name") == binary_name), None
     )
 
-    if not matching_artifact:
+    if not matching_subject:
         return {
             "verified": False,
-            "message": f"No artifact named '{binary_name}' in passport",
+            "message": f"No artifact named '{binary_name}' in provenance",
             "fail": strict,
         }
 
-    expected_hash = matching_artifact.get("hash")
+    expected_hash = matching_subject.get("digest", {}).get("sha256")
     if actual_hash == expected_hash:
         return {
             "verified": True,
@@ -314,20 +412,20 @@ def _verify_input_merkle(passport: dict, strict: bool) -> dict:
     }
 
 
-def verify_nix_build_passport(
-    passport_path: Path,
+def verify_nix_build_provenance(
+    provenance_path: Path,
     manifest_path: Optional[Path] = None,
     git_commit: Optional[str] = None,
     flake_lock_hash: Optional[str] = None,
     binary_path: Optional[Path] = None,
     strict: bool = False,
 ) -> dict:
-    """Verify a Nix passport document against known values.
+    """Verify a Nix SLSA provenance document against known values.
 
-    Mirrors verify_build_passport() from passport.py but for Nix passports.
+    Mirrors verify_build_provenance() from provenance.py but for Nix provenance.
 
     Args:
-        passport_path: Path to passport JSON file
+        provenance_path: Path to SLSA provenance JSON file
         manifest_path: Path to verification manifest JSON (optional)
         git_commit: Expected git commit hash (optional)
         flake_lock_hash: Expected flake.lock hash (optional)
@@ -339,33 +437,33 @@ def verify_nix_build_passport(
         {
             "valid": bool,
             "checks": {
-                "passport_format": {"verified": bool, "message": str},
+                "provenance_format": {"verified": bool, "message": str},
                 "git_commit": {"verified": bool, "message": str},
                 "flake_lock": {"verified": bool, "message": str},
                 "binary_hash": {"verified": bool, "message": str},
                 "input_merkle": {"verified": bool, "message": str},
             },
-            "passport": dict  # The loaded passport data
+            "provenance": dict  # The loaded provenance data
         }
     """
-    from ..passport import _verify_git_commit, _verify_git_tree, _verify_input_merkle_root, load_verification_manifest
+    from ..provenance import _verify_git_commit, _verify_git_tree, _verify_input_merkle_root, load_verification_manifest
 
-    results = {"valid": True, "checks": {}, "passport": None}
+    results = {"valid": True, "checks": {}, "provenance": None}
 
-    # Load and validate passport structure
-    passport, error = _load_passport(passport_path)
-    if error or passport is None:
+    # Load and validate provenance structure
+    provenance, error = _load_provenance(provenance_path)
+    if error or provenance is None:
         results["valid"] = False
-        results["checks"]["passport_format"] = error or {
+        results["checks"]["provenance_format"] = error or {
             "verified": False,
-            "message": "Unknown error loading passport",
+            "message": "Unknown error loading provenance",
         }
         return results
 
-    results["passport"] = passport
-    results["checks"]["passport_format"] = {
+    results["provenance"] = provenance
+    results["checks"]["provenance_format"] = {
         "verified": True,
-        "message": "Passport loaded successfully",
+        "message": "Provenance loaded successfully",
     }
 
     # Load verification manifest if provided
@@ -393,7 +491,7 @@ def verify_nix_build_passport(
             }
             return results
 
-    # Run optional verifications (reuse git verification from main passport module)
+    # Run optional verifications (reuse git verification from main provenance module)
     verifications = [
         ("git_commit", git_commit, _verify_git_commit),
         ("git_tree", git_tree, _verify_git_tree),
@@ -403,21 +501,21 @@ def verify_nix_build_passport(
 
     for check_name, value, verify_func in verifications:
         if value is not None:
-            check_result = verify_func(passport, value, strict)
+            check_result = verify_func(provenance, value, strict)
             if check_result.pop("fail", False):
                 results["valid"] = False
             results["checks"][check_name] = check_result
 
     # Verify input merkle root from manifest if provided
     if input_merkle_root:
-        check_result = _verify_input_merkle_root(passport, input_merkle_root, strict)
+        check_result = _verify_input_merkle_root(provenance, input_merkle_root, strict)
         if check_result.pop("fail", False):
             results["valid"] = False
         results["checks"]["input_merkle_root"] = check_result
 
     # Verify toolchain hash from manifest if provided
     if nix_hash:
-        check_result = _verify_nix_toolchain(passport, nix_hash, strict)
+        check_result = _verify_nix_toolchain(provenance, nix_hash, strict)
         if check_result.pop("fail", False):
             results["valid"] = False
         results["checks"]["toolchain_hash"] = check_result
@@ -431,14 +529,14 @@ def verify_nix_build_passport(
             if not artifact_name or not expected_hash:
                 continue
 
-            # Find matching artifact in passport
-            passport_artifacts = passport.get("outputs", {}).get("artifacts", [])
+            # Find matching artifact in SLSA provenance (subject array)
+            subjects = provenance.get("subject", [])
             matching = next(
-                (a for a in passport_artifacts if a.get("name") == artifact_name), None
+                (s for s in subjects if s.get("name") == artifact_name), None
             )
 
             if matching:
-                actual_hash = matching.get("hash")
+                actual_hash = matching.get("digest", {}).get("sha256")
                 if actual_hash != expected_hash:
                     results["valid"] = False
                     results["checks"][f"artifact_{artifact_name}"] = {
@@ -454,13 +552,17 @@ def verify_nix_build_passport(
                 results["valid"] = False
                 results["checks"][f"artifact_{artifact_name}"] = {
                     "verified": False,
-                    "message": f"Artifact '{artifact_name}' not found in passport",
+                    "message": f"Artifact '{artifact_name}' not found in provenance",
                 }
 
     # Always verify input merkle root
-    merkle_result = _verify_input_merkle(passport, strict)
+    merkle_result = _verify_input_merkle(provenance, strict)
     if merkle_result.pop("fail", False):
         results["valid"] = False
     results["checks"]["input_merkle"] = merkle_result
 
     return results
+
+
+# Backward compatibility alias
+verify_nix_build_passport = verify_nix_build_provenance

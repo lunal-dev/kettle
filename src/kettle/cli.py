@@ -23,10 +23,9 @@ from .client import (
 from .git import get_git_info
 from .logger import log, log_error, log_section, log_success, log_warning
 from .output import display_checks, display_dependency_results, display_verification_checks
-from .passport import generate_passport, verify_build_passport
+from .provenance import generate_provenance, verify_build_provenance, generate_passport, verify_build_passport  # Now generates SLSA provenance
 from .results import CheckResult
 from .toolchain import get_toolchain_info
-from .utils import hash_passport_to_32bytes
 from .verification import (
     verify_git_source_strict,
     verify_inputs,
@@ -53,10 +52,10 @@ def build(
         file_okay=False,
     ),
     output: Path = typer.Option(
-        "passport.json",
+        None,
         "--output",
         "-o",
-        help="Output path for passport JSON",
+        help="Output directory for build artifacts (default: project directory)",
     ),
     release: bool = typer.Option(
         True,
@@ -80,8 +79,15 @@ def build(
     2. Verifies all inputs (git, lock file, deps, toolchain)
     3. Executes build
     4. Measures output artifacts
-    5. Generates passport with inputs and outputs
+    5. Generates SLSA v1.2 provenance and manifest in output directory
+
+    By default, provenance.json and manifest.json are written to the project directory.
+    Use --output to specify a different directory.
     """
+    # Default output to project directory if not specified
+    if output is None:
+        output = project_dir
+
     run_build_workflow(project_dir, output, release, verbose, attestation)
 
 
@@ -89,7 +95,7 @@ def build(
 def verify_passport(
     passport: Path = typer.Argument(
         ...,
-        help="Path to passport JSON file",
+        help="Path to SLSA provenance JSON file",
         exists=True,
         file_okay=True,
         dir_okay=False,
@@ -126,7 +132,7 @@ def verify_passport(
         help="Fail if any optional checks cannot be performed",
     ),
 ):
-    """Verify a passport document against known values.
+    """Verify a SLSA provenance document against known values.
 
     Verification can be done via:
     1. Verification manifest file (--manifest): A JSON file containing expected values
@@ -165,18 +171,18 @@ def verify_attestation_cmd(
     ),
 
 ):
-    """Verify an attestation report against a passport document.
+    """Verify an attestation report against a SLSA provenance document.
 
     This command verifies:
     1. Cryptographic signature (via attest-amd verify)
-    2. Passport binding (hash in attestation matches passport)
+    2. Provenance binding (hash in attestation matches provenance)
     3. Nonce freshness (timestamp-based replay protection)
 
     Requires attest-amd to be installed for cryptographic verification.
 
     Example:
         attestable-builds verify-attestation evidence.b64 custom_data.hex \\
-            --passport passport.json \\
+            --passport provenance.json \\
             --max-age 3600
     """
     run_verify_attestation_workflow(attestation, passport)
@@ -185,7 +191,7 @@ def verify_attestation_cmd(
 def verify(
     build_dir: Path = typer.Argument(
         ...,
-        help="Path to build directory containing passport.json and evidence.b64",
+        help="Path to build directory containing provenance.json and evidence.b64",
         exists=True,
         file_okay=False,
     ),
@@ -213,7 +219,7 @@ def verify(
     ),
 ):
     """
-    Verify a passport document and it's attestation
+    Verify a SLSA provenance document and it's attestation
     """
     run_combined_verify_workflow(build_dir, project_dir, binary, strict)
 
@@ -268,22 +274,22 @@ def prove_inclusion(
     """Generate and verify Merkle inclusion proofs for hashes in a passport.
 
     This command both generates proofs that specified hashes are included in
-    the passport's merkle root AND immediately verifies those proofs.
+    the provenance's merkle root AND immediately verifies those proofs.
 
     Supports partial hash matching for convenience (e.g., "abc123" or "serde:1.0").
 
     Examples:
         # Prove inclusion of cargo.lock hash
-        attestable-builds prove-inclusion passport.json abc123...
+        attestable-builds prove-inclusion provenance.json abc123...
 
         # Prove multiple hashes
-        attestable-builds prove-inclusion passport.json hash1 hash2 hash3
+        attestable-builds prove-inclusion provenance.json hash1 hash2 hash3
 
         # Prove inclusion of a dependency by partial match
-        attestable-builds prove-inclusion passport.json serde:1.0
+        attestable-builds prove-inclusion provenance.json serde:1.0
 
         # Save proofs to file
-        attestable-builds prove-inclusion passport.json abc123 --output proofs.json
+        attestable-builds prove-inclusion provenance.json abc123 --output proofs.json
     """
     gen_inclusion_proof(passport, hashes, output)
 
@@ -424,7 +430,7 @@ def run_workload(
 
         # Generate workload passport
         log("\n[3/3] Generating workload passport...")
-        passport_path = build_location / "passport.json"
+        passport_path = build_location / "provenance.json"
         tools_dir = workload_location / "tools"
         scripts_dir = workload_location / "scripts"
 
@@ -437,7 +443,7 @@ def run_workload(
         )
 
         # Save workload passport
-        workload_passport_path = workload_location / "workload-passport.json"
+        workload_passport_path = workload_location / "workload-provenance.json"
         workload_passport_path.write_text(json.dumps(passport_data, indent=2))
         log_success(f"Workload passport: {workload_passport_path}")
 
@@ -460,7 +466,7 @@ def run_workload(
         log("\n")
         log_success("Workload execution complete")
         log(f"\nResults in: {workload_location}/", style="bold")
-        log("  - workload-passport.json", style="dim")
+        log("  - workload-provenance.json", style="dim")
         log("  - summary.json", style="dim")
         log("  - full-results/", style="dim")
 

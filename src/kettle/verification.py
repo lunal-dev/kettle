@@ -7,7 +7,7 @@ from kettle.cargo import hash_cargo_lock, parse_cargo_lock, verify_all
 from kettle.git import get_git_info
 from kettle.logger import log, log_error, log_section, log_success, log_warning
 from kettle.output import display_dependency_results, display_verification_checks
-from kettle.passport import verify_build_passport
+from kettle.provenance import verify_build_provenance
 from kettle.toolchain import get_toolchain_info
 
 
@@ -112,12 +112,12 @@ def run_verify_passport_workflow(
     binary: Path,
     strict: bool,
 ) -> None:
-    """Complete passport verification workflow with display.
+    """Complete provenance verification workflow with display.
 
-    Auto-detects build system (Cargo or Nix) from passport and verifies accordingly.
+    Auto-detects build system (Cargo or Nix) from provenance and verifies accordingly.
 
     Args:
-        passport: Path to passport JSON file
+        passport: Path to provenance JSON file
         manifest: Path to verification manifest JSON file (optional)
         project_dir: Path to project directory (optional)
         binary: Path to binary artifact to verify (optional)
@@ -131,11 +131,18 @@ def run_verify_passport_workflow(
     from . import nix
 
     try:
-        log_section("Passport Verification")
+        log_section("Provenance Verification")
 
-        # Detect build system from passport
-        passport_data = json.loads(passport.read_text())
-        build_system = passport_data.get("build_system", "cargo")  # Default to cargo for backwards compat
+        # Detect build system from provenance
+        provenance_data = json.loads(passport.read_text())
+        # Extract buildType from SLSA provenance
+        build_type = provenance_data.get("predicate", {}).get("buildDefinition", {}).get("buildType", "")
+
+        # Determine build system from buildType URI
+        if "nix" in build_type:
+            build_system = "nix"
+        else:
+            build_system = "cargo"  # Default to cargo
 
         log(f"Build system: {build_system}", style="bold cyan")
 
@@ -171,12 +178,12 @@ def run_verify_passport_workflow(
                 else:
                     log_warning("Cargo.lock not found")
 
-        log(f"\n[2/2] Verifying passport: {passport.name}")
+        log(f"\n[2/2] Verifying provenance: {passport.name}")
 
         # Run verification based on build system
         if build_system == "nix":
-            results = nix.verify_nix_build_passport(
-                passport_path=passport,
+            results = nix.verify_nix_build_provenance(
+                provenance_path=passport,
                 manifest_path=manifest,
                 git_commit=git_commit,
                 flake_lock_hash=lock_file_hash,
@@ -184,8 +191,8 @@ def run_verify_passport_workflow(
                 strict=strict,
             )
         else:  # cargo
-            results = verify_build_passport(
-                passport_path=passport,
+            results = verify_build_provenance(
+                provenance_path=passport,
                 manifest_path=manifest,
                 git_commit=git_commit,
                 cargo_lock_hash=lock_file_hash,
@@ -193,20 +200,22 @@ def run_verify_passport_workflow(
                 strict=strict,
             )
 
-        # Show passport metadata
-        if results["passport"]:
-            passport_data = results["passport"]
-            log(f"\nPassport Version: {passport_data.get('version', 'unknown')}", style="dim")
-            if passport_data.get("build_process", {}).get("timestamp"):
-                log(f"Build Timestamp: {passport_data['build_process']['timestamp']}", style="dim")
+        # Show provenance metadata
+        if results["provenance"]:
+            provenance_data = results["provenance"]
+            metadata = provenance_data.get("predicate", {}).get("runDetails", {}).get("metadata", {})
+            if metadata.get("invocationId"):
+                log(f"\nBuild Invocation ID: {metadata['invocationId']}", style="dim")
+            if metadata.get("startedOn"):
+                log(f"Build Started: {metadata['startedOn']}", style="dim")
             log("")
 
         # Display check results
         all_passed = display_verification_checks(
             checks=results["checks"],
             title="Verification Results",
-            success_message="Passport verification PASSED",
-            failure_message="Passport verification FAILED",
+            success_message="Provenance verification PASSED",
+            failure_message="Provenance verification FAILED",
         )
 
         if not all_passed:
@@ -227,7 +236,7 @@ def run_verify_attestation_workflow(
 
     Args:
         attestation: Path to attestation file (evidence.b64)
-        passport: Path to passport JSON file
+        passport: Path to provenance JSON file
 
     Raises:
         typer.Exit: If verification fails
@@ -237,12 +246,12 @@ def run_verify_attestation_workflow(
     try:
         log_section("Attestation Verification")
         log(f"\nAttestation: {attestation}", style="dim")
-        log(f"Passport: {passport}", style="dim")
+        log(f"Provenance: {passport}", style="dim")
 
         # Verify attestation
         results = verify_attestation(
             attestation_path=attestation,
-            passport_path=passport,
+            provenance_path=passport,
         )
 
         # Display results
@@ -269,10 +278,10 @@ def run_combined_verify_workflow(
     binary: Path,
     strict: bool,
 ) -> None:
-    """Complete combined attestation + passport verification workflow.
+    """Complete combined attestation + provenance verification workflow.
 
     Args:
-        build_dir: Path to build directory containing passport.json and evidence.b64
+        build_dir: Path to build directory containing provenance.json and evidence.b64
         project_dir: Path to project directory containing verification manifest.json (optional)
         binary: Path to binary artifact to verify (optional)
         strict: Fail if any optional checks cannot be performed
@@ -283,26 +292,26 @@ def run_combined_verify_workflow(
     import typer
 
     try:
-        # Find passport and attestation in build directory
-        passport_path = build_dir / "passport.json"
+        # Find provenance and attestation in build directory
+        provenance_path = build_dir / "provenance.json"
         attestation_path = build_dir / "evidence.b64"
 
-        if not passport_path.exists():
-            log_error(f"passport.json not found in {build_dir}")
+        if not provenance_path.exists():
+            log_error(f"provenance.json not found in {build_dir}")
             raise typer.Exit(1)
 
         log(f"Build directory: {build_dir}", style="dim")
-        log(f"Passport: {passport_path.name}", style="dim")
+        log(f"Provenance: {provenance_path.name}", style="dim")
 
         # Check if attestation exists
         has_attestation = attestation_path.exists()
         if has_attestation:
             log(f"Attestation: {attestation_path.name}", style="dim")
         else:
-            log("Attestation: not found (passport-only verification)", style="dim")
+            log("Attestation: not found (provenance-only verification)", style="dim")
 
         attestation_passed = True
-        passport_passed = True
+        provenance_passed = True
 
         # Phase 1: Attestation Verification (if available)
         if has_attestation:
@@ -311,7 +320,7 @@ def run_combined_verify_workflow(
             # Verify attestation
             attestation_results = verify_attestation(
                 attestation_path=attestation_path,
-                passport_path=passport_path,
+                provenance_path=provenance_path,
             )
 
             # Display attestation results
@@ -327,16 +336,23 @@ def run_combined_verify_workflow(
                 log_error("Stopping verification due to attestation failure (strict mode)")
                 raise typer.Exit(1)
 
-        # Phase 2: Passport Content Verification
-        phase_title = "Phase 2: Passport Content Verification" if has_attestation else "Passport Verification"
+        # Phase 2: Provenance Content Verification
+        phase_title = "Phase 2: Provenance Content Verification" if has_attestation else "Provenance Verification"
         log_section(phase_title)
 
-        # Detect build system from passport
+        # Detect build system from provenance
         import json
         from . import nix
 
-        passport_data = json.loads(passport_path.read_text())
-        build_system = passport_data.get("build_system", "cargo")  # Default to cargo for backwards compat
+        provenance_data = json.loads(provenance_path.read_text())
+        # Extract buildType from SLSA provenance
+        build_type = provenance_data.get("predicate", {}).get("buildDefinition", {}).get("buildType", "")
+
+        # Determine build system from buildType URI
+        if "nix" in build_type:
+            build_system = "nix"
+        else:
+            build_system = "cargo"  # Default to cargo
 
         log(f"Build system: {build_system}", style="bold cyan")
 
@@ -377,12 +393,12 @@ def run_combined_verify_workflow(
                     else:
                         log_warning("Cargo.lock not found")
 
-        log(f"\nVerifying passport: {passport_path.name}")
+        log(f"\nVerifying provenance: {provenance_path.name}")
 
-        # Run passport verification based on build system
+        # Run provenance verification based on build system
         if build_system == "nix":
-            passport_results = nix.verify_nix_build_passport(
-                passport_path=passport_path,
+            provenance_results = nix.verify_nix_build_provenance(
+                provenance_path=provenance_path,
                 manifest_path=manifest_path,
                 git_commit=git_commit,
                 flake_lock_hash=lock_file_hash,
@@ -390,8 +406,8 @@ def run_combined_verify_workflow(
                 strict=strict,
             )
         else:  # cargo
-            passport_results = verify_build_passport(
-                passport_path=passport_path,
+            provenance_results = verify_build_provenance(
+                provenance_path=provenance_path,
                 manifest_path=manifest_path,
                 git_commit=git_commit,
                 cargo_lock_hash=lock_file_hash,
@@ -399,36 +415,38 @@ def run_combined_verify_workflow(
                 strict=strict,
             )
 
-        # Show passport metadata
-        if passport_results["passport"]:
-            passport_data = passport_results["passport"]
-            log(f"\nPassport Version: {passport_data.get('version', 'unknown')}", style="dim")
-            if passport_data.get("build_process", {}).get("timestamp"):
-                log(f"Build Timestamp: {passport_data['build_process']['timestamp']}", style="dim")
+        # Show provenance metadata
+        if provenance_results["provenance"]:
+            provenance_data = provenance_results["provenance"]
+            metadata = provenance_data.get("predicate", {}).get("runDetails", {}).get("metadata", {})
+            if metadata.get("invocationId"):
+                log(f"\nBuild Invocation ID: {metadata['invocationId']}", style="dim")
+            if metadata.get("startedOn"):
+                log(f"Build Started: {metadata['startedOn']}", style="dim")
 
-        # Display passport results
-        passport_passed = display_verification_checks(
-            checks=passport_results["checks"],
-            title="Passport Content Verification Results",
-            success_message="Passport content verification PASSED",
-            failure_message="Passport content verification FAILED",
+        # Display provenance results
+        provenance_passed = display_verification_checks(
+            checks=provenance_results["checks"],
+            title="Provenance Content Verification Results",
+            success_message="Provenance content verification PASSED",
+            failure_message="Provenance content verification FAILED",
         )
 
         # Final overall result
-        overall_passed = attestation_passed and passport_passed
+        overall_passed = attestation_passed and provenance_passed
 
         if has_attestation:
             log("\n")
             log_section("Overall Results")
             if overall_passed:
                 log_success("OVERALL VERIFICATION PASSED")
-                log("  Both attestation and passport verification succeeded", style="dim")
+                log("  Both attestation and provenance verification succeeded", style="dim")
             else:
                 log_error("OVERALL VERIFICATION FAILED")
                 if not attestation_passed:
                     log("  Attestation verification failed", style="dim")
-                if not passport_passed:
-                    log("  Passport content verification failed", style="dim")
+                if not provenance_passed:
+                    log("  Provenance content verification failed", style="dim")
 
         if not overall_passed:
             raise typer.Exit(1)

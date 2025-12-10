@@ -2,10 +2,10 @@
 
 This module handles verification of attestation reports from TEE systems.
 Cryptographic verification is delegated to attest-amd, while application-specific
-verification (passport binding, nonce freshness) is handled here.
+verification (provenance binding, nonce freshness) is handled here.
 
 The attestation report cryptographically binds:
-- The passport document (via hash in bytes 0-31)
+- The SLSA provenance document (via hash in bytes 0-31)
 - Freshness/replay protection (via nonce in bytes 32-63)
 """
 
@@ -17,21 +17,21 @@ from subprocess import CalledProcessError
 
 from kettle.logger import log, log_error, log_success
 from kettle.subprocess_utils import run_command
-from kettle.utils import hash_passport_to_32bytes
+from kettle.utils import hash_provenance_to_32bytes
 
 
 def verify_attestation(
     attestation_path: Path,
-    passport_path: Path,
+    provenance_path: Path,
 ) -> dict:
     """Comprehensive attestation verification.
 
     Performs cryptographic verification via attest-amd, then verifies
-    application-specific properties (passport binding, nonce freshness).
+    application-specific properties (provenance binding, nonce freshness).
 
     Args:
         attestation_path: Path to attestation file (evidence.b64)
-        passport_path: Path to passport JSON
+        provenance_path: Path to SLSA provenance JSON
         max_age_seconds: Maximum nonce age in seconds (default 1 hour)
 
     Returns:
@@ -40,29 +40,29 @@ def verify_attestation(
             "valid": bool,
             "checks": {
                 "cryptographic": {"verified": bool, "message": str},
-                "passport_binding": {"verified": bool, "message": str},
+                "provenance_binding": {"verified": bool, "message": str},
                 "nonce_freshness": {"verified": bool, "message": str},
             },
             "custom_data": str,
-            "passport": dict
+            "provenance": dict
         }
 
     Raises:
         CalledProcessError: If attest-amd verify fails
         FileNotFoundError: If attest-amd is not installed
     """
-    results = {"valid": True, "checks": {}, "custom_data": None, "passport": None}
+    results = {"valid": True, "checks": {}, "custom_data": None, "provenance": None}
 
 
 
-    # Step 3: Load passport
+    # Step 3: Load provenance
     try:
-        passport = json.loads(passport_path.read_text())
-        results["passport"] = passport
-        custom_data_hex = hash_passport_to_32bytes(passport)
+        provenance = json.loads(provenance_path.read_text())
+        results["provenance"] = provenance
+        custom_data_hex = hash_provenance_to_32bytes(provenance)
     except Exception as e:
         results["valid"] = False
-        results["checks"]["passport_binding"] = {
+        results["checks"]["provenance_binding"] = {
             "verified": False,
             "message": f"Failed to load passport: {e}",
         }

@@ -1,14 +1,14 @@
 # Attestable Builds
 
-**Cryptographic verification of build inputs and outputs using TEE attestation**
+**SLSA Build Level 3 compliant build attestation with TEE-backed provenance**
 
-A build attestation system that creates verifiable proofs of software provenance. Unlike reproducible builds, which require bit-for-bit identical outputs, attestable builds shift the question from "Does this binary have hash X?" to "Was this binary with hash X produced by process Y from sources Z in environment W?"
+A build attestation system that creates verifiable [SLSA v1.2](https://slsa.dev/spec/v1.2/) Build Provenance for software artifacts. Unlike reproducible builds, which require bit-for-bit identical outputs, attestable builds shift the question from "Does this binary have hash X?" to "Was this binary with hash X produced by process Y from sources Z in environment W?"
 
 ## Overview
 
-Attestable builds provide cryptographic proof that a binary artifact was built from specific source code, dependencies, and toolchain in a trusted execution environment (TEE).
+Attestable builds provide cryptographic proof that a binary artifact was built from specific source code, dependencies, and toolchain in a trusted execution environment (TEE). The system generates [SLSA v1.2 provenance](https://slsa.dev/spec/v1.2/provenance) in the standard [in-toto attestation format](https://in-toto.io/), achieving **SLSA Build Level 3** compliance through TEE-based isolation and hardware attestation.
 
-The system first establishes complete provenance of all build inputs (source code, dependencies, toolchain), then generates cryptographic proof linking verified inputs to build outputs, signed by TEE hardware.
+The system first establishes complete provenance of all build inputs (source code, dependencies, toolchain), then generates SLSA provenance linking verified inputs to build outputs, cryptographically signed by TEE hardware.
 
 This approach is more practical than reproducible builds while providing strong security guarantees through cryptographic attestation rather than deterministic compilation.
 
@@ -53,11 +53,13 @@ See [TESTING.md](TESTING.md) for detailed examples and Docker-based testing.
 
 **Build Verification**
 - Verifies all build inputs: source code (git), dependencies, and toolchain
-- Generates cryptographic passport containing complete build manifest
+- Generates SLSA v1.2 provenance containing complete build manifest
 - Optional TEE attestation for hardware-backed proof
 
-**Passport Documents**
-- JSON manifest with complete build provenance
+**SLSA v1.2 Provenance**
+- Standard in-toto attestation format for interoperability
+- Complete build provenance with inputs, outputs, and builder identity
+- SLSA Build Level 3 compliant
 - Input merkle tree for efficient verification
 - Cryptographically bound to attestation reports
 
