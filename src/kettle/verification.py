@@ -7,7 +7,7 @@ from kettle.cargo import hash_cargo_lock, parse_cargo_lock, verify_all
 from kettle.git import get_git_info
 from kettle.logger import log, log_error, log_section, log_success, log_warning
 from kettle.output import display_dependency_results, display_verification_checks
-from kettle.passport import verify_build_passport
+from kettle.provenance import verify_build_provenance
 from kettle.toolchain import get_toolchain_info
 
 
