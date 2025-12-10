@@ -15,7 +15,7 @@ from kettle.workload.executor import WorkloadExecutor, generate_workload_passpor
 from datetime import timezone
 
 from kettle.cli import execute_build, generate_attestation, verify_inputs
-from kettle.passport import generate_passport
+from kettle.provenance import generate_provenance, generate_passport
 
 app = FastAPI(title="Attestable Builds Service")
 

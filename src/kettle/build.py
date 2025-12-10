@@ -1,5 +1,6 @@
 """Execute cargo build and collect output artifacts."""
 
+import json
 import subprocess
 from pathlib import Path
 from subprocess import CalledProcessError
@@ -9,6 +10,7 @@ from kettle.utils import hash_file, hash_provenance_to_32bytes
 from kettle.logger import log, log_error, log_section, log_success
 from kettle.provenance import generate_provenance
 from kettle.verification import verify_inputs
+from kettle.slsa import generate_verification_manifest
 
 
 def detect_build_system(project_dir: Path) -> str:
@@ -129,11 +131,12 @@ def execute_build(project_dir: Path, release: bool = True) -> dict:
     return build_result
 
 
-def generate_attestation(provenance_data: dict) -> tuple[Path, Path]:
+def generate_attestation(provenance_data: dict, output_dir: Path) -> tuple[Path, Path]:
     """Generate attestation using attest-amd command.
 
     Args:
         provenance_data: SLSA provenance dictionary to hash for attestation
+        output_dir: Directory to write evidence.b64 file
 
     Returns:
         Tuple of (attestation_path, custom_data_path)
@@ -152,6 +155,9 @@ def generate_attestation(provenance_data: dict) -> tuple[Path, Path]:
     log_success("Custom data generated (64 hex chars)")
     log(f"  - Provenance hash: {custom_data}", style="dim")
 
+    # Define attestation path in output directory
+    attestation_path = output_dir / "evidence.b64"
+
     # Call attest-amd command
     try:
         log(f"\nRunning: sudo attest-amd attest --custom-data {custom_data[:16]}...", style="dim")
@@ -162,9 +168,12 @@ def generate_attestation(provenance_data: dict) -> tuple[Path, Path]:
             check=True,
         )
 
-        # attest-amd saves to evidence.b64 automatically
-        attestation_path = Path("evidence.b64")
-        if not attestation_path.exists():
+        # attest-amd saves to evidence.b64 in current directory
+        # Move it to output directory if it's not already there
+        default_attestation = Path("evidence.b64")
+        if default_attestation.exists() and default_attestation.resolve() != attestation_path.resolve():
+            default_attestation.rename(attestation_path)
+        elif not attestation_path.exists():
             # Fallback: save stdout if file wasn't created
             attestation_path.write_text(result.stdout.strip())
 
@@ -186,7 +195,7 @@ def generate_attestation(provenance_data: dict) -> tuple[Path, Path]:
 
 def run_build_workflow(
     project_dir: Path,
-    output: Path,
+    output_dir: Path,
     release: bool,
     verbose: bool,
     attestation: bool,
@@ -198,12 +207,12 @@ def run_build_workflow(
     2. Verifies all inputs (git, lock file, deps, toolchain)
     3. Executes build
     4. Measures output artifacts
-    5. Generates passport with inputs and outputs
+    5. Generates provenance and manifest in output directory
     6. Optionally generates attestation
 
     Args:
         project_dir: Path to project directory
-        output: Output path for passport JSON
+        output_dir: Output directory for build artifacts (provenance.json, manifest.json)
         release: Whether to build in release mode (Cargo only)
         verbose: Show all results
         attestation: Generate attestation report using attest-amd
@@ -224,6 +233,14 @@ def run_build_workflow(
 
         log(f"Detected build system: {build_system}", style="bold cyan")
 
+        # Ensure output directory exists
+        output_dir = output_dir.resolve()
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        # Define output paths
+        provenance_path = output_dir / "provenance.json"
+        manifest_path = output_dir / "manifest.json"
+
         # Dispatch to appropriate workflow
         if build_system == "nix":
             # Nix workflow
@@ -234,12 +251,17 @@ def run_build_workflow(
             log_section("Building and Generating Provenance")
             provenance_data = nix.generate_nix_provenance(
                 project_dir=project_dir,
-                output_path=output,
+                output_path=provenance_path,
                 git_source=git_info,
                 verbose=verbose,
             )
 
-            log_success(f"Provenance generated: {output}")
+            # Generate verification manifest
+            manifest_data = generate_verification_manifest(provenance_data)
+            manifest_path.write_text(json.dumps(manifest_data, indent=2))
+
+            log_success(f"Provenance generated: {provenance_path}")
+            log_success(f"Manifest generated: {manifest_path}")
             if git_info:
                 log(f"  - Source commit: {git_info['commit_hash'][:8]}...", style="dim")
             log(f"  - {len(results)} flake inputs verified", style="dim")
@@ -264,11 +286,15 @@ def run_build_workflow(
                 toolchain=toolchain,
                 verification_results=results,
                 output_artifacts=output_artifacts,
-                output_path=output,
+                output_path=provenance_path,
             )
 
-            log_success(f"Provenance generated: {output}")
-            log_success(f"Manifest generated: manifest.json")
+            # Generate verification manifest
+            manifest_data = generate_verification_manifest(provenance_data)
+            manifest_path.write_text(json.dumps(manifest_data, indent=2))
+
+            log_success(f"Provenance generated: {provenance_path}")
+            log_success(f"Manifest generated: {manifest_path}")
 
             if git_info:
                 log(f"  - Source commit: {git_info['commit_hash'][:8]}...", style="dim")
@@ -278,10 +304,11 @@ def run_build_workflow(
 
         # Generate attestation if requested (same for both)
         if attestation:
-            attestation_path, custom_data_path = generate_attestation(provenance_data)
+            attestation_path, custom_data_path = generate_attestation(provenance_data, output_dir)
             log("\n")
             log_success("Build complete with attestation")
-            log(f"  - Passport: {output}", style="dim")
+            log(f"  - Provenance: {provenance_path}", style="dim")
+            log(f"  - Manifest: {manifest_path}", style="dim")
             log(f"  - Attestation: {attestation_path}", style="dim")
 
     except typer.Exit:
