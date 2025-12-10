@@ -281,10 +281,15 @@ def run_combined_verify_workflow(
     """Complete combined attestation + provenance verification workflow.
 
     Args:
-        build_dir: Path to build directory containing provenance.json and evidence.b64
+        build_dir: Path to project directory (provenance in build_dir/build/, manifest in build_dir/)
         project_dir: Path to project directory containing verification manifest.json (optional)
         binary: Path to binary artifact to verify (optional)
         strict: Fail if any optional checks cannot be performed
+
+    Expected structure:
+        build_dir/build/provenance.json
+        build_dir/build/evidence.b64
+        build_dir/manifest.json
 
     Raises:
         typer.Exit: If verification fails
@@ -293,20 +298,21 @@ def run_combined_verify_workflow(
 
     try:
         # Find provenance and attestation in build directory
-        provenance_path = build_dir / "provenance.json"
-        attestation_path = build_dir / "evidence.b64"
+        build_subdir = build_dir / "build"
+        provenance_path = build_subdir / "provenance.json"
+        attestation_path = build_subdir / "evidence.b64"
 
         if not provenance_path.exists():
-            log_error(f"provenance.json not found in {build_dir}")
+            log_error(f"provenance.json not found in {build_subdir}")
             raise typer.Exit(1)
 
         log(f"Build directory: {build_dir}", style="dim")
-        log(f"Provenance: {provenance_path.name}", style="dim")
+        log(f"Provenance: {build_subdir.name}/{provenance_path.name}", style="dim")
 
         # Check if attestation exists
         has_attestation = attestation_path.exists()
         if has_attestation:
-            log(f"Attestation: {attestation_path.name}", style="dim")
+            log(f"Attestation: {build_subdir.name}/{attestation_path.name}", style="dim")
         else:
             log("Attestation: not found (provenance-only verification)", style="dim")
 
