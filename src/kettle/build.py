@@ -5,9 +5,9 @@ from pathlib import Path
 from subprocess import CalledProcessError
 
 from kettle.subprocess_utils import run_command
-from kettle.utils import hash_file, hash_passport_to_32bytes
+from kettle.utils import hash_file, hash_provenance_to_32bytes
 from kettle.logger import log, log_error, log_section, log_success
-from kettle.passport import generate_passport
+from kettle.provenance import generate_provenance
 from kettle.verification import verify_inputs
 
 
@@ -129,11 +129,11 @@ def execute_build(project_dir: Path, release: bool = True) -> dict:
     return build_result
 
 
-def generate_attestation(passport_data: dict) -> tuple[Path, Path]:
+def generate_attestation(provenance_data: dict) -> tuple[Path, Path]:
     """Generate attestation using attest-amd command.
 
     Args:
-        passport_data: Passport dictionary to hash for attestation
+        provenance_data: SLSA provenance dictionary to hash for attestation
 
     Returns:
         Tuple of (attestation_path, custom_data_path)
@@ -147,11 +147,10 @@ def generate_attestation(passport_data: dict) -> tuple[Path, Path]:
 
     log_section("Generating Attestation")
 
-    # Hash passport to 32-byte custom data
-    custom_data = hash_passport_to_32bytes(passport_data)
-    log_success("Custom data generated (128 hex chars)")
-    log(f"  - Passport hash: {custom_data[:64]}", style="dim")
-    log(f"  - Nonce: {custom_data[64:80]}...", style="dim")
+    # Hash provenance to 32-byte custom data
+    custom_data = hash_provenance_to_32bytes(provenance_data)
+    log_success("Custom data generated (64 hex chars)")
+    log(f"  - Provenance hash: {custom_data}", style="dim")
 
     # Call attest-amd command
     try:
@@ -232,20 +231,20 @@ def run_build_workflow(
                 project_dir, verbose
             )
 
-            log_section("Building and Generating Passport")
-            passport_data = nix.generate_nix_passport(
+            log_section("Building and Generating Provenance")
+            provenance_data = nix.generate_nix_provenance(
                 project_dir=project_dir,
                 output_path=output,
                 git_source=git_info,
                 verbose=verbose,
             )
 
-            log_success(f"Passport generated: {output}")
+            log_success(f"Provenance generated: {output}")
             if git_info:
                 log(f"  - Source commit: {git_info['commit_hash'][:8]}...", style="dim")
             log(f"  - {len(results)} flake inputs verified", style="dim")
             log(f"  - Toolchain: {toolchain['nix_version']}", style="dim")
-            log(f"  - {len(passport_data['outputs']['artifacts'])} artifact(s) measured", style="dim")
+            log(f"  - {len(provenance_data['subject'])} artifact(s) measured", style="dim")
 
         else:  # cargo
             # Existing Cargo workflow
@@ -255,11 +254,11 @@ def run_build_workflow(
 
             build_result = execute_build(project_dir, release)
 
-            log_section("Generating Passport")
+            log_section("Generating Provenance")
 
             output_artifacts = [(artifact['path'], artifact['hash']) for artifact in build_result['artifacts']]
 
-            passport_data = generate_passport(
+            provenance_data = generate_provenance(
                 git_source=git_info,
                 cargo_lock_hash=cargo_lock_hash,
                 toolchain=toolchain,
@@ -268,7 +267,7 @@ def run_build_workflow(
                 output_path=output,
             )
 
-            log_success(f"Passport generated: {output}")
+            log_success(f"Provenance generated: {output}")
             log_success(f"Manifest generated: manifest.json")
 
             if git_info:
@@ -279,7 +278,7 @@ def run_build_workflow(
 
         # Generate attestation if requested (same for both)
         if attestation:
-            attestation_path, custom_data_path = generate_attestation(passport_data)
+            attestation_path, custom_data_path = generate_attestation(provenance_data)
             log("\n")
             log_success("Build complete with attestation")
             log(f"  - Passport: {output}", style="dim")
