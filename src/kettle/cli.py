@@ -52,10 +52,10 @@ def build(
         file_okay=False,
     ),
     output: Path = typer.Option(
-        "provenance.json",
+        None,
         "--output",
         "-o",
-        help="Output path for SLSA provenance JSON",
+        help="Output directory for build artifacts (default: project directory)",
     ),
     release: bool = typer.Option(
         True,
@@ -79,8 +79,15 @@ def build(
     2. Verifies all inputs (git, lock file, deps, toolchain)
     3. Executes build
     4. Measures output artifacts
-    5. Generates SLSA v1.2 provenance with inputs and outputs
+    5. Generates SLSA v1.2 provenance and manifest in output directory
+
+    By default, provenance.json and manifest.json are written to the project directory.
+    Use --output to specify a different directory.
     """
+    # Default output to project directory if not specified
+    if output is None:
+        output = project_dir
+
     run_build_workflow(project_dir, output, release, verbose, attestation)
 
 
