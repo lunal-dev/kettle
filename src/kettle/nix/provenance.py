@@ -31,6 +31,8 @@ def convert_nix_input_to_purl(dep: dict) -> dict:
     Returns:
         ResourceDescriptor with PURL URI
     """
+    import base64
+
     name = dep["name"]
     nar_hash = dep.get("narHash", "")
     input_type = dep.get("type", "")
@@ -53,7 +55,20 @@ def convert_nix_input_to_purl(dep: dict) -> dict:
 
     # Extract hash from narHash if available (format: sha256-base64)
     if nar_hash and nar_hash.startswith("sha256-"):
-        # Note: narHash uses base64, not hex. Store as-is in annotations
+        # Convert narHash from base64 to hex for SLSA digest field
+        # narHash format: sha256-<base64>
+        # SLSA digest format: {"sha256": "<hex>"}
+        base64_hash = nar_hash[7:]  # Strip "sha256-" prefix
+        try:
+            # Decode base64 to bytes, then encode as hex
+            hash_bytes = base64.b64decode(base64_hash)
+            hex_hash = hash_bytes.hex()
+            descriptor["digest"] = {"sha256": hex_hash}
+        except Exception:
+            # If conversion fails, skip digest but keep annotations
+            pass
+
+        # Also store original narHash in annotations for reference
         descriptor["annotations"] = {"narHash": nar_hash}
 
     return descriptor
@@ -544,7 +559,7 @@ def verify_nix_build_provenance(
                 results["valid"] = False
             results["checks"][check_name] = check_result
 
-    # Verify input merkle root from manifest if provided
+    # Verify inpumt merkle root from manifest if provided
     if input_merkle_root:
         check_result = _verify_input_merkle_root(provenance, input_merkle_root, strict)
         if check_result.pop("fail", False):
