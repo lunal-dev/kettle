@@ -58,39 +58,92 @@ def calculate_input_merkle_root(
 
 
 def rebuild_merkle_tree_from_passport(passport_data: dict) -> MerkleTree:
-    """Rebuild the Merkle tree from passport data in the exact same order.
+    """Rebuild the Merkle tree from SLSA provenance data in the exact same order.
 
     Args:
-        passport_data: Complete passport dictionary
+        passport_data: Complete SLSA v1.2 provenance dictionary
 
     Returns:
         Reconstructed MerkleTree instance with all entries
     """
     tree = MerkleTree(algorithm='sha256')
-    inputs = passport_data['inputs']
+
+    # Extract data from SLSA structure
+    predicate = passport_data.get('predicate', {})
+    build_def = predicate.get('buildDefinition', {})
+    run_details = predicate.get('runDetails', {})
+
+    # External parameters (source info)
+    ext_params = build_def.get('externalParameters', {})
+    source = ext_params.get('source', {})
+    source_digest = source.get('digest', {})
+
+    # Internal parameters
+    int_params = build_def.get('internalParameters', {})
+    toolchain = int_params.get('toolchain', {})
+    lockfile_hash = int_params.get('lockfileHash', {}).get('sha256')
+
+    # Dependencies (resolvedDependencies)
+    resolved_deps = build_def.get('resolvedDependencies', [])
+
+    # Git binary hash from byproducts
+    byproducts = run_details.get('byproducts', [])
+    git_binary_byproduct = next(
+        (bp for bp in byproducts if bp.get('name') == 'git_binary_hash'),
+        None
+    )
 
     # Add git source info if available (same order as build)
-    if 'source' in inputs and inputs['source']:
-        if 'commit_hash' in inputs['source'] and inputs['source']['commit_hash']:
-            tree.append_entry(inputs['source']['commit_hash'].encode())
-        if 'tree_hash' in inputs['source'] and inputs['source']['tree_hash']:
-            tree.append_entry(inputs['source']['tree_hash'].encode())
-        if 'git_binary_hash' in inputs['source'] and inputs['source']['git_binary_hash']:
-            tree.append_entry(inputs['source']['git_binary_hash'].encode())
+    if source_digest.get('gitCommit'):
+        tree.append_entry(source_digest['gitCommit'].encode())
+    if source_digest.get('gitTree'):
+        tree.append_entry(source_digest['gitTree'].encode())
+    if git_binary_byproduct:
+        git_binary_hash = git_binary_byproduct.get('digest', {}).get('sha256')
+        if git_binary_hash:
+            tree.append_entry(git_binary_hash.encode())
 
     # Add Cargo.lock hash
-    tree.append_entry(inputs['cargo_lock_hash'].encode())
+    if lockfile_hash:
+        tree.append_entry(lockfile_hash.encode())
 
     # Add dependencies (sorted for determinism)
-    for dep in sorted(inputs['dependencies'], key=lambda x: (x['name'], x['version'])):
+    # Convert resolved dependencies back to name/version/checksum format
+    dependencies = []
+    for dep in resolved_deps:
+        dep_digest = dep.get('digest', {}).get('sha256')
+        dep_name = dep.get('name')
+        # Extract version from PURL URI (pkg:cargo/name@version?checksum=...)
+        uri = dep.get('uri', '')
+        version = None
+        if '@' in uri and '?' in uri:
+            version = uri.split('@')[1].split('?')[0]
+
+        if dep_name and version and dep_digest:
+            dependencies.append({
+                'name': dep_name,
+                'version': version,
+                'checksum': dep_digest,
+            })
+
+    for dep in sorted(dependencies, key=lambda x: (x['name'], x['version'])):
         entry = f"{dep['name']}:{dep['version']}:{dep['checksum']}"
         tree.append_entry(entry.encode())
 
     # Add toolchain info
-    tree.append_entry(inputs['toolchain']['rustc']['binary_hash'].encode())
-    tree.append_entry(inputs['toolchain']['rustc']['version'].encode())
-    tree.append_entry(inputs['toolchain']['cargo']['binary_hash'].encode())
-    tree.append_entry(inputs['toolchain']['cargo']['version'].encode())
+    rustc_hash = toolchain.get('rustc', {}).get('digest', {}).get('sha256')
+    rustc_version = toolchain.get('rustc', {}).get('version')
+    cargo_hash = toolchain.get('cargo', {}).get('digest', {}).get('sha256')
+    cargo_version = toolchain.get('cargo', {}).get('version')
+
+    if rustc_hash:
+        tree.append_entry(rustc_hash.encode())
+    if rustc_version:
+        tree.append_entry(rustc_version.encode())
+    if cargo_hash:
+        tree.append_entry(cargo_hash.encode())
+    if cargo_version:
+        tree.append_entry(cargo_version.encode())
 
     return tree
 
@@ -99,48 +152,92 @@ def _collect_tree_entries(passport_data: dict) -> list[tuple[str, str, bytes]]:
     """Collect all tree entries in order with labels.
 
     Args:
-        passport_data: Complete passport dictionary
+        passport_data: Complete SLSA v1.2 provenance dictionary
 
     Returns:
         List of tuples: (label, value_string, value_bytes)
     """
     entries = []
-    inputs = passport_data['inputs']
+
+    # Extract data from SLSA structure
+    predicate = passport_data.get('predicate', {})
+    build_def = predicate.get('buildDefinition', {})
+    run_details = predicate.get('runDetails', {})
+
+    # External parameters (source info)
+    ext_params = build_def.get('externalParameters', {})
+    source = ext_params.get('source', {})
+    source_digest = source.get('digest', {})
+
+    # Internal parameters
+    int_params = build_def.get('internalParameters', {})
+    toolchain = int_params.get('toolchain', {})
+    lockfile_hash = int_params.get('lockfileHash', {}).get('sha256')
+
+    # Dependencies (resolvedDependencies)
+    resolved_deps = build_def.get('resolvedDependencies', [])
+
+    # Git binary hash from byproducts
+    byproducts = run_details.get('byproducts', [])
+    git_binary_byproduct = next(
+        (bp for bp in byproducts if bp.get('name') == 'git_binary_hash'),
+        None
+    )
 
     # Collect git source info if available
-    if 'source' in inputs and inputs['source']:
-        if 'commit_hash' in inputs['source'] and inputs['source']['commit_hash']:
-            val = inputs['source']['commit_hash']
-            entries.append(('git_commit_hash', val, val.encode()))
-        if 'tree_hash' in inputs['source'] and inputs['source']['tree_hash']:
-            val = inputs['source']['tree_hash']
-            entries.append(('git_tree_hash', val, val.encode()))
-        if 'git_binary_hash' in inputs['source'] and inputs['source']['git_binary_hash']:
-            val = inputs['source']['git_binary_hash']
+    if source_digest.get('gitCommit'):
+        val = source_digest['gitCommit']
+        entries.append(('git_commit_hash', val, val.encode()))
+    if source_digest.get('gitTree'):
+        val = source_digest['gitTree']
+        entries.append(('git_tree_hash', val, val.encode()))
+    if git_binary_byproduct:
+        val = git_binary_byproduct.get('digest', {}).get('sha256')
+        if val:
             entries.append(('git_binary_hash', val, val.encode()))
 
     # Cargo.lock hash
-    val = inputs['cargo_lock_hash']
-    entries.append(('cargo_lock_hash', val, val.encode()))
+    if lockfile_hash:
+        entries.append(('cargo_lock_hash', lockfile_hash, lockfile_hash.encode()))
 
     # Dependencies (sorted for determinism)
-    for dep in sorted(inputs['dependencies'], key=lambda x: (x['name'], x['version'])):
+    # Convert resolved dependencies back to name/version/checksum format
+    dependencies = []
+    for dep in resolved_deps:
+        dep_digest = dep.get('digest', {}).get('sha256')
+        dep_name = dep.get('name')
+        # Extract version from PURL URI (pkg:cargo/name@version?checksum=...)
+        uri = dep.get('uri', '')
+        version = None
+        if '@' in uri and '?' in uri:
+            version = uri.split('@')[1].split('?')[0]
+
+        if dep_name and version and dep_digest:
+            dependencies.append({
+                'name': dep_name,
+                'version': version,
+                'checksum': dep_digest,
+            })
+
+    for dep in sorted(dependencies, key=lambda x: (x['name'], x['version'])):
         entry_str = f"{dep['name']}:{dep['version']}:{dep['checksum']}"
         label = f"dependency:{dep['name']}:{dep['version']}"
         entries.append((label, entry_str, entry_str.encode()))
 
     # Toolchain info
-    val = inputs['toolchain']['rustc']['binary_hash']
-    entries.append(('rustc_binary_hash', val, val.encode()))
+    rustc_hash = toolchain.get('rustc', {}).get('digest', {}).get('sha256')
+    rustc_version = toolchain.get('rustc', {}).get('version')
+    cargo_hash = toolchain.get('cargo', {}).get('digest', {}).get('sha256')
+    cargo_version = toolchain.get('cargo', {}).get('version')
 
-    val = inputs['toolchain']['rustc']['version']
-    entries.append(('rustc_version', val, val.encode()))
-
-    val = inputs['toolchain']['cargo']['binary_hash']
-    entries.append(('cargo_binary_hash', val, val.encode()))
-
-    val = inputs['toolchain']['cargo']['version']
-    entries.append(('cargo_version', val, val.encode()))
+    if rustc_hash:
+        entries.append(('rustc_binary_hash', rustc_hash, rustc_hash.encode()))
+    if rustc_version:
+        entries.append(('rustc_version', rustc_version, rustc_version.encode()))
+    if cargo_hash:
+        entries.append(('cargo_binary_hash', cargo_hash, cargo_hash.encode()))
+    if cargo_version:
+        entries.append(('cargo_version', cargo_version, cargo_version.encode()))
 
     return entries
 
@@ -246,7 +343,7 @@ def gen_inclusion_proof(
     """Complete Merkle inclusion proof workflow: generate and verify proofs.
 
     Args:
-        passport: Path to passport JSON file
+        passport: Path to SLSA provenance JSON file
         hashes: List of hash values to prove inclusion for (supports partial matching)
         output: Optional output path to save proofs to JSON file
 
@@ -258,8 +355,8 @@ def gen_inclusion_proof(
     try:
         log_section("Merkle Inclusion Proof")
 
-        # Load passport
-        log(f"\nLoading passport: {passport}")
+        # Load provenance
+        log(f"\nLoading provenance: {passport}")
         passport_data = json.loads(passport.read_text())
 
         log(f"Generating proofs for {len(hashes)} hash(es)...\n")
