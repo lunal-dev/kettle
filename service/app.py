@@ -11,7 +11,7 @@ from uuid import uuid4
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
-from kettle.workload.executor import WorkloadExecutor, generate_workload_passport
+from kettle.workload.executor import WorkloadExecutor, generate_workload_provenance
 from datetime import timezone
 
 from kettle.build import run_build_workflow
@@ -32,12 +32,13 @@ async def build(source: UploadFile = File(...)):
     build_dir = BUILDS / build_id
     build_dir.mkdir()
 
-    # Extract source
-    source_dir = build_dir / "source"
-    source_dir.mkdir()
+    # Save source.zip and extract source directory
     zip_path = build_dir / "source.zip"
     zip_path.write_bytes(await source.read())
 
+    # Extract source directory for workloads to use
+    source_dir = build_dir / "source"
+    source_dir.mkdir()
     with zipfile.ZipFile(zip_path, "r") as z:
         z.extractall(source_dir)
 
@@ -56,29 +57,32 @@ async def build(source: UploadFile = File(...)):
 
         build_system = detect_build_system(project_dir)
 
-        # Create output directory for build artifacts
-        output_dir = build_dir / "output"
-        output_dir.mkdir()
-
-        # Run unified build workflow
+        # Run unified build workflow (outputs to nested build/ directory)
         # This handles: verification, building, provenance generation, and attestation
         # Note: For service context, we can't use typer.Exit, so we catch and convert it
         try:
             run_build_workflow(
                 project_dir=project_dir,
-                output_dir=output_dir,
+                output_dir=build_dir,  # Creates build_dir/build/ subdirectory
                 release=True,
-                verbose=True,  # Enable verbose to see what's failing
+                verbose=True,
                 attestation=True,
             )
         except typer.Exit as e:
             # Convert typer.Exit to regular exception for API context
             raise RuntimeError(f"Build workflow failed with exit code {e.exit_code}")
 
-        # Load generated provenance and manifest
-        provenance_path = output_dir / "build" / "provenance.json"
-        manifest_path = output_dir / "manifest.json"
-        attestation_path = output_dir / "build" / "evidence.b64"
+        # Flatten structure: copy files from nested build/ to root for API response
+        nested_build_dir = build_dir / "build"
+        if (nested_build_dir / "provenance.json").exists():
+            shutil.copy2(nested_build_dir / "provenance.json", build_dir / "provenance.json")
+        if (nested_build_dir / "evidence.b64").exists():
+            shutil.copy2(nested_build_dir / "evidence.b64", build_dir / "evidence.b64")
+
+        # Load generated provenance and manifest (flat structure)
+        provenance_path = build_dir / "provenance.json"
+        manifest_path = build_dir / "manifest.json"
+        attestation_path = build_dir / "evidence.b64"
 
         provenance_data = json.loads(provenance_path.read_text()) if provenance_path.exists() else None
         manifest_data = json.loads(manifest_path.read_text()) if manifest_path.exists() else None
@@ -256,31 +260,28 @@ async def run_workload(
         # This will verify input_merkle_root matches expected
         result = executor.execute()
 
-        # 5. Generate workload passport
-        # Look for provenance.json in output/build/ directory (new structure)
-        provenance_path = build_dir / "output" / "build" / "provenance.json"
-        # Fallback to old passport.json location for backward compatibility
-        if not provenance_path.exists():
-            provenance_path = build_dir / "passport.json"
+        # 5. Generate workload provenance
+        # Look for provenance.json in build_dir (flat structure)
+        provenance_path = build_dir / "provenance.json"
 
-        workload_passport = generate_workload_passport(
-            build_passport_path=provenance_path,
+        workload_provenance = generate_workload_provenance(
+            build_provenance_path=provenance_path,
             workload_path=workload_yaml_path,
             workload_result=result,
             tools_dir=tools_dir,
             scripts_dir=scripts_dir,
         )
 
-        # Save passport
-        passport_path = workload_dir / "workload-passport.json"
-        passport_path.write_text(json.dumps(workload_passport, indent=2))
+        # Save provenance
+        provenance_path_out = workload_dir / "workload-provenance.json"
+        provenance_path_out.write_text(json.dumps(workload_provenance, indent=2))
 
         # 6. Generate attestation
         attestation_b64 = None
         attestation_error = None
         try:
             from kettle.build import generate_attestation
-            attestation_path, _ = generate_attestation(workload_passport, workload_dir)
+            attestation_path, _ = generate_attestation(workload_provenance, workload_dir)
 
             if attestation_path.exists():
                 attestation_b64 = attestation_path.read_text().strip()
@@ -321,7 +322,7 @@ async def run_workload(
             "execution_time_seconds": result.execution_time_seconds,
             "summary": result.summary,
             "workload_hash": workload_hash,
-            "workload_passport": workload_passport,
+            "workload_provenance": workload_provenance,
             "attestation": attestation_b64,
         }
 
@@ -351,7 +352,7 @@ async def get_workload_results(build_id: str, workload_id: str):
     Party A calls this to see complete execution details including:
     - Full result files
     - Summary
-    - Workload passport
+    - Workload provenance
     - Attestation
     """
 
@@ -367,9 +368,9 @@ async def get_workload_results(build_id: str, workload_id: str):
 
     summary = json.loads(summary_path.read_text())
 
-    # Read workload passport
-    passport_path = workload_dir / "workload-passport.json"
-    workload_passport = json.loads(passport_path.read_text()) if passport_path.exists() else None
+    # Read workload provenance
+    provenance_path = workload_dir / "workload-provenance.json"
+    workload_provenance = json.loads(provenance_path.read_text()) if provenance_path.exists() else None
 
     # Read attestation
     attestation_path = workload_dir / "evidence.b64"
@@ -397,7 +398,7 @@ async def get_workload_results(build_id: str, workload_id: str):
     return {
         "summary": summary,
         "full_results": full_results,
-        "workload_passport": workload_passport,
+        "workload_provenance": workload_provenance,
         "attestation": attestation
     }
 

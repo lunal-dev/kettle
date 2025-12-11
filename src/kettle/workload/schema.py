@@ -83,22 +83,6 @@ class WorkloadResult:
     summary: Dict[str, Any]  # Summary for Party B
 
 
-@dataclass
-class WorkloadPassport:
-    """Workload passport extending build passport."""
-
-    version: str
-
-    # INHERITED from build passport
-    inputs: Dict[str, Any]  # input_merkle_root, source, build_config_hash, toolchain_hash
-    build_process: Dict[str, Any]  # command, timestamp
-    outputs: Dict[str, Any]  # artifacts
-
-    # NEW: Workload execution details
-    workload: Dict[str, Any]  # name, description, workload_hash, tools, scripts, timestamp, sandbox
-    execution: Dict[str, Any]  # status, exit_code, execution_time_seconds, steps, full_results_hash, summary
-
-
 def validate_workload_schema(workload: Workload) -> List[str]:
     """Validate workload schema for correctness.
 

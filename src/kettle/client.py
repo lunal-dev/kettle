@@ -430,17 +430,36 @@ def run_tee_workload_workflow(
         log_success(f"Status: {result['status']}")
         log(f"Execution Time: {result['execution_time_seconds']:.2f}s", style="dim")
 
-        # Display verification info
-        log("\n")
-        log_section("Verification")
-        log("Results can be verified:")
-        log(f"  ✓ Attestation signature (TEE hardware authentic)", style="dim")
-        log(f"  ✓ Input root matches: {expected_input_root[:32]}...", style="dim")
-        log(f"  ✓ Workload hash matches uploaded workload", style="dim")
-        log(f"  ✓ Summary is cryptographically bound to execution", style="dim")
+        # Save results locally in kettle-workload-{id} directory
+        log(f"\n[3/3] Saving results locally...")
+        output_dir = Path.cwd() / f"kettle-workload-{workload_id}"
+        output_dir.mkdir(exist_ok=True)
+
+        # Save provenance
+        if result.get("workload_provenance"):
+            provenance_path = output_dir / "provenance.json"
+            provenance_path.write_text(json.dumps(result["workload_provenance"], indent=2))
+            log_success(f"Provenance: {provenance_path}")
+
+        # Save summary
+        if result.get("summary"):
+            summary_path = output_dir / "summary.json"
+            summary_path.write_text(json.dumps(result["summary"], indent=2))
+            log_success(f"Summary: {summary_path}")
+
+        # Save attestation
+        if result.get("attestation"):
+            attestation_path = output_dir / "evidence.b64"
+            attestation_path.write_text(result["attestation"])
+            log_success(f"Attestation: {attestation_path}")
+
+        # Display summary content if available
+        if result.get("summary", {}).get("content"):
+            log(f"\nResult Summary: {result['summary']['content']}", style="bold")
 
         log("\n")
         log_success("Workload execution complete")
+        log_success(f"Results saved: {output_dir}/")
 
     except TEEAPIError as e:
         log_error(f"API request failed: {e}")
@@ -492,10 +511,16 @@ def run_tee_get_results_workflow(
 
         # Create output directory
         if output_dir is None:
-            output_dir = Path(f"workload-results-{workload_id}")
+            output_dir = Path(f"kettle-workload-{workload_id}")
         output_dir.mkdir(exist_ok=True)
 
         log(f"\n[2/2] Saving results to {output_dir}/...")
+
+        # Save workload provenance
+        if result.get("workload_provenance"):
+            provenance_path = output_dir / "provenance.json"
+            provenance_path.write_text(json.dumps(result["workload_provenance"], indent=2))
+            log_success(f"Provenance: {provenance_path}")
 
         # Save summary
         if result.get("summary"):
@@ -503,30 +528,22 @@ def run_tee_get_results_workflow(
             summary_path.write_text(json.dumps(result["summary"], indent=2))
             log_success(f"Summary: {summary_path}")
 
-            # Display summary
-            summary = result["summary"]["summary"]
-            if summary.get("content"):
+            # Display summary content
+            summary = result["summary"]
+            if isinstance(summary, dict) and summary.get("summary", {}).get("content"):
+                log(f"\n  Result Summary: {summary['summary']['content']}", style="bold")
+            elif isinstance(summary, dict) and summary.get("content"):
                 log(f"\n  Result Summary: {summary['content']}", style="bold")
 
-        # Save full results (Party A's private data)
+        # Save full results as individual files in the output directory
         if result.get("full_results"):
-            full_results_dir = output_dir / "full-results"
-            full_results_dir.mkdir(exist_ok=True)
-
             for filename, file_data in result["full_results"].items():
-                result_path = full_results_dir / filename
+                result_path = output_dir / filename
                 if file_data["type"] == "json":
                     result_path.write_text(json.dumps(file_data["content"], indent=2))
                 elif file_data["type"] == "text":
                     result_path.write_text(file_data["content"])
-
-            log_success(f"Full results: {full_results_dir}/ ({len(result['full_results'])} file(s))")
-
-        # Save workload passport
-        if result.get("workload_passport"):
-            passport_path = output_dir / "workload-passport.json"
-            passport_path.write_text(json.dumps(result["workload_passport"], indent=2))
-            log_success(f"Workload passport: {passport_path}")
+                log_success(f"{filename}: {result_path}")
 
         # Save attestation
         if result.get("attestation"):
@@ -536,11 +553,7 @@ def run_tee_get_results_workflow(
 
         log("\n")
         log_success("Results downloaded successfully")
-        log(f"\nResults in: {output_dir}/", style="bold")
-        log("  - summary.json", style="dim")
-        log("  - full-results/", style="dim")
-        log("  - workload-passport.json", style="dim")
-        log("  - evidence.b64", style="dim")
+        log_success(f"Results in: {output_dir}/")
 
     except TEEAPIError as e:
         log_error(f"API request failed: {e}")

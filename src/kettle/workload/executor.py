@@ -3,9 +3,10 @@
 import json
 import hashlib
 import time
+import uuid
 from pathlib import Path
 from typing import Dict, Any, Optional
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from .schema import (
     Workload,
@@ -92,6 +93,36 @@ class WorkloadExecutor:
             summary=result_summary,
         )
 
+    def _extract_input_merkle_root(self, provenance: dict) -> str:
+        """Extract input merkle root from SLSA provenance byproducts.
+
+        Args:
+            provenance: SLSA v1.2 provenance statement
+
+        Returns:
+            SHA256 hex hash of input merkle root (without "sha256:" prefix)
+
+        Raises:
+            ValueError: If provenance structure is invalid
+        """
+        try:
+            byproducts = (
+                provenance
+                .get("predicate", {})
+                .get("runDetails", {})
+                .get("byproducts", [])
+            )
+
+            # Find the input_merkle_root byproduct
+            for byproduct in byproducts:
+                if byproduct.get("name") == "input_merkle_root":
+                    merkle_root = byproduct.get("digest", {}).get("sha256", "")
+                    return merkle_root
+
+            return ""
+        except (AttributeError, TypeError) as e:
+            raise ValueError(f"Invalid provenance structure: {e}")
+
     def verify_inputs_unchanged(self) -> None:
         """Verify build inputs haven't changed.
 
@@ -105,18 +136,24 @@ class WorkloadExecutor:
         if expected_root.startswith("sha256:"):
             expected_root = expected_root[7:]
 
-        # Load build passport to get input info
-        passport_path = self.build_location / "passport.json"
-        if not passport_path.exists():
+        # Load build provenance to get input info
+        provenance_path = self.build_location / "provenance.json"
+        if not provenance_path.exists():
             raise FileNotFoundError(
-                f"Build passport not found: {passport_path}\n"
-                f"Ensure the build directory contains a passport.json file."
+                f"Build provenance not found: {provenance_path}\n"
+                f"Ensure the build directory contains a provenance.json file."
             )
 
-        passport_data = json.loads(passport_path.read_text())
+        provenance_data = json.loads(provenance_path.read_text())
 
-        # Get current input merkle root from passport
-        current_root = passport_data.get("inputs", {}).get("input_merkle_root", "")
+        # Get current input merkle root from provenance
+        current_root = self._extract_input_merkle_root(provenance_data)
+
+        if not current_root:
+            raise ValueError(
+                f"No input_merkle_root found in provenance byproducts.\n"
+                f"The build provenance may be malformed or incomplete."
+            )
 
         # if current_root != expected_root:
         #     raise InputChangedError(
@@ -271,27 +308,49 @@ class WorkloadExecutor:
         return result
 
 
-def generate_workload_passport(
-    build_passport_path: Path,
+def generate_workload_provenance(
+    build_provenance_path: Path,
     workload_path: Path,
     workload_result: WorkloadResult,
     tools_dir: Path | None,
     scripts_dir: Path | None,
 ) -> dict:
-    """Generate workload passport extending build passport.
+    """Generate SLSA v1.2 workload provenance extending build provenance.
+
+    Creates a new SLSA statement with buildType for workload execution,
+    referencing the original build provenance and adding execution results.
 
     Args:
-        build_passport_path: Path to build passport JSON
+        build_provenance_path: Path to build provenance JSON (provenance.json)
         workload_path: Path to workload.yaml
         workload_result: Result of workload execution
         tools_dir: Directory containing tools (optional)
         scripts_dir: Directory containing scripts (optional)
 
     Returns:
-        Workload passport dictionary
+        SLSA v1.2 workload provenance dictionary
     """
-    # Load build passport
-    build_passport = json.loads(build_passport_path.read_text())
+    # Import required SLSA utilities
+    from ..slsa import generate_slsa_statement, build_byproduct
+
+    # Load build provenance
+    build_provenance = json.loads(build_provenance_path.read_text())
+
+    # Hash the build provenance file itself
+    build_provenance_hash = hash_file(build_provenance_path)
+
+    # Extract input merkle root from build provenance
+    input_merkle_root = ""
+    byproducts = (
+        build_provenance
+        .get("predicate", {})
+        .get("runDetails", {})
+        .get("byproducts", [])
+    )
+    for bp in byproducts:
+        if bp.get("name") == "input_merkle_root":
+            input_merkle_root = bp.get("digest", {}).get("sha256", "")
+            break
 
     # Hash workload YAML
     workload_hash = hash_file(workload_path)
@@ -306,8 +365,9 @@ def generate_workload_passport(
             if tool_path.is_file():
                 tools.append(
                     {
+                        "name": tool_path.name,
                         "path": f"tools/{tool_path.name}",
-                        "hash": hash_file(tool_path),
+                        "digest": {"sha256": hash_file(tool_path)},
                     }
                 )
 
@@ -318,50 +378,97 @@ def generate_workload_passport(
             if script_path.is_file():
                 scripts.append(
                     {
+                        "name": script_path.name,
                         "path": f"scripts/{script_path.name}",
-                        "hash": hash_file(script_path),
+                        "digest": {"sha256": hash_file(script_path)},
                     }
                 )
 
-    # Build workload passport
-    passport = {
-        "version": "1.0",
-        # INHERITED from build passport
-        "inputs": build_passport["inputs"],
-        "build_process": build_passport["build_process"],
-        "outputs": build_passport["outputs"],
-        # NEW: Workload execution details
-        "workload": {
+    # Generate timestamps
+    started_on = datetime.now(timezone.utc)
+    invocation_id = f"workload-{started_on.strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:8]}"
+
+    # Build SLSA components for workload
+
+    # 1. Subject (empty - workload doesn't produce build artifacts)
+    subject = []
+
+    # 2. Build type (workload-specific)
+    build_type = "https://attestable-builds.dev/kettle/workload@v1"
+
+    # 3. External parameters (user-controlled)
+    external_parameters = {
+        "workloadDefinition": {
             "name": workload.name,
             "description": workload.description,
-            "workload_hash": workload_hash,
-            "tools": tools,
-            "scripts": scripts,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "timeout_seconds": workload.environment.timeout_seconds,
-            "sandbox": {
-                "network_blocked": not workload.environment.network_access,
-                "max_memory_mb": workload.environment.max_memory_mb,
-                "timeout_seconds": workload.environment.timeout_seconds,
-            },
+            "digest": {"sha256": workload_hash},
         },
-        # NEW: Execution results
-        "execution": {
-            "status": workload_result.status,
-            "exit_code": workload_result.exit_code,
-            "execution_time_seconds": workload_result.execution_time_seconds,
-            "steps": [
-                {
-                    "name": step.name,
-                    "status": step.status,
-                    "exit_code": step.exit_code,
-                    "duration_seconds": step.duration_seconds,
-                }
-                for step in workload_result.steps
-            ],
-            "full_results_hash": workload_result.full_results_hash,
-            "summary": workload_result.summary,
+        "buildProvenance": {
+            "uri": f"file://{build_provenance_path}",
+            "digest": {"sha256": build_provenance_hash},
         },
     }
 
-    return passport
+    # 4. Internal parameters (platform-controlled)
+    internal_parameters = {
+        "tools": tools,
+        "scripts": scripts,
+        "sandbox": {
+            "network_blocked": not workload.environment.network_access,
+            "max_memory_mb": workload.environment.max_memory_mb,
+            "timeout_seconds": workload.environment.timeout_seconds,
+        },
+    }
+
+    # 5. Resolved dependencies (empty - workload depends on build)
+    resolved_dependencies = []
+
+    # 6. Builder ID
+    builder_id = "https://attestable-builds.dev/kettle-tee/workload-executor/v1"
+
+    # 7. Metadata
+    finished_on = started_on + timedelta(seconds=workload_result.execution_time_seconds)
+    metadata = {
+        "invocationId": invocation_id,
+        "startedOn": started_on.isoformat() + "Z",
+        "finishedOn": finished_on.isoformat() + "Z",
+    }
+
+    # 8. Byproducts (input merkle root from build, full results hash)
+    byproducts_list = []
+    if input_merkle_root:
+        byproducts_list.append(build_byproduct("input_merkle_root", input_merkle_root))
+    byproducts_list.append(
+        build_byproduct("full_results_hash", workload_result.full_results_hash)
+    )
+
+    # Generate SLSA statement
+    statement = generate_slsa_statement(
+        subject=subject,
+        build_type=build_type,
+        external_parameters=external_parameters,
+        internal_parameters=internal_parameters,
+        resolved_dependencies=resolved_dependencies,
+        builder_id=builder_id,
+        metadata=metadata,
+        byproducts=byproducts_list,
+    )
+
+    # Add workload execution results as custom extension
+    statement["workloadExecution"] = {
+        "status": workload_result.status,
+        "exit_code": workload_result.exit_code,
+        "execution_time_seconds": workload_result.execution_time_seconds,
+        "steps": [
+            {
+                "name": step.name,
+                "status": step.status,
+                "exit_code": step.exit_code,
+                "duration_seconds": step.duration_seconds,
+            }
+            for step in workload_result.steps
+        ],
+        "summary": workload_result.summary,
+    }
+
+    return statement

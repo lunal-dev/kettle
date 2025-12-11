@@ -36,7 +36,7 @@ from .verification import (
 from .merkle import gen_inclusion_proof
 from .workload import (
     WorkloadExecutor,
-    generate_workload_passport,
+    generate_workload_provenance,
 )
 
 
@@ -386,13 +386,13 @@ def run_workload(
         help="Build ID (build location will be /tmp/kettle-{build_id})",
     ),
 ):
-    """Execute workload in sandboxed environment and generate passport.
+    """Execute workload in sandboxed environment and generate provenance.
 
     This command:
     1. Loads workload definition from workload directory
     2. Uses build at /tmp/kettle-{build_id}
     3. Executes workload steps in sandbox
-    4. Generates workload passport with execution results
+    4. Generates workload provenance with execution results
 
     Example:
         attestable-builds run-workload ./my-workload abc123
@@ -444,47 +444,52 @@ def run_workload(
         if result.summary.get("content"):
             log(f"\nResult Summary: {result.summary['content']}", style="bold")
 
-        # Generate workload passport
-        log("\n[3/3] Generating workload passport...")
-        passport_path = build_location / "provenance.json"
+        # Generate workload provenance
+        log("\n[3/3] Generating workload provenance...")
+        provenance_path = build_location / "provenance.json"
         tools_dir = workload_location / "tools"
         scripts_dir = workload_location / "scripts"
 
-        passport_data = generate_workload_passport(
-            build_passport_path=passport_path,
+        provenance_data = generate_workload_provenance(
+            build_provenance_path=provenance_path,
             workload_path=workload_yaml,
             workload_result=result,
             tools_dir=tools_dir if tools_dir.exists() else None,
             scripts_dir=scripts_dir if scripts_dir.exists() else None,
         )
 
-        # Save workload passport
-        workload_passport_path = workload_location / "workload-provenance.json"
-        workload_passport_path.write_text(json.dumps(passport_data, indent=2))
-        log_success(f"Workload passport: {workload_passport_path}")
+        # Generate workload ID from provenance
+        import hashlib
+        workload_id = hashlib.sha256(json.dumps(provenance_data, sort_keys=True).encode()).hexdigest()[:8]
 
-        # Save full results
-        full_results_dir = workload_location / "full-results"
-        full_results_dir.mkdir(exist_ok=True)
+        # Create output directory in current working directory
+        output_dir = Path.cwd() / f"kettle-workload-{workload_id}"
+        output_dir.mkdir(exist_ok=True)
+
+        # Save workload provenance
+        provenance_file = output_dir / "provenance.json"
+        provenance_file.write_text(json.dumps(provenance_data, indent=2))
+
+        # Save summary
+        summary_file = output_dir / "summary.json"
+        summary_file.write_text(json.dumps(result.summary, indent=2))
+
+        # Save full results as individual files
         for path, data in result.full_results.items():
-            result_file = full_results_dir / Path(path).name
+            result_file = output_dir / Path(path).name
             if data["type"] == "json":
                 result_file.write_text(json.dumps(data["content"], indent=2))
             elif data["type"] == "text":
                 result_file.write_text(data["content"])
-        log_success(f"Full results: {full_results_dir}")
-
-        # Save summary
-        summary_path = workload_location / "summary.json"
-        summary_path.write_text(json.dumps(result.summary, indent=2))
-        log_success(f"Summary: {summary_path}")
 
         log("\n")
         log_success("Workload execution complete")
-        log(f"\nResults in: {workload_location}/", style="bold")
-        log("  - workload-provenance.json", style="dim")
-        log("  - summary.json", style="dim")
-        log("  - full-results/", style="dim")
+        log_success(f"Results saved: {output_dir}/")
+        log(f"  Workload ID: {workload_id}", style="dim")
+        log(f"  - provenance.json", style="dim")
+        log(f"  - summary.json", style="dim")
+        for path in result.full_results.keys():
+            log(f"  - {Path(path).name}", style="dim")
 
     except Exception as e:
         log_error(f"Error: {e}")
