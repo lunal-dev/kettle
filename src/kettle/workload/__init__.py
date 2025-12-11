@@ -9,10 +9,9 @@ from .schema import (
     Workload,
     StepResult,
     WorkloadResult,
-    WorkloadPassport,
 )
 from .parser import parse_workload_file, validate_workload
-from .executor import WorkloadExecutor, generate_workload_passport
+from .executor import WorkloadExecutor, generate_workload_provenance
 from .sandbox import SandboxExecutor
 
 
@@ -25,10 +24,9 @@ __all__ = [
     "Workload",
     "StepResult",
     "WorkloadResult",
-    "WorkloadPassport",
     "parse_workload_file",
     "validate_workload",
     "WorkloadExecutor",
-    "generate_workload_passport",
+    "generate_workload_provenance",
     "SandboxExecutor",
 ]

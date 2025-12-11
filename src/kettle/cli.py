@@ -36,7 +36,7 @@ from .verification import (
 from .merkle import gen_inclusion_proof
 from .workload import (
     WorkloadExecutor,
-    generate_workload_passport,
+    generate_workload_provenance,
 )
 
 
@@ -386,13 +386,13 @@ def run_workload(
         help="Build ID (build location will be /tmp/kettle-{build_id})",
     ),
 ):
-    """Execute workload in sandboxed environment and generate passport.
+    """Execute workload in sandboxed environment and generate provenance.
 
     This command:
     1. Loads workload definition from workload directory
     2. Uses build at /tmp/kettle-{build_id}
     3. Executes workload steps in sandbox
-    4. Generates workload passport with execution results
+    4. Generates workload provenance with execution results
 
     Example:
         attestable-builds run-workload ./my-workload abc123
@@ -444,24 +444,24 @@ def run_workload(
         if result.summary.get("content"):
             log(f"\nResult Summary: {result.summary['content']}", style="bold")
 
-        # Generate workload passport
-        log("\n[3/3] Generating workload passport...")
-        passport_path = build_location / "provenance.json"
+        # Generate workload provenance
+        log("\n[3/3] Generating workload provenance...")
+        provenance_path = build_location / "provenance.json"
         tools_dir = workload_location / "tools"
         scripts_dir = workload_location / "scripts"
 
-        passport_data = generate_workload_passport(
-            build_passport_path=passport_path,
+        provenance_data = generate_workload_provenance(
+            build_provenance_path=provenance_path,
             workload_path=workload_yaml,
             workload_result=result,
             tools_dir=tools_dir if tools_dir.exists() else None,
             scripts_dir=scripts_dir if scripts_dir.exists() else None,
         )
 
-        # Save workload passport
-        workload_passport_path = workload_location / "workload-provenance.json"
-        workload_passport_path.write_text(json.dumps(passport_data, indent=2))
-        log_success(f"Workload passport: {workload_passport_path}")
+        # Save workload provenance
+        workload_provenance_path = workload_location / "workload-provenance.json"
+        workload_provenance_path.write_text(json.dumps(provenance_data, indent=2))
+        log_success(f"Workload provenance: {workload_provenance_path}")
 
         # Save full results
         full_results_dir = workload_location / "full-results"
