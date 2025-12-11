@@ -458,33 +458,38 @@ def run_workload(
             scripts_dir=scripts_dir if scripts_dir.exists() else None,
         )
 
-        # Save workload provenance
-        workload_provenance_path = workload_location / "workload-provenance.json"
-        workload_provenance_path.write_text(json.dumps(provenance_data, indent=2))
-        log_success(f"Workload provenance: {workload_provenance_path}")
+        # Generate workload ID from provenance
+        import hashlib
+        workload_id = hashlib.sha256(json.dumps(provenance_data, sort_keys=True).encode()).hexdigest()[:8]
 
-        # Save full results
-        full_results_dir = workload_location / "full-results"
-        full_results_dir.mkdir(exist_ok=True)
+        # Create output directory in current working directory
+        output_dir = Path.cwd() / f"kettle-workload-{workload_id}"
+        output_dir.mkdir(exist_ok=True)
+
+        # Save workload provenance
+        provenance_file = output_dir / "provenance.json"
+        provenance_file.write_text(json.dumps(provenance_data, indent=2))
+
+        # Save summary
+        summary_file = output_dir / "summary.json"
+        summary_file.write_text(json.dumps(result.summary, indent=2))
+
+        # Save full results as individual files
         for path, data in result.full_results.items():
-            result_file = full_results_dir / Path(path).name
+            result_file = output_dir / Path(path).name
             if data["type"] == "json":
                 result_file.write_text(json.dumps(data["content"], indent=2))
             elif data["type"] == "text":
                 result_file.write_text(data["content"])
-        log_success(f"Full results: {full_results_dir}")
-
-        # Save summary
-        summary_path = workload_location / "summary.json"
-        summary_path.write_text(json.dumps(result.summary, indent=2))
-        log_success(f"Summary: {summary_path}")
 
         log("\n")
         log_success("Workload execution complete")
-        log(f"\nResults in: {workload_location}/", style="bold")
-        log("  - workload-provenance.json", style="dim")
-        log("  - summary.json", style="dim")
-        log("  - full-results/", style="dim")
+        log_success(f"Results saved: {output_dir}/")
+        log(f"  Workload ID: {workload_id}", style="dim")
+        log(f"  - provenance.json", style="dim")
+        log(f"  - summary.json", style="dim")
+        for path in result.full_results.keys():
+            log(f"  - {Path(path).name}", style="dim")
 
     except Exception as e:
         log_error(f"Error: {e}")

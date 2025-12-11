@@ -32,141 +32,138 @@ async def build(source: UploadFile = File(...)):
     build_dir = BUILDS / build_id
     build_dir.mkdir()
 
-    # Save source.zip (don't extract permanently)
+    # Save source.zip and extract source directory
     zip_path = build_dir / "source.zip"
     zip_path.write_bytes(await source.read())
 
-    # Extract to temporary directory for building
-    import tempfile
-    with tempfile.TemporaryDirectory() as temp_dir:
-        temp_source = Path(temp_dir) / "source"
-        temp_source.mkdir()
+    # Extract source directory for workloads to use
+    source_dir = build_dir / "source"
+    source_dir.mkdir()
+    with zipfile.ZipFile(zip_path, "r") as z:
+        z.extractall(source_dir)
 
-        with zipfile.ZipFile(zip_path, "r") as z:
-            z.extractall(temp_source)
+    # Find project directory (might be in subdirectory)
+    project_dir = source_dir
+    # Look for Cargo.toml or flake.nix in subdirectories if not found at root
+    if not (project_dir / "Cargo.toml").exists() and not (project_dir / "flake.nix").exists():
+        subdirs = [d for d in source_dir.iterdir() if d.is_dir()]
+        if len(subdirs) == 1:
+            project_dir = subdirs[0]
 
-        # Find project directory (might be in subdirectory)
-        project_dir = temp_source
-        # Look for Cargo.toml or flake.nix in subdirectories if not found at root
-        if not (project_dir / "Cargo.toml").exists() and not (project_dir / "flake.nix").exists():
-            subdirs = [d for d in temp_source.iterdir() if d.is_dir()]
-            if len(subdirs) == 1:
-                project_dir = subdirs[0]
+    try:
+        # Detect build system
+        from kettle.build import detect_build_system
+        import typer
 
+        build_system = detect_build_system(project_dir)
+
+        # Run unified build workflow (outputs to nested build/ directory)
+        # This handles: verification, building, provenance generation, and attestation
+        # Note: For service context, we can't use typer.Exit, so we catch and convert it
         try:
-            # Detect build system
-            from kettle.build import detect_build_system
-            import typer
-
-            build_system = detect_build_system(project_dir)
-
-            # Run unified build workflow (outputs to nested build/ directory)
-            # This handles: verification, building, provenance generation, and attestation
-            # Note: For service context, we can't use typer.Exit, so we catch and convert it
-            try:
-                run_build_workflow(
-                    project_dir=project_dir,
-                    output_dir=build_dir,  # Creates build_dir/build/ subdirectory
-                    release=True,
-                    verbose=True,
-                    attestation=True,
-                )
-            except typer.Exit as e:
-                # Convert typer.Exit to regular exception for API context
-                raise RuntimeError(f"Build workflow failed with exit code {e.exit_code}")
-
-            # Flatten structure: copy files from nested build/ to root for API response
-            nested_build_dir = build_dir / "build"
-            if (nested_build_dir / "provenance.json").exists():
-                shutil.copy2(nested_build_dir / "provenance.json", build_dir / "provenance.json")
-            if (nested_build_dir / "evidence.b64").exists():
-                shutil.copy2(nested_build_dir / "evidence.b64", build_dir / "evidence.b64")
-
-            # Load generated provenance and manifest (flat structure)
-            provenance_path = build_dir / "provenance.json"
-            manifest_path = build_dir / "manifest.json"
-            attestation_path = build_dir / "evidence.b64"
-
-            provenance_data = json.loads(provenance_path.read_text()) if provenance_path.exists() else None
-            manifest_data = json.loads(manifest_path.read_text()) if manifest_path.exists() else None
-            attestation_b64 = attestation_path.read_text().strip() if attestation_path.exists() else None
-
-            # Copy artifacts to artifacts directory
-            artifacts_dir = build_dir / "artifacts"
-            artifacts_dir.mkdir()
-            artifact_names = []
-
-            # Find built artifacts based on build system
-            if build_system == "nix":
-                # Nix artifacts are in project_dir/build/
-                nix_build_dir = project_dir / "build"
-                if nix_build_dir.exists():
-                    for artifact_file in nix_build_dir.iterdir():
-                        if artifact_file.is_file():
-                            shutil.copy2(artifact_file, artifacts_dir / artifact_file.name)
-                            artifact_names.append(artifact_file.name)
-            else:  # cargo
-                # Cargo artifacts are in target/release/ or target/debug/
-                target_dir = project_dir / "target" / "release"
-                if target_dir.exists():
-                    for item in target_dir.iterdir():
-                        if item.is_file() and (not item.suffix or item.suffix == ".exe"):
-                            if item.stat().st_mode & 0o111:  # Check if executable
-                                shutil.copy2(item, artifacts_dir / item.name)
-                                artifact_names.append(item.name)
-
-            # Create build-config directory and copy lock files
-            build_config_dir = build_dir / "build-config"
-            build_config_dir.mkdir()
-            build_config_files = []
-
-            if build_system == "cargo":
-                cargo_lock_path = project_dir / "Cargo.lock"
-                if cargo_lock_path.exists():
-                    shutil.copy2(cargo_lock_path, build_config_dir / "Cargo.lock")
-                    build_config_files.append("Cargo.lock")
-            elif build_system == "nix":
-                flake_lock_path = project_dir / "flake.lock"
-                if flake_lock_path.exists():
-                    shutil.copy2(flake_lock_path, build_config_dir / "flake.lock")
-                    build_config_files.append("flake.lock")
-
-            # Return everything in one response
-            response = {
-                "build_id": build_id,
-                "status": "success",
-                "build_system": build_system,
-                "provenance": provenance_data,
-                "manifest": manifest_data,
-                "attestation": attestation_b64,
-                "artifacts": artifact_names,
-                "build_config_files": build_config_files,
-            }
-
-            # Add attestation status
-            if attestation_b64:
-                response["attestation_status"] = "success"
-            else:
-                response["attestation_status"] = "unavailable"
-
-            return response
-
-        except Exception as e:
-            import traceback
-            error_details = traceback.format_exc()
-            print(f"Build error: {error_details}")  # Log to console
-
-            # Return 500 error with details
-            return JSONResponse(
-                status_code=500,
-                content={
-                    "build_id": build_id,
-                    "status": "failed",
-                    "error": str(e),
-                    "error_type": type(e).__name__,
-                    "traceback": error_details
-                }
+            run_build_workflow(
+                project_dir=project_dir,
+                output_dir=build_dir,  # Creates build_dir/build/ subdirectory
+                release=True,
+                verbose=True,
+                attestation=True,
             )
+        except typer.Exit as e:
+            # Convert typer.Exit to regular exception for API context
+            raise RuntimeError(f"Build workflow failed with exit code {e.exit_code}")
+
+        # Flatten structure: copy files from nested build/ to root for API response
+        nested_build_dir = build_dir / "build"
+        if (nested_build_dir / "provenance.json").exists():
+            shutil.copy2(nested_build_dir / "provenance.json", build_dir / "provenance.json")
+        if (nested_build_dir / "evidence.b64").exists():
+            shutil.copy2(nested_build_dir / "evidence.b64", build_dir / "evidence.b64")
+
+        # Load generated provenance and manifest (flat structure)
+        provenance_path = build_dir / "provenance.json"
+        manifest_path = build_dir / "manifest.json"
+        attestation_path = build_dir / "evidence.b64"
+
+        provenance_data = json.loads(provenance_path.read_text()) if provenance_path.exists() else None
+        manifest_data = json.loads(manifest_path.read_text()) if manifest_path.exists() else None
+        attestation_b64 = attestation_path.read_text().strip() if attestation_path.exists() else None
+
+        # Copy artifacts to artifacts directory
+        artifacts_dir = build_dir / "artifacts"
+        artifacts_dir.mkdir()
+        artifact_names = []
+
+        # Find built artifacts based on build system
+        if build_system == "nix":
+            # Nix artifacts are in project_dir/build/
+            nix_build_dir = project_dir / "build"
+            if nix_build_dir.exists():
+                for artifact_file in nix_build_dir.iterdir():
+                    if artifact_file.is_file():
+                        shutil.copy2(artifact_file, artifacts_dir / artifact_file.name)
+                        artifact_names.append(artifact_file.name)
+        else:  # cargo
+            # Cargo artifacts are in target/release/ or target/debug/
+            target_dir = project_dir / "target" / "release"
+            if target_dir.exists():
+                for item in target_dir.iterdir():
+                    if item.is_file() and (not item.suffix or item.suffix == ".exe"):
+                        if item.stat().st_mode & 0o111:  # Check if executable
+                            shutil.copy2(item, artifacts_dir / item.name)
+                            artifact_names.append(item.name)
+
+        # Create build-config directory and copy lock files
+        build_config_dir = build_dir / "build-config"
+        build_config_dir.mkdir()
+        build_config_files = []
+
+        if build_system == "cargo":
+            cargo_lock_path = project_dir / "Cargo.lock"
+            if cargo_lock_path.exists():
+                shutil.copy2(cargo_lock_path, build_config_dir / "Cargo.lock")
+                build_config_files.append("Cargo.lock")
+        elif build_system == "nix":
+            flake_lock_path = project_dir / "flake.lock"
+            if flake_lock_path.exists():
+                shutil.copy2(flake_lock_path, build_config_dir / "flake.lock")
+                build_config_files.append("flake.lock")
+
+        # Return everything in one response
+        response = {
+            "build_id": build_id,
+            "status": "success",
+            "build_system": build_system,
+            "provenance": provenance_data,
+            "manifest": manifest_data,
+            "attestation": attestation_b64,
+            "artifacts": artifact_names,
+            "build_config_files": build_config_files,
+        }
+
+        # Add attestation status
+        if attestation_b64:
+            response["attestation_status"] = "success"
+        else:
+            response["attestation_status"] = "unavailable"
+
+        return response
+
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Build error: {error_details}")  # Log to console
+
+        # Return 500 error with details
+        return JSONResponse(
+            status_code=500,
+            content={
+                "build_id": build_id,
+                "status": "failed",
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "traceback": error_details
+            }
+        )
 
 
 @app.get("/builds/{build_id}/artifacts/{name}")
