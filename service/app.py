@@ -14,8 +14,7 @@ from fastapi.responses import JSONResponse
 from kettle.workload.executor import WorkloadExecutor, generate_workload_passport
 from datetime import timezone
 
-from kettle.cli import execute_build, generate_attestation, verify_inputs
-from kettle.provenance import generate_provenance, generate_passport
+from kettle.build import run_build_workflow
 
 app = FastAPI(title="Attestable Builds Service")
 
@@ -25,7 +24,10 @@ BUILDS.mkdir(parents=True, exist_ok=True)
 
 @app.post("/build")
 async def build(source: UploadFile = File(...)):
-    """Upload source.zip, build with attestation, return passport and attestation data."""
+    """Upload source.zip, build with attestation, return provenance and attestation data.
+
+    Supports both Cargo and Nix projects via auto-detection.
+    """
     build_id = str(uuid4())[:8]
     build_dir = BUILDS / build_id
     build_dir.mkdir()
@@ -39,84 +41,103 @@ async def build(source: UploadFile = File(...)):
     with zipfile.ZipFile(zip_path, "r") as z:
         z.extractall(source_dir)
 
-    # Find Cargo.toml (might be in subdirectory)
+    # Find project directory (might be in subdirectory)
     project_dir = source_dir
-    if not (project_dir / "Cargo.toml").exists():
+    # Look for Cargo.toml or flake.nix in subdirectories if not found at root
+    if not (project_dir / "Cargo.toml").exists() and not (project_dir / "flake.nix").exists():
         subdirs = [d for d in source_dir.iterdir() if d.is_dir()]
         if len(subdirs) == 1:
             project_dir = subdirs[0]
 
     try:
-        # Build
-        git_info, cargo_lock_hash, results, toolchain = verify_inputs(project_dir, verbose=False)
-        build_result = execute_build(project_dir, release=True)
+        # Detect build system
+        from kettle.build import detect_build_system
+        import typer
 
-        # Create build-config directory and copy Cargo.lock
-        build_config_dir = build_dir / "build-config"
-        build_config_dir.mkdir()
-        cargo_lock_path = project_dir / "Cargo.lock"
-        if cargo_lock_path.exists():
-            shutil.copy2(cargo_lock_path, build_config_dir / "Cargo.lock")
+        build_system = detect_build_system(project_dir)
 
-        # Generate passport
-        output_artifacts = [(a["path"], a["hash"]) for a in build_result["artifacts"]]
-        passport_path = build_dir / "passport.json"
+        # Create output directory for build artifacts
+        output_dir = build_dir / "output"
+        output_dir.mkdir()
 
-        passport_data = generate_passport(
-            git_source=git_info,
-            cargo_lock_hash=cargo_lock_hash,
-            toolchain=toolchain,
-            verification_results=results,
-            output_artifacts=output_artifacts,
-            output_path=passport_path,
-        )
+        # Run unified build workflow
+        # This handles: verification, building, provenance generation, and attestation
+        # Note: For service context, we can't use typer.Exit, so we catch and convert it
+        try:
+            run_build_workflow(
+                project_dir=project_dir,
+                output_dir=output_dir,
+                release=True,
+                verbose=True,  # Enable verbose to see what's failing
+                attestation=True,
+            )
+        except typer.Exit as e:
+            # Convert typer.Exit to regular exception for API context
+            raise RuntimeError(f"Build workflow failed with exit code {e.exit_code}")
 
-        # Copy artifacts
+        # Load generated provenance and manifest
+        provenance_path = output_dir / "build" / "provenance.json"
+        manifest_path = output_dir / "manifest.json"
+        attestation_path = output_dir / "build" / "evidence.b64"
+
+        provenance_data = json.loads(provenance_path.read_text()) if provenance_path.exists() else None
+        manifest_data = json.loads(manifest_path.read_text()) if manifest_path.exists() else None
+        attestation_b64 = attestation_path.read_text().strip() if attestation_path.exists() else None
+
+        # Copy artifacts to artifacts directory
         artifacts_dir = build_dir / "artifacts"
         artifacts_dir.mkdir()
         artifact_names = []
-        for artifact in build_result["artifacts"]:
-            artifact_path = Path(artifact["path"])
-            shutil.copy2(artifact_path, artifacts_dir / artifact_path.name)
-            artifact_names.append(artifact_path.name)
 
-        # List build-config files
-        build_config_files = [f.name for f in build_config_dir.iterdir() if f.is_file()]
+        # Find built artifacts based on build system
+        if build_system == "nix":
+            # Nix artifacts are in project_dir/build/
+            nix_build_dir = project_dir / "build"
+            if nix_build_dir.exists():
+                for artifact_file in nix_build_dir.iterdir():
+                    if artifact_file.is_file():
+                        shutil.copy2(artifact_file, artifacts_dir / artifact_file.name)
+                        artifact_names.append(artifact_file.name)
+        else:  # cargo
+            # Cargo artifacts are in target/release/ or target/debug/
+            target_dir = project_dir / "target" / "release"
+            if target_dir.exists():
+                for item in target_dir.iterdir():
+                    if item.is_file() and (not item.suffix or item.suffix == ".exe"):
+                        if item.stat().st_mode & 0o111:  # Check if executable
+                            shutil.copy2(item, artifacts_dir / item.name)
+                            artifact_names.append(item.name)
 
-        # Generate attestation
-        import os
-        old_cwd = Path.cwd()
-        attestation_b64 = None
-        attestation_error = None
-        try:
-            os.chdir(build_dir)
-            generate_attestation(passport_data)
+        # Create build-config directory and copy lock files
+        build_config_dir = build_dir / "build-config"
+        build_config_dir.mkdir()
+        build_config_files = []
 
-            # Read attestation if it was created
-            attestation_path = build_dir / "evidence.b64"
-            if attestation_path.exists():
-                attestation_b64 = attestation_path.read_text().strip()
-        except Exception as e:
-            attestation_error = str(e)
-            print(f"Warning: Attestation failed: {e}")
-        finally:
-            os.chdir(old_cwd)
+        if build_system == "cargo":
+            cargo_lock_path = project_dir / "Cargo.lock"
+            if cargo_lock_path.exists():
+                shutil.copy2(cargo_lock_path, build_config_dir / "Cargo.lock")
+                build_config_files.append("Cargo.lock")
+        elif build_system == "nix":
+            flake_lock_path = project_dir / "flake.lock"
+            if flake_lock_path.exists():
+                shutil.copy2(flake_lock_path, build_config_dir / "flake.lock")
+                build_config_files.append("flake.lock")
 
         # Return everything in one response
         response = {
             "build_id": build_id,
             "status": "success",
-            "passport": passport_data,
+            "build_system": build_system,
+            "provenance": provenance_data,
+            "manifest": manifest_data,
             "attestation": attestation_b64,
             "artifacts": artifact_names,
             "build_config_files": build_config_files,
         }
 
-        # Add attestation status if it failed
-        if attestation_error:
-            response["attestation_status"] = "failed"
-            response["attestation_error"] = attestation_error
-        elif attestation_b64:
+        # Add attestation status
+        if attestation_b64:
             response["attestation_status"] = "success"
         else:
             response["attestation_status"] = "unavailable"
@@ -124,11 +145,21 @@ async def build(source: UploadFile = File(...)):
         return response
 
     except Exception as e:
-        return {
-            "build_id": build_id,
-            "status": "failed",
-            "error": str(e)
-        }
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Build error: {error_details}")  # Log to console
+
+        # Return 500 error with details
+        return JSONResponse(
+            status_code=500,
+            content={
+                "build_id": build_id,
+                "status": "failed",
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "traceback": error_details
+            }
+        )
 
 
 @app.get("/builds/{build_id}/artifacts/{name}")
@@ -226,8 +257,14 @@ async def run_workload(
         result = executor.execute()
 
         # 5. Generate workload passport
+        # Look for provenance.json in output/build/ directory (new structure)
+        provenance_path = build_dir / "output" / "build" / "provenance.json"
+        # Fallback to old passport.json location for backward compatibility
+        if not provenance_path.exists():
+            provenance_path = build_dir / "passport.json"
+
         workload_passport = generate_workload_passport(
-            build_passport_path=build_dir / "passport.json",
+            build_passport_path=provenance_path,
             workload_path=workload_yaml_path,
             workload_result=result,
             tools_dir=tools_dir,
@@ -239,21 +276,17 @@ async def run_workload(
         passport_path.write_text(json.dumps(workload_passport, indent=2))
 
         # 6. Generate attestation
-        old_cwd = Path.cwd()
         attestation_b64 = None
         attestation_error = None
         try:
-            os.chdir(workload_dir)
-            generate_attestation(workload_passport)
+            from kettle.build import generate_attestation
+            attestation_path, _ = generate_attestation(workload_passport, workload_dir)
 
-            attestation_path = workload_dir / "evidence.b64"
             if attestation_path.exists():
                 attestation_b64 = attestation_path.read_text().strip()
         except Exception as e:
             attestation_error = str(e)
             print(f"Warning: Attestation failed: {e}")
-        finally:
-            os.chdir(old_cwd)
 
         # 7. Save full results (Party A can access these)
         full_results_dir = workload_dir / "full-results"

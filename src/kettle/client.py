@@ -61,7 +61,7 @@ def create_source_archive(
     with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp:
         archive_path = Path(tmp.name)
 
-    with zipfile.ZipFile(archive_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+    with zipfile.ZipFile(archive_path, 'w', zipfile.ZIP_DEFLATED, strict_timestamps=False) as zipf:
         for file_path in project_dir.rglob('*'):
             if file_path.is_file():
                 relative_path = file_path.relative_to(project_dir)
@@ -265,13 +265,25 @@ def run_tee_build_workflow(project_dir: Path, api_url: str) -> None:
         source_dir = output_dir / "source"
         source_dir.mkdir(exist_ok=True)
 
-        # Save passport and attestation
-        log(f"\n[3/5] Saving passport and attestation to {output_dir}/...")
+        # Save provenance, manifest, and attestation
+        log(f"\n[3/5] Saving provenance and attestation to {output_dir}/...")
 
-        if result.get("passport"):
+        # Save provenance (new format) or passport (backward compatibility)
+        if result.get("provenance"):
+            provenance_path = output_dir / "provenance.json"
+            provenance_path.write_text(json.dumps(result["provenance"], indent=2))
+            log_success(f"Provenance: {provenance_path}")
+        elif result.get("passport"):
+            # Backward compatibility
             passport_path = output_dir / "passport.json"
             passport_path.write_text(json.dumps(result["passport"], indent=2))
             log_success(f"Passport: {passport_path}")
+
+        # Save manifest (new format)
+        if result.get("manifest"):
+            manifest_path = output_dir / "manifest.json"
+            manifest_path.write_text(json.dumps(result["manifest"], indent=2))
+            log_success(f"Manifest: {manifest_path}")
 
         if result.get("attestation"):
             attestation_path = output_dir / "evidence.b64"
@@ -316,8 +328,12 @@ def run_tee_build_workflow(project_dir: Path, api_url: str) -> None:
 
         # Summary
         log(f"\nBuild artifacts in: {output_dir}/", style="bold")
-        if result.get("passport"):
+        if result.get("provenance"):
+            log("  - provenance.json", style="dim")
+        elif result.get("passport"):
             log("  - passport.json", style="dim")
+        if result.get("manifest"):
+            log("  - manifest.json", style="dim")
         if result.get("attestation"):
             log("  - evidence.b64", style="dim")
         if result.get("build_config_files"):
