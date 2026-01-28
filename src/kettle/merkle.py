@@ -9,272 +9,55 @@ from pymerkle import verify_inclusion, MerkleProof
 from kettle.logger import log, log_error, log_section, log_success, log_warning
 
 
-def calculate_input_merkle_root(
-    git_commit_hash: str | None,
-    git_tree_hash: str | None,
-    git_binary_hash: str | None,
-    cargo_lock_hash: str,
-    dependencies: list[dict],
-    toolchain: dict,
-) -> str:
-    """Calculate Merkle root hash of all build inputs using pymerkle.
+def merkle_root(entries: list[bytes]) -> str:
+    """Calculate Merkle root from ordered byte entries.
 
     Args:
-        git_commit_hash: Git commit hash (optional)
-        git_tree_hash: Git tree hash (optional)
-        git_binary_hash: Git binary hash (optional)
-        cargo_lock_hash: SHA256 of Cargo.lock
-        dependencies: List of dependency dicts with name, version, checksum
-        toolchain: Dict with rustc and cargo info
+        entries: Ordered list of byte entries for the tree
 
     Returns:
         Hex-encoded Merkle root hash
     """
     tree = MerkleTree(algorithm='sha256')
-
-    # Add git source info if available
-    if git_commit_hash:
-        tree.append_entry(git_commit_hash.encode())
-    if git_tree_hash:
-        tree.append_entry(git_tree_hash.encode())
-    if git_binary_hash:
-        tree.append_entry(git_binary_hash.encode())
-
-    # Add Cargo.lock hash
-    tree.append_entry(cargo_lock_hash.encode())
-
-    # Add dependencies (sorted for determinism)
-    for dep in sorted(dependencies, key=lambda x: (x['name'], x['version'])):
-        entry = f"{dep['name']}:{dep['version']}:{dep['checksum']}"
-        tree.append_entry(entry.encode())
-
-    # Add toolchain info
-    tree.append_entry(toolchain['rustc']['binary_hash'].encode())
-    tree.append_entry(toolchain['rustc']['version'].encode())
-    tree.append_entry(toolchain['cargo']['binary_hash'].encode())
-    tree.append_entry(toolchain['cargo']['version'].encode())
-
+    for entry in entries:
+        tree.append_entry(entry)
     return tree.get_state().hex()
 
 
-def rebuild_merkle_tree_from_passport(passport_data: dict) -> MerkleTree:
-    """Rebuild the Merkle tree from SLSA provenance data in the exact same order.
+def build_tree(entries: list[bytes]) -> MerkleTree:
+    """Build Merkle tree from ordered byte entries.
 
     Args:
-        passport_data: Complete SLSA v1.2 provenance dictionary
+        entries: Ordered list of byte entries
 
     Returns:
-        Reconstructed MerkleTree instance with all entries
+        MerkleTree instance
     """
     tree = MerkleTree(algorithm='sha256')
-
-    # Extract data from SLSA structure
-    predicate = passport_data.get('predicate', {})
-    build_def = predicate.get('buildDefinition', {})
-    run_details = predicate.get('runDetails', {})
-
-    # External parameters (source info)
-    ext_params = build_def.get('externalParameters', {})
-    source = ext_params.get('source', {})
-    source_digest = source.get('digest', {})
-
-    # Internal parameters
-    int_params = build_def.get('internalParameters', {})
-    toolchain = int_params.get('toolchain', {})
-    lockfile_hash = int_params.get('lockfileHash', {}).get('sha256')
-
-    # Dependencies (resolvedDependencies)
-    resolved_deps = build_def.get('resolvedDependencies', [])
-
-    # Git binary hash from byproducts
-    byproducts = run_details.get('byproducts', [])
-    git_binary_byproduct = next(
-        (bp for bp in byproducts if bp.get('name') == 'git_binary_hash'),
-        None
-    )
-
-    # Add git source info if available (same order as build)
-    if source_digest.get('gitCommit'):
-        tree.append_entry(source_digest['gitCommit'].encode())
-    if source_digest.get('gitTree'):
-        tree.append_entry(source_digest['gitTree'].encode())
-    if git_binary_byproduct:
-        git_binary_hash = git_binary_byproduct.get('digest', {}).get('sha256')
-        if git_binary_hash:
-            tree.append_entry(git_binary_hash.encode())
-
-    # Add Cargo.lock hash
-    if lockfile_hash:
-        tree.append_entry(lockfile_hash.encode())
-
-    # Add dependencies (sorted for determinism)
-    # Convert resolved dependencies back to name/version/checksum format
-    dependencies = []
-    for dep in resolved_deps:
-        dep_digest = dep.get('digest', {}).get('sha256')
-        dep_name = dep.get('name')
-        # Extract version from PURL URI (pkg:cargo/name@version?checksum=...)
-        uri = dep.get('uri', '')
-        version = None
-        if '@' in uri and '?' in uri:
-            version = uri.split('@')[1].split('?')[0]
-
-        if dep_name and version and dep_digest:
-            dependencies.append({
-                'name': dep_name,
-                'version': version,
-                'checksum': dep_digest,
-            })
-
-    for dep in sorted(dependencies, key=lambda x: (x['name'], x['version'])):
-        entry = f"{dep['name']}:{dep['version']}:{dep['checksum']}"
-        tree.append_entry(entry.encode())
-
-    # Add toolchain info
-    rustc_hash = toolchain.get('rustc', {}).get('digest', {}).get('sha256')
-    rustc_version = toolchain.get('rustc', {}).get('version')
-    cargo_hash = toolchain.get('cargo', {}).get('digest', {}).get('sha256')
-    cargo_version = toolchain.get('cargo', {}).get('version')
-
-    if rustc_hash:
-        tree.append_entry(rustc_hash.encode())
-    if rustc_version:
-        tree.append_entry(rustc_version.encode())
-    if cargo_hash:
-        tree.append_entry(cargo_hash.encode())
-    if cargo_version:
-        tree.append_entry(cargo_version.encode())
-
+    for entry in entries:
+        tree.append_entry(entry)
     return tree
 
 
-def _collect_tree_entries(passport_data: dict) -> list[tuple[str, str, bytes]]:
-    """Collect all tree entries in order with labels.
+def generate_inclusion_proofs(
+    tree: MerkleTree,
+    entries: list[tuple[str, str, bytes]],
+    target_hashes: list[str],
+) -> dict:
+    """Generate Merkle inclusion proofs for target hashes.
 
     Args:
-        passport_data: Complete SLSA v1.2 provenance dictionary
+        tree: Built MerkleTree instance
+        entries: List of (label, value_string, value_bytes) tuples in tree order
+        target_hashes: Hash values to prove inclusion for (supports partial match)
 
     Returns:
-        List of tuples: (label, value_string, value_bytes)
+        Dict with merkle_root, tree_size, proofs list, and not_found list
     """
-    entries = []
-
-    # Extract data from SLSA structure
-    predicate = passport_data.get('predicate', {})
-    build_def = predicate.get('buildDefinition', {})
-    run_details = predicate.get('runDetails', {})
-
-    # External parameters (source info)
-    ext_params = build_def.get('externalParameters', {})
-    source = ext_params.get('source', {})
-    source_digest = source.get('digest', {})
-
-    # Internal parameters
-    int_params = build_def.get('internalParameters', {})
-    toolchain = int_params.get('toolchain', {})
-    lockfile_hash = int_params.get('lockfileHash', {}).get('sha256')
-
-    # Dependencies (resolvedDependencies)
-    resolved_deps = build_def.get('resolvedDependencies', [])
-
-    # Git binary hash from byproducts
-    byproducts = run_details.get('byproducts', [])
-    git_binary_byproduct = next(
-        (bp for bp in byproducts if bp.get('name') == 'git_binary_hash'),
-        None
-    )
-
-    # Collect git source info if available
-    if source_digest.get('gitCommit'):
-        val = source_digest['gitCommit']
-        entries.append(('git_commit_hash', val, val.encode()))
-    if source_digest.get('gitTree'):
-        val = source_digest['gitTree']
-        entries.append(('git_tree_hash', val, val.encode()))
-    if git_binary_byproduct:
-        val = git_binary_byproduct.get('digest', {}).get('sha256')
-        if val:
-            entries.append(('git_binary_hash', val, val.encode()))
-
-    # Cargo.lock hash
-    if lockfile_hash:
-        entries.append(('cargo_lock_hash', lockfile_hash, lockfile_hash.encode()))
-
-    # Dependencies (sorted for determinism)
-    # Convert resolved dependencies back to name/version/checksum format
-    dependencies = []
-    for dep in resolved_deps:
-        dep_digest = dep.get('digest', {}).get('sha256')
-        dep_name = dep.get('name')
-        # Extract version from PURL URI (pkg:cargo/name@version?checksum=...)
-        uri = dep.get('uri', '')
-        version = None
-        if '@' in uri and '?' in uri:
-            version = uri.split('@')[1].split('?')[0]
-
-        if dep_name and version and dep_digest:
-            dependencies.append({
-                'name': dep_name,
-                'version': version,
-                'checksum': dep_digest,
-            })
-
-    for dep in sorted(dependencies, key=lambda x: (x['name'], x['version'])):
-        entry_str = f"{dep['name']}:{dep['version']}:{dep['checksum']}"
-        label = f"dependency:{dep['name']}:{dep['version']}"
-        entries.append((label, entry_str, entry_str.encode()))
-
-    # Toolchain info
-    rustc_hash = toolchain.get('rustc', {}).get('digest', {}).get('sha256')
-    rustc_version = toolchain.get('rustc', {}).get('version')
-    cargo_hash = toolchain.get('cargo', {}).get('digest', {}).get('sha256')
-    cargo_version = toolchain.get('cargo', {}).get('version')
-
-    if rustc_hash:
-        entries.append(('rustc_binary_hash', rustc_hash, rustc_hash.encode()))
-    if rustc_version:
-        entries.append(('rustc_version', rustc_version, rustc_version.encode()))
-    if cargo_hash:
-        entries.append(('cargo_binary_hash', cargo_hash, cargo_hash.encode()))
-    if cargo_version:
-        entries.append(('cargo_version', cargo_version, cargo_version.encode()))
-
-    return entries
-
-
-def generate_inclusion_proofs(passport_data: dict, target_hashes: list[str]) -> dict:
-    """Generate Merkle inclusion proofs for multiple hashes in the passport.
-
-    Args:
-        passport_data: Complete passport dictionary
-        target_hashes: List of hash values to prove inclusion for (can be partial matches)
-
-    Returns:
-        Dict with structure:
-        {
-            "merkle_root": str,
-            "tree_size": int,
-            "proofs": [
-                {
-                    "target_hash": str,
-                    "label": str,
-                    "leaf_index": int,
-                    "leaf_value": bytes (hex),
-                    "proof": dict (serialized proof)
-                },
-                ...
-            ],
-            "not_found": [str, ...]  # Hashes that weren't found
-        }
-    """
-    tree = rebuild_merkle_tree_from_passport(passport_data)
-    entries = _collect_tree_entries(passport_data)
-
     proofs = []
     not_found = []
 
     for target_hash in target_hashes:
-        # Find matching entry (supports partial matching)
         matched_entry = None
         matched_index = None
 
@@ -288,12 +71,9 @@ def generate_inclusion_proofs(passport_data: dict, target_hashes: list[str]) -> 
             not_found.append(target_hash)
             continue
 
-        label, value_str, value_bytes = matched_entry
-        # Leaf indices in pymerkle are 1-indexed
-        leaf_index = matched_index + 1
+        label, value_str, _ = matched_entry
+        leaf_index = matched_index + 1  # pymerkle is 1-indexed
 
-        # Generate inclusion proof
-        # prove_inclusion(leaf_index, tree_size) - prove leaf is in subtree of size tree_size
         tree_size = tree.get_size()
         proof = tree.prove_inclusion(leaf_index, tree_size)
 
@@ -302,133 +82,168 @@ def generate_inclusion_proofs(passport_data: dict, target_hashes: list[str]) -> 
             "label": label,
             "leaf_index": leaf_index,
             "leaf_value": tree.get_leaf(leaf_index).hex(),
-            "proof": proof.serialize()
+            "proof": proof.serialize(),
         })
 
     return {
         "merkle_root": tree.get_state().hex(),
         "tree_size": tree.get_size(),
         "proofs": proofs,
-        "not_found": not_found
+        "not_found": not_found,
     }
 
 
-def verify_inclusion_proof_from_data(proof_data: dict, expected_root: bytes) -> bool:
+def verify_inclusion_proof(proof_data: dict, expected_root: bytes) -> bool:
     """Verify a single Merkle inclusion proof.
 
     Args:
-        proof_data: Proof dictionary from generate_inclusion_proofs
+        proof_data: Proof dict from generate_inclusion_proofs
         expected_root: Expected merkle root as bytes
 
     Returns:
-        True if proof is valid, False otherwise
+        True if valid, False otherwise
     """
     try:
         leaf_hash = bytes.fromhex(proof_data['leaf_value'])
-        # Deserialize the proof from dictionary format
         proof = MerkleProof.deserialize(proof_data['proof'])
-        # verify_inclusion returns None on success, raises exception on failure
         verify_inclusion(leaf_hash, expected_root, proof)
         return True
-    except Exception as e:
-        print(f"Verification error: {e}")
+    except Exception:
         return False
 
 
-def gen_inclusion_proof(
-    passport: Path,
-    hashes: list[str],
-    output: Path | None,
-) -> None:
-    """Complete Merkle inclusion proof workflow: generate and verify proofs.
+def prove_inclusion(
+    entries: list[tuple[str, str, bytes]],
+    target_hashes: list[str],
+    output: Path | None = None,
+) -> dict:
+    """Generate and verify Merkle inclusion proofs.
 
     Args:
-        passport: Path to SLSA provenance JSON file
-        hashes: List of hash values to prove inclusion for (supports partial matching)
-        output: Optional output path to save proofs to JSON file
+        entries: List of (label, value_string, value_bytes) tuples
+        target_hashes: Hash values to prove inclusion for
+        output: Optional path to save proofs JSON
 
-    Raises:
-        typer.Exit: If proof generation/verification fails
+    Returns:
+        Result dict with proofs and verification status
     """
-    import typer
+    log_section("Merkle Inclusion Proof")
 
-    try:
-        log_section("Merkle Inclusion Proof")
+    # Build tree
+    tree = build_tree([e[2] for e in entries])
+    log(f"\\nTree built with {len(entries)} entries")
 
-        # Load provenance
-        log(f"\nLoading provenance: {passport}")
-        passport_data = json.loads(passport.read_text())
+    # Generate proofs
+    result = generate_inclusion_proofs(tree, entries, target_hashes)
 
-        log(f"Generating proofs for {len(hashes)} hash(es)...\n")
+    log(f"Merkle Root: {result['merkle_root']}", style="bold")
+    log(f"Tree Size: {result['tree_size']} leaves\\n")
 
-        # Generate proofs
-        result = generate_inclusion_proofs(passport_data, hashes)
+    if result['proofs']:
+        log_success(f"Generated {len(result['proofs'])} proof(s):")
+        for proof in result['proofs']:
+            log(f"\\n  Target: {proof['target_hash']}", style="bold")
+            log(f"  Label: {proof['label']}", style="dim")
+            log(f"  Leaf Index: {proof['leaf_index']}", style="dim")
 
-        # Display generation results
-        log(f"Merkle Root: {result['merkle_root']}", style="bold")
-        log(f"Tree Size: {result['tree_size']} leaves\n")
+    if result['not_found']:
+        log("\\n")
+        log_warning(f"{len(result['not_found'])} hash(es) not found:")
+        for missing in result['not_found']:
+            log(f"  - {missing}", style="dim")
 
-        if result['proofs']:
-            log_success(f"Generated {len(result['proofs'])} proof(s):")
-            for proof in result['proofs']:
-                log(f"\n  Target: {proof['target_hash']}", style="bold")
-                log(f"  Label: {proof['label']}", style="dim")
-                log(f"  Leaf Index: {proof['leaf_index']}", style="dim")
-                log(f"  Leaf Hash: {proof['leaf_value'][:32]}...", style="dim")
-                log(f"  Proof Size: {len(json.dumps(proof['proof']))} bytes", style="dim")
+    # Verify proofs
+    if result['proofs']:
+        log("\\n")
+        log_section("Verifying Proofs")
 
-        if result['not_found']:
-            log("\n")
-            log_warning(f"{len(result['not_found'])} hash(es) not found:")
-            for missing in result['not_found']:
-                log(f"  - {missing}", style="dim")
+        merkle_root_bytes = bytes.fromhex(result['merkle_root'])
+        all_valid = True
 
-        # Verify the proofs immediately
-        if result['proofs']:
-            log("\n")
-            log_section("Verifying Proofs")
+        for i, proof in enumerate(result['proofs'], 1):
+            log(f"\\n[{i}/{len(result['proofs'])}] {proof['label']}", style="bold")
+            is_valid = verify_inclusion_proof(proof, merkle_root_bytes)
 
-            merkle_root = bytes.fromhex(result['merkle_root'])
-            all_valid = True
-
-            for i, proof in enumerate(result['proofs'], 1):
-                log(f"\n[{i}/{len(result['proofs'])}] {proof['label']}", style="bold")
-                log(f"  Target: {proof['target_hash']}", style="dim")
-
-                is_valid = verify_inclusion_proof_from_data(proof, merkle_root)
-
-                if is_valid:
-                    log_success("  Proof VALID")
-                else:
-                    log_error("  Proof INVALID")
-                    all_valid = False
-
-            # Final verification result
-            log("\n")
-            if all_valid:
-                log_success(f"All {len(result['proofs'])} proof(s) verified successfully")
+            if is_valid:
+                log_success("  Proof VALID")
             else:
-                log_error("Some proofs failed verification")
-                if output:
-                    output.write_text(json.dumps(result, indent=2))
-                    log_warning(f"Proofs saved to: {output} (contains invalid proofs)")
-                raise typer.Exit(1)
+                log_error("  Proof INVALID")
+                all_valid = False
 
-        # Save if requested
-        if output and result['proofs']:
-            output.write_text(json.dumps(result, indent=2))
-            log("\n")
-            log_success(f"Proofs saved to: {output}")
-        elif output:
-            log_warning("No proofs generated, file not saved")
+        log("\\n")
+        if all_valid:
+            log_success(f"All {len(result['proofs'])} proof(s) verified")
+        else:
+            log_error("Some proofs failed verification")
 
-        # Exit with error if some hashes weren't found
-        if result['not_found'] and not result['proofs']:
-            raise typer.Exit(1)
+        result['all_valid'] = all_valid
 
-    except json.JSONDecodeError as e:
-        log_error(f"Invalid JSON in passport: {e}")
-        raise typer.Exit(1)
-    except Exception as e:
-        log_error(f"Error: {e}")
-        raise typer.Exit(1)
+    # Save if requested
+    if output and result['proofs']:
+        output.write_text(json.dumps(result, indent=2))
+        log_success(f"Proofs saved to: {output}")
+
+    return result
+
+
+def prove_inclusion_from_provenance(
+    provenance_path: Path,
+    target_hashes: list[str],
+    output: Path | None = None,
+) -> dict:
+    """Generate and verify Merkle inclusion proofs from a provenance file.
+
+    CLI-friendly wrapper that loads provenance, detects toolchain, and
+    generates proofs for the given hashes.
+
+    Args:
+        provenance_path: Path to SLSA provenance JSON file
+        target_hashes: Hash values to prove inclusion for
+        output: Optional path to save proofs JSON
+
+    Returns:
+        Result dict with proofs and verification status
+    """
+    from kettle.core import from_build_type
+    from kettle.git import get_git_info
+
+    # Load provenance
+    provenance = json.loads(provenance_path.read_text())
+
+    # Get toolchain from buildType
+    build_type = provenance.get("predicate", {}).get("buildDefinition", {}).get("buildType", "")
+    toolchain = from_build_type(build_type)
+
+    if not toolchain:
+        log_error(f"Unknown build type: {build_type}")
+        return {"error": "Unknown build type", "proofs": [], "not_found": target_hashes}
+
+    # Extract info from provenance to rebuild entries
+    internal_params = provenance.get("predicate", {}).get("buildDefinition", {}).get("internalParameters", {})
+    lock_hash = internal_params.get("lockfileHash", {}).get("sha256", "")
+
+    # Get dependencies from provenance
+    deps = provenance.get("predicate", {}).get("buildDefinition", {}).get("resolvedDependencies", [])
+
+    # Build lock dict from provenance
+    lock = {
+        "hash": lock_hash,
+        "deps": [{"name": d.get("name"), "uri": d.get("uri")} for d in deps],
+    }
+
+    # Get git info from provenance
+    source = provenance.get("predicate", {}).get("buildDefinition", {}).get("externalParameters", {}).get("source", {})
+    git = None
+    if source.get("digest", {}).get("gitCommit"):
+        git = {
+            "commit_hash": source["digest"].get("gitCommit"),
+            "tree_hash": source["digest"].get("gitTree"),
+        }
+
+    # Get toolchain info from provenance
+    info = internal_params.get("toolchain", {})
+
+    # Build labeled entries
+    entries = toolchain.merkle_entries_labeled(git, lock, info)
+
+    return prove_inclusion(entries, target_hashes, output)

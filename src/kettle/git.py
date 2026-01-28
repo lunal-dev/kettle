@@ -1,9 +1,8 @@
 """Extract git source information for build provenance."""
 
 import hashlib
+import subprocess
 from pathlib import Path
-
-from kettle.subprocess_utils import run_command, run_command_stdout
 
 
 def get_git_binary_path() -> Path:
@@ -15,8 +14,8 @@ def get_git_binary_path() -> Path:
     Raises:
         FileNotFoundError: If git is not installed or not in PATH
     """
-    result = run_command_stdout(["which", "git"])
-    return Path(result)
+    result = subprocess.run(["which", "git"], capture_output=True, text=True, check=True)
+    return Path(result.stdout.strip())
 
 
 def get_tree_hash(repo_path: Path) -> str:
@@ -34,7 +33,10 @@ def get_tree_hash(repo_path: Path) -> str:
     Raises:
         subprocess.CalledProcessError: If not a git repo or git command fails
     """
-    return run_command_stdout(["git", "rev-parse", "HEAD^{tree}"], cwd=repo_path)
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD^{tree}"], cwd=repo_path, capture_output=True, text=True, check=True
+    )
+    return result.stdout.strip()
 
 
 def check_working_tree_clean(repo_path: Path) -> tuple[bool, list[str]]:
@@ -51,7 +53,10 @@ def check_working_tree_clean(repo_path: Path) -> tuple[bool, list[str]]:
     Raises:
         subprocess.CalledProcessError: If not a git repo or git command fails
     """
-    status_output = run_command_stdout(["git", "status", "--porcelain"], cwd=repo_path)
+    result = subprocess.run(
+        ["git", "status", "--porcelain"], cwd=repo_path, capture_output=True, text=True, check=True
+    )
+    status_output = result.stdout.strip()
 
     # git status --porcelain returns empty string if clean
     if not status_output:
@@ -89,7 +94,10 @@ def get_git_info(repo_path: Path) -> dict | None:
         git_binary_hash = hashlib.sha256(git_path.read_bytes()).hexdigest()
 
         # Get current commit hash
-        commit_hash = run_command_stdout(["git", "rev-parse", "HEAD"], cwd=repo_path)
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=repo_path, capture_output=True, text=True, check=True
+        )
+        commit_hash = result.stdout.strip()
 
         # Get tree hash
         tree_hash = get_tree_hash(repo_path)
@@ -98,7 +106,13 @@ def get_git_info(repo_path: Path) -> dict | None:
         is_clean, dirty_files = check_working_tree_clean(repo_path)
 
         # Get remote URL (origin by default, may be None if no remote)
-        repository_url = run_command_stdout(["git", "remote", "get-url", "origin"], cwd=repo_path)
+        try:
+            result = subprocess.run(
+                ["git", "remote", "get-url", "origin"], cwd=repo_path, capture_output=True, text=True, check=True
+            )
+            repository_url = result.stdout.strip()
+        except subprocess.CalledProcessError:
+            repository_url = None
 
         return {
             "commit_hash": commit_hash,
