@@ -9,14 +9,11 @@ The attestation report cryptographically binds:
 - Freshness/replay protection (via nonce in bytes 32-63)
 """
 
-import hashlib
 import json
-from datetime import datetime, timezone
+import subprocess
 from pathlib import Path
-from subprocess import CalledProcessError
 
 from kettle.logger import log, log_error, log_success
-from kettle.subprocess_utils import run_command
 from kettle.utils import hash_provenance_to_32bytes
 
 
@@ -64,14 +61,15 @@ def verify_attestation(
         results["valid"] = False
         results["checks"]["provenance_binding"] = {
             "verified": False,
-            "message": f"Failed to load passport: {e}",
+            "message": f"Failed to load provenance: {e}",
         }
         return results
 
     # Step 2: Cryptographic verification via attest-amd
     try:
-        result = run_command(
-            ["attest-amd", "verify", str(attestation_path), custom_data_hex, "--check-custom-data"]
+        result = subprocess.run(
+            ["./attest-amd", "verify", str(attestation_path), custom_data_hex, "--check-custom-data"],
+            capture_output=True, text=True, check=True,
         )
 
         # Parse JSON output from stdout
@@ -144,7 +142,7 @@ def verify_attestation(
             "message": "attest-amd not found (required for verification)",
         }
         return results
-    except CalledProcessError as e:
+    except subprocess.CalledProcessError as e:
         results["valid"] = False
         results["checks"]["cryptographic"] = {
             "verified": False,

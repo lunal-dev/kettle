@@ -15,7 +15,6 @@ from .schema import (
 )
 from .sandbox import SandboxExecutor, create_sandbox
 from .parser import parse_workload_file
-from ..merkle import calculate_input_merkle_root
 from ..utils import hash_file
 
 

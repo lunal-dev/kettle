@@ -1,9 +1,0 @@
-{
-  "status": "SUCCESS",
-  "execution_time_seconds": 0.6195385456085205,
-  "summary": {
-    "content": "\u001b[0m\u001b[0m\u001b[1m\u001b[32m    Fetching\u001b[0m advisory database from `https://github.com/RustSec/advisory-db.git`\n\u001b[0m\u001b[0m\u001b[1m\u001b[32m      Loaded\u001b[0m 873 security advisories (from /home/lunaluser/.cargo/advisory-db)\n\u001b[0m\u001b[0m\u001b[1m\u001b[32m    Updating\u001b[0m crates.io index\n\u001b[0m\u001b[0m\u001b[1m\u001b[32m    Scanning\u001b[0m Cargo.lock for vulnerabilities (12 crate dependencies)"
-  },
-  "workload_hash": "2503716cf3dfa44ca0d0b7dee42aea845029016a3df576d470e3913f0bf6c6da",
-  "executed_at": "2025-11-21T00:41:11.171419+00:00"
-}

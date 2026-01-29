@@ -1,43 +1,24 @@
 """CLI interface for attestable-builds."""
 
-import hashlib
 import json
-import secrets
-import subprocess
-import sys
-import requests
-import tempfile
-import zipfile
 import typer
 
 from pathlib import Path
 
-from .attestation import verify_attestation
-from .build import run_cargo_build, execute_build, generate_attestation, run_build_workflow
-from .cargo import hash_cargo_lock, parse_cargo_lock, verify_all
+from .build import run_build_workflow
 from .client import (
     run_tee_build_workflow,
     run_tee_workload_workflow,
     run_tee_get_results_workflow,
 )
-from .git import get_git_info
-from .logger import log, log_error, log_section, log_success, log_warning
-from .output import display_checks, display_dependency_results, display_verification_checks
-from .provenance import generate_provenance, verify_build_provenance, generate_passport, verify_build_passport  # Now generates SLSA provenance
-from .results import CheckResult
-from .toolchain import get_toolchain_info
-from .verification import (
-    verify_git_source_strict,
-    verify_inputs,
+from .logger import log, log_error, log_section, log_success
+from .provenance.verification import (
     run_verify_passport_workflow,
     run_verify_attestation_workflow,
     run_combined_verify_workflow,
 )
-from .merkle import gen_inclusion_proof
-from .workload import (
-    WorkloadExecutor,
-    generate_workload_provenance,
-)
+from .merkle import prove_inclusion_from_provenance
+from .workload import WorkloadExecutor, generate_workload_provenance
 
 
 app = typer.Typer(help="Build-time verification and attestation for TEE deployments")
@@ -79,37 +60,19 @@ def build(
     2. Verifies all inputs (git, lock file, deps, toolchain)
     3. Executes build
     4. Measures output artifacts
-    5. Generates SLSA v1.2 provenance and manifest
-
-    Build artifacts are stored:
-    - manifest.json → project directory
-    - provenance.json → ./build/
-    - evidence.b64 → ./build/ (if --attestation is used)
-    - binaries → ./build/ (Nix builds)
-
-    Use --output to specify a different project directory.
+    5. Generates SLSA v1.2 provenance
     """
-    # Default output to project directory if not specified
     if output is None:
         output = project_dir
 
     run_build_workflow(project_dir, output, release, verbose, attestation)
 
 
-@app.command()
-def verify_passport(
-    passport: Path = typer.Argument(
+@app.command(name="verify-provenance")
+def verify_provenance(
+    provenance_path: Path = typer.Argument(
         ...,
         help="Path to SLSA provenance JSON file",
-        exists=True,
-        file_okay=True,
-        dir_okay=False,
-    ),
-    manifest: Path = typer.Option(
-        None,
-        "--manifest",
-        "-m",
-        help="Path to verification manifest JSON file",
         exists=True,
         file_okay=True,
         dir_okay=False,
@@ -118,7 +81,7 @@ def verify_passport(
         None,
         "--project-dir",
         "-p",
-        help="Path to project directory (for git commit and Cargo.lock verification)",
+        help="Path to project directory (for verification against current state)",
         exists=True,
         file_okay=False,
     ),
@@ -137,23 +100,28 @@ def verify_passport(
         help="Fail if any optional checks cannot be performed",
     ),
 ):
-    """Verify a SLSA provenance document against known values.
+    """Verify a SLSA provenance document.
 
-    Verification can be done via:
-    1. Verification manifest file (--manifest): A JSON file containing expected values
-    2. Project directory (--project-dir): Gathers git commit and Cargo.lock from project
-    3. Individual values (--binary): Direct specification of values to check
-
-    This command verifies:
-    - Passport format and structure
-    - Git commit hash (from manifest or project directory)
-    - Git tree hash (from manifest)
-    - Cargo.lock hash (from manifest or project directory)
-    - Input merkle root (from manifest)
-    - Toolchain binary hashes - rustc and cargo (from manifest)
-    - Binary artifact hashes (from manifest or --binary)
+    Verifies:
+    - Provenance format and structure
+    - Git commit/tree hash (if --project-dir)
+    - Lockfile hash (if --project-dir)
+    - Input merkle root (if --project-dir)
+    - Binary artifact hash (if --binary)
     """
-    run_verify_passport_workflow(passport, manifest, project_dir, binary, strict)
+    run_verify_passport_workflow(provenance_path, project_dir, binary, strict)
+
+
+# Keep old command name for backwards compatibility
+@app.command(name="verify-passport", hidden=True)
+def verify_passport(
+    provenance_path: Path = typer.Argument(..., exists=True),
+    project_dir: Path = typer.Option(None, "--project-dir", "-p", exists=True, file_okay=False),
+    binary: Path = typer.Option(None, "--binary", "-b", exists=True, dir_okay=False),
+    strict: bool = typer.Option(False, "--strict"),
+):
+    """Alias for verify-provenance (deprecated)."""
+    run_verify_passport_workflow(provenance_path, project_dir, binary, strict)
 
 
 @app.command(name="verify-attestation")
@@ -165,32 +133,26 @@ def verify_attestation_cmd(
         file_okay=True,
         dir_okay=False,
     ),
-    passport: Path = typer.Option(
+    provenance: Path = typer.Option(
         ...,
-        "--passport",
+        "--provenance",
         "-p",
-        help="Path to passport JSON file",
+        help="Path to provenance JSON file",
         exists=True,
         file_okay=True,
         dir_okay=False,
     ),
-
 ):
     """Verify an attestation report against a SLSA provenance document.
 
-    This command verifies:
+    Verifies:
     1. Cryptographic signature (via attest-amd verify)
     2. Provenance binding (hash in attestation matches provenance)
-    3. Nonce freshness (timestamp-based replay protection)
 
-    Requires attest-amd to be installed for cryptographic verification.
-
-    Example:
-        attestable-builds verify-attestation evidence.b64 custom_data.hex \\
-            --passport provenance.json \\
-            --max-age 3600
+    Requires attest-amd to be installed.
     """
-    run_verify_attestation_workflow(attestation, passport)
+    run_verify_attestation_workflow(attestation, provenance)
+
 
 @app.command()
 def verify(
@@ -204,7 +166,7 @@ def verify(
         None,
         "--project-dir",
         "-p",
-        help="Path to project directory containing verification manifest.json",
+        help="Path to project directory for verification",
         exists=True,
         file_okay=False,
     ),
@@ -223,19 +185,15 @@ def verify(
         help="Fail if any optional checks cannot be performed",
     ),
 ):
-    """Verify SLSA provenance document and attestation.
+    """Verify SLSA provenance and attestation.
 
-    This command verifies both:
+    Verifies both:
     1. Attestation report (evidence.b64) - cryptographic TEE verification
     2. Provenance content (provenance.json) - build parameters verification
 
-    Expected directory structure:
-    - build_dir/build/provenance.json
-    - build_dir/build/evidence.b64
-    - build_dir/manifest.json (optional verification manifest)
-
-    Example:
-        attestable-builds verify ./my-project --project-dir ./my-project
+    Expected structure:
+    - build_dir/provenance.json
+    - build_dir/evidence.b64 (optional)
     """
     run_combined_verify_workflow(build_dir, project_dir, binary, strict)
 
@@ -254,24 +212,15 @@ def tee_build(
         help="Attestable builds API URL",
     ),
 ):
-    """Build project remotely via API and download results.
-
-    This command:
-    1. Creates source archive from project directory (includes .git, excludes target/)
-    2. Uploads to remote build API
-    3. Saves passport, attestation, and artifacts to kettle-{build_id}/ directory
-
-    Example:
-        attestable-builds tee-build . --api http://builder.example.com
-    """
+    """Build project remotely via TEE API and download results."""
     run_tee_build_workflow(project_dir, api_url)
 
 
 @app.command(name="prove-inclusion")
-def prove_inclusion(
-    passport: Path = typer.Argument(
+def prove_inclusion_cmd(
+    provenance_path: Path = typer.Argument(
         ...,
-        help="Path to passport JSON file",
+        help="Path to provenance JSON file",
         exists=True,
         file_okay=True,
         dir_okay=False,
@@ -287,76 +236,44 @@ def prove_inclusion(
         help="Save proofs to JSON file (default: print to stdout)",
     ),
 ):
-    """Generate and verify Merkle inclusion proofs for hashes in a passport.
+    """Generate and verify Merkle inclusion proofs.
 
-    This command both generates proofs that specified hashes are included in
-    the provenance's merkle root AND immediately verifies those proofs.
+    Generates proofs that specified hashes are included in the
+    provenance's merkle root AND immediately verifies those proofs.
 
-    Supports partial hash matching for convenience (e.g., "abc123" or "serde:1.0").
-
-    Examples:
-        # Prove inclusion of cargo.lock hash
-        attestable-builds prove-inclusion provenance.json abc123...
-
-        # Prove multiple hashes
-        attestable-builds prove-inclusion provenance.json hash1 hash2 hash3
-
-        # Prove inclusion of a dependency by partial match
-        attestable-builds prove-inclusion provenance.json serde:1.0
-
-        # Save proofs to file
-        attestable-builds prove-inclusion provenance.json abc123 --output proofs.json
+    Supports partial hash matching (e.g., "abc123" or "serde:1.0").
     """
-    gen_inclusion_proof(passport, hashes, output)
-
-
+    prove_inclusion_from_provenance(provenance_path, hashes, output)
 
 
 @app.command(name="tee-run-workload")
 def tee_run_workload(
     workload_dir: Path = typer.Argument(
         ...,
-        help="Path to workload directory containing workload.yaml, tools/, scripts/",
+        help="Path to workload directory containing workload.yaml",
         exists=True,
         file_okay=False,
     ),
-    build_id: str = typer.Argument(
-        ...,
-        help="Build ID from remote build",
-    ),
-    expected_input_root: str = typer.Argument(
-        ...,
-        help="Expected input merkle root from build passport",
-    ),
+    build_id: str = typer.Argument(..., help="Build ID from remote build"),
+    expected_input_root: str = typer.Argument(..., help="Expected input merkle root"),
     api_url: str = typer.Option(
         "http://localhost:8000",
         "--api",
-        help="Attestable builds API URL (TEE service)",
+        help="Attestable builds API URL",
     ),
 ):
-    """Upload and execute workload on remote build via TEE API.
-
-    Example:
-        attestable-builds tee-run-workload ./security-audit abc123 sha256:xyz... \\
-            --api https://tee.example.com
-    """
+    """Upload and execute workload on remote build via TEE API."""
     run_tee_workload_workflow(workload_dir, build_id, expected_input_root, api_url)
 
 
 @app.command(name="tee-get-results")
 def tee_get_results(
-    build_id: str = typer.Argument(
-        ...,
-        help="Build ID",
-    ),
-    workload_id: str = typer.Argument(
-        ...,
-        help="Workload ID from execution",
-    ),
+    build_id: str = typer.Argument(..., help="Build ID"),
+    workload_id: str = typer.Argument(..., help="Workload ID from execution"),
     api_url: str = typer.Option(
         "http://localhost:8000",
         "--api",
-        help="Attestable builds API URL (TEE service)",
+        help="Attestable builds API URL",
     ),
     output_dir: Path = typer.Option(
         None,
@@ -365,11 +282,7 @@ def tee_get_results(
         help="Output directory (default: workload-results-{workload_id})",
     ),
 ):
-    """Download full workload execution results from TEE.
-
-    Example:
-        attestable-builds tee-get-results abc123 def456 --api https://tee.example.com
-    """
+    """Download full workload execution results from TEE."""
     run_tee_get_results_workflow(build_id, workload_id, api_url, output_dir)
 
 
@@ -386,66 +299,39 @@ def run_workload(
         help="Build ID (build location will be /tmp/kettle-{build_id})",
     ),
 ):
-    """Execute workload in sandboxed environment and generate provenance.
-
-    This command:
-    1. Loads workload definition from workload directory
-    2. Uses build at /tmp/kettle-{build_id}
-    3. Executes workload steps in sandbox
-    4. Generates workload provenance with execution results
-
-    Example:
-        attestable-builds run-workload ./my-workload abc123
-    """
+    """Execute workload in sandboxed environment and generate provenance."""
     try:
         log_section("Running Workload")
 
-        # Determine build location from build ID
         build_location = Path(f"/tmp/kettle/{build_id}")
         if not build_location.exists():
             log_error(f"Build location not found: {build_location}")
-            log(f"Expected build at /tmp/kettle/{build_id}")
             raise typer.Exit(1)
 
-        # Check for workload.yaml
         workload_yaml = workload_location / "workload.yaml"
         if not workload_yaml.exists():
             log_error(f"workload.yaml not found in {workload_location}")
             raise typer.Exit(1)
 
-        log(f"\nWorkload Location: {workload_location}", style="bold")
-        log(f"Build ID: {build_id}", style="dim")
-        log(f"Build Location: {build_location}", style="dim")
+        log(f"\nWorkload: {workload_location}", style="bold")
+        log(f"Build: {build_location}", style="dim")
 
-        # Initialize executor
-        log("\n[1/3] Initializing workload executor...")
+        # Initialize and execute
+        log("\n[1/3] Initializing...")
         executor = WorkloadExecutor(workload_yaml, build_location)
         log_success(f"Workload: {executor.workload.name}")
-        log(f"  Timeout: {executor.workload.environment.timeout_seconds}s", style="dim")
-        log(f"  Network: {'enabled' if executor.workload.environment.network_access else 'blocked'}", style="dim")
 
-        # Execute workload
-        log("\n[2/3] Executing workload steps...")
+        log("\n[2/3] Executing...")
         result = executor.execute()
 
-        # Display step results
         for i, step in enumerate(result.steps, 1):
-            status_icon = "✓" if step.status == "SUCCESS" else "✗"
-            log(f"\n  [{i}/{len(result.steps)}] {step.name}: {status_icon} {step.status}")
-            log(f"      Exit code: {step.exit_code}", style="dim")
-            log(f"      Duration: {step.duration_seconds:.2f}s", style="dim")
-            if step.status != "SUCCESS" and step.stderr:
-                log(f"      Error: {step.stderr[:200]}", style="dim")
+            icon = "✓" if step.status == "SUCCESS" else "✗"
+            log(f"  [{i}] {step.name}: {icon} {step.status}")
 
-        # Display summary
-        log(f"\nExecution Status: {result.status}", style="bold")
-        log(f"Total Time: {result.execution_time_seconds:.2f}s", style="dim")
+        log(f"\nStatus: {result.status}", style="bold")
 
-        if result.summary.get("content"):
-            log(f"\nResult Summary: {result.summary['content']}", style="bold")
-
-        # Generate workload provenance
-        log("\n[3/3] Generating workload provenance...")
+        # Generate provenance
+        log("\n[3/3] Generating provenance...")
         provenance_path = build_location / "provenance.json"
         tools_dir = workload_location / "tools"
         scripts_dir = workload_location / "scripts"
@@ -458,23 +344,15 @@ def run_workload(
             scripts_dir=scripts_dir if scripts_dir.exists() else None,
         )
 
-        # Generate workload ID from provenance
         import hashlib
         workload_id = hashlib.sha256(json.dumps(provenance_data, sort_keys=True).encode()).hexdigest()[:8]
 
-        # Create output directory in current working directory
         output_dir = Path.cwd() / f"kettle-workload-{workload_id}"
         output_dir.mkdir(exist_ok=True)
 
-        # Save workload provenance
-        provenance_file = output_dir / "provenance.json"
-        provenance_file.write_text(json.dumps(provenance_data, indent=2))
+        (output_dir / "provenance.json").write_text(json.dumps(provenance_data, indent=2))
+        (output_dir / "summary.json").write_text(json.dumps(result.summary, indent=2))
 
-        # Save summary
-        summary_file = output_dir / "summary.json"
-        summary_file.write_text(json.dumps(result.summary, indent=2))
-
-        # Save full results as individual files
         for path, data in result.full_results.items():
             result_file = output_dir / Path(path).name
             if data["type"] == "json":
@@ -483,21 +361,13 @@ def run_workload(
                 result_file.write_text(data["content"])
 
         log("\n")
-        log_success("Workload execution complete")
         log_success(f"Results saved: {output_dir}/")
-        log(f"  Workload ID: {workload_id}", style="dim")
-        log(f"  - provenance.json", style="dim")
-        log(f"  - summary.json", style="dim")
-        for path in result.full_results.keys():
-            log(f"  - {Path(path).name}", style="dim")
 
+    except typer.Exit:
+        raise
     except Exception as e:
         log_error(f"Error: {e}")
-        import traceback
-        traceback.print_exc()
         raise typer.Exit(1)
-
-
 
 
 def main():
