@@ -93,7 +93,7 @@ def verify_inputs(
     results = toolchain.verify_deps(lock["deps"])
     display_dependency_results(results, verbose=verbose)
 
-    failed = [r for r in results if not r.get("verified", r.get("ok", False))]
+    failed = [r for r in results if not r.get("verified")]
     if failed:
         log_error(f"{len(failed)} dependencies failed verification")
         raise typer.Exit(1)

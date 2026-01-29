@@ -82,18 +82,18 @@ class NixToolchain(Toolchain):
             expected_hash = dep.get("narHash")
 
             if not expected_hash:
-                results.append({"dep": dep, "ok": False, "msg": "No narHash in flake.lock"})
+                results.append({"dependency": dep, "verified": False, "message": "No narHash in flake.lock"})
                 continue
 
             store_path = self._find_store_path(dep)
             if not store_path:
-                results.append({"dep": dep, "ok": False, "msg": f"Store path not found"})
+                results.append({"dependency": dep, "verified": False, "message": "Store path not found"})
                 continue
 
             if self._verify_store_hash(store_path, expected_hash):
-                results.append({"dep": dep, "ok": True, "msg": f"Verified: {expected_hash[:24]}..."})
+                results.append({"dependency": dep, "verified": True, "message": f"Verified: {expected_hash[:24]}..."})
             else:
-                results.append({"dep": dep, "ok": False, "msg": f"narHash mismatch"})
+                results.append({"dependency": dep, "verified": False, "message": "narHash mismatch"})
 
         return results
 
@@ -138,6 +138,10 @@ class NixToolchain(Toolchain):
                     for item in bin_dir.iterdir():
                         if item.is_file() and item.stat().st_mode & 0o111:
                             local_path = build_dir / item.name
+                            # Remove existing file if present (may have read-only permissions from previous nix build)
+                            if local_path.exists():
+                                local_path.chmod(0o644)
+                                local_path.unlink()
                             shutil.copy(item, local_path)
                             local_path.chmod(item.stat().st_mode)
 

@@ -71,20 +71,20 @@ class CargoToolchain(Toolchain):
             actual_hash = hashlib.sha256(crate_path.read_bytes()).hexdigest()
 
             if dep["checksum"] is None:
-                results.append({"dep": dep, "ok": False, "msg": "No checksum in Cargo.lock"})
+                results.append({"dependency": dep, "verified": False, "message": "No checksum in Cargo.lock"})
             elif actual_hash == dep["checksum"]:
-                results.append({"dep": dep, "ok": True, "msg": f"Verified: {actual_hash[:8]}..."})
+                results.append({"dependency": dep, "verified": True, "message": f"Verified: {actual_hash[:8]}..."})
             else:
-                results.append({"dep": dep, "ok": False, "msg": f"Mismatch: {actual_hash[:8]}..."})
+                results.append({"dependency": dep, "verified": False, "message": f"Mismatch: {actual_hash[:8]}..."})
 
         # Verify git dependencies
         for dep in deps:
             if dep["source"].startswith("git+"):
                 commit = self._extract_git_commit(dep["source"])
                 if commit:
-                    results.append({"dep": dep, "ok": True, "msg": f"Pinned: {commit[:8]}..."})
+                    results.append({"dependency": dep, "verified": True, "message": f"Pinned: {commit[:8]}..."})
                 else:
-                    results.append({"dep": dep, "ok": False, "msg": "Not pinned to commit"})
+                    results.append({"dependency": dep, "verified": False, "message": "Not pinned to commit"})
 
         return results
 
