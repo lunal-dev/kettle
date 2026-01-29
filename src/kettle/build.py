@@ -1,5 +1,6 @@
 """Build orchestration for attestable builds."""
 
+import json
 import subprocess
 from pathlib import Path
 
@@ -134,6 +135,12 @@ def run_build_workflow(
         )
 
         log_success(f"Provenance: {provenance_path}")
+
+        # Generate manifest
+        manifest_data = provenance.generate_verification_manifest(provenance_data)
+        manifest_path = build_dir / "manifest.json"
+        manifest_path.write_text(json.dumps(manifest_data, indent=2))
+        log_success(f"Manifest: {manifest_path}")
         if git_info:
             log(f"  Source: {git_info['commit_hash'][:8]}...", style="dim")
         log(f"  Dependencies: {len(lock['deps'])}", style="dim")
