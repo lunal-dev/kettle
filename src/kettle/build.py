@@ -1,6 +1,7 @@
 """Build orchestration for attestable builds."""
 
 import json
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -68,6 +69,7 @@ def run_build_workflow(
     release: bool = True,
     verbose: bool = False,
     attestation: bool = False,
+    shallow: bool = False,
 ) -> None:
     """Complete build workflow.
 
@@ -83,6 +85,7 @@ def run_build_workflow(
         release: Build in release mode (Cargo only)
         verbose: Show verbose output
         attestation: Generate attestation using attest-amd
+        shallow: Use shallow verification (skip derivation graph evaluation)
 
     Raises:
         typer.Exit: If any step fails
@@ -100,13 +103,18 @@ def run_build_workflow(
 
         # Setup output directories
         output_dir = output_dir.resolve()
-        build_dir = output_dir / "build"
+        build_dir = output_dir / "kettle-build"
+
+        # Clean up previous build artifacts to keep git working tree clean
+        if build_dir.exists():
+            shutil.rmtree(build_dir)
+
         build_dir.mkdir(parents=True, exist_ok=True)
         provenance_path = build_dir / "provenance.json"
 
         # Verify inputs
         git_info, lock, _, toolchain_info = verify_inputs(
-            toolchain, project_dir, verbose=verbose
+            toolchain, project_dir, verbose=verbose, shallow=shallow
         )
 
         # Execute build
@@ -143,7 +151,11 @@ def run_build_workflow(
         log_success(f"Manifest: {manifest_path}")
         if git_info:
             log(f"  Source: {git_info['commit_hash'][:8]}...", style="dim")
-        log(f"  Dependencies: {len(lock['deps'])}", style="dim")
+        # Show appropriate dependency count based on evaluation mode
+        if lock.get("fetches"):
+            log(f"  Dependencies: {len(lock['fetches'])} fetches (deep)", style="dim")
+        else:
+            log(f"  Dependencies: {len(lock['deps'])}", style="dim")
         log(f"  Artifacts: {len(build_result['artifacts'])}", style="dim")
 
         # Attestation (optional)
