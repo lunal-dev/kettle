@@ -54,11 +54,14 @@ def generate(
     if git:
         external_params["source"] = build_source_descriptor(git)
 
-    # Internal parameters (toolchain-specific)
-    internal_params = toolchain.internal_params(info, lock["hash"])
+    # Internal parameters (toolchain-specific, pass full lock for metadata)
+    internal_params = toolchain.internal_params(info, lock["hash"], lock)
 
-    # Resolved dependencies
-    resolved_deps = [toolchain.dep_to_purl(dep) for dep in lock["deps"]]
+    # Resolved dependencies: use fetches if available (deep mode), otherwise deps (shallow)
+    if lock.get("fetches"):
+        resolved_deps = [toolchain.dep_to_purl(fetch) for fetch in lock["fetches"]]
+    else:
+        resolved_deps = [toolchain.dep_to_purl(dep) for dep in lock["deps"]]
 
     # Byproducts
     byproducts = [build_byproduct("input_merkle_root", input_merkle)]
@@ -268,19 +271,32 @@ def _verify_merkle_recalc(provenance: dict, toolchain: Toolchain, project_dir: P
         if not expected:
             return {"verified": False, "message": "No merkle root in provenance"}
 
+        # Detect evaluation mode from provenance to use same mode for verification
+        internal_params = provenance.get("predicate", {}).get("buildDefinition", {}).get("internalParameters", {})
+        evaluation_mode = internal_params.get("evaluation", {}).get("mode", "shallow")
+        deep = evaluation_mode == "deep"
+
         # Recalculate from current state
         try:
             git = get_git_info(project_dir)
         except Exception:
             git = None
 
-        lock = toolchain.parse_lockfile(project_dir)
+        # Parse lockfile with same mode as original build
+        # Handle toolchains that don't support the deep parameter
+        try:
+            lock = toolchain.parse_lockfile(project_dir, deep=deep)
+        except TypeError:
+            # Fallback for toolchains that don't accept deep parameter
+            lock = toolchain.parse_lockfile(project_dir)
+
         info = toolchain.get_info()
         entries = toolchain.merkle_entries(git, lock, info)
         computed = merkle_root(entries)
 
         if computed == expected:
-            return {"verified": True, "message": f"Merkle root verified: {computed[:16]}..."}
+            mode_info = f" (mode={evaluation_mode})" if evaluation_mode == "deep" else ""
+            return {"verified": True, "message": f"Merkle root verified: {computed[:16]}...{mode_info}"}
 
         return {"verified": False, "message": f"Merkle mismatch: {computed[:16]}... vs {expected[:16]}..."}
 
