@@ -55,6 +55,7 @@ def verify_inputs(
     project_dir: Path,
     verbose: bool = False,
     strict: bool = True,
+    shallow: bool = False,
 ) -> tuple[dict | None, dict, list[dict], dict]:
     """Verify all build inputs (git, lockfile, dependencies, toolchain).
 
@@ -63,6 +64,7 @@ def verify_inputs(
         project_dir: Path to project directory
         verbose: Show verbose output
         strict: Fail on dirty git tree
+        shallow: Use shallow verification (skip derivation graph evaluation for Nix)
 
     Returns:
         Tuple of (git_info, lock, dep_results, toolchain_info)
@@ -81,9 +83,23 @@ def verify_inputs(
     # [2/4] Lockfile
     log("\n[2/4] Hashing lockfile...")
     try:
-        lock = toolchain.parse_lockfile(project_dir)
+        # Pass deep=not shallow to enable/disable derivation graph evaluation
+        try:
+            lock = toolchain.parse_lockfile(project_dir, deep=not shallow)
+        except TypeError:
+            # Fallback for toolchains that don't accept deep parameter
+            lock = toolchain.parse_lockfile(project_dir)
+
         log_success(f"SHA256: {lock['hash']}")
-        log(f"  {len(lock['deps'])} dependencies", style="dim")
+        log(f"  {len(lock['deps'])} flake inputs", style="dim")
+
+        # Show evaluation mode info for Nix
+        if lock.get("evaluation_mode"):
+            mode = lock["evaluation_mode"]
+            if mode == "deep" and lock.get("fetches"):
+                log(f"  {len(lock['fetches'])} fixed-output derivations (deep evaluation)", style="dim")
+            elif mode == "shallow":
+                log(f"  Using shallow evaluation (flake inputs only)", style="dim")
     except Exception as e:
         log_error(f"Failed to parse lockfile: {e}")
         raise typer.Exit(1)

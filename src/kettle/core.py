@@ -73,7 +73,7 @@ class Toolchain(ABC):
         ...
 
     @abstractmethod
-    def internal_params(self, info: dict, lock_hash: str) -> dict:
+    def internal_params(self, info: dict, lock_hash: str, lock: dict | None = None) -> dict:
         """Build SLSA internalParameters section."""
         ...
 

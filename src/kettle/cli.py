@@ -50,6 +50,11 @@ def build(
         "-a",
         help="Generate attestation report using attest-amd command",
     ),
+    shallow: bool = typer.Option(
+        False,
+        "--shallow",
+        help="Use shallow verification (flake inputs only, skip derivation graph evaluation for Nix)",
+    ),
 ):
     """Build project with full input verification and output measurement.
 
@@ -61,11 +66,12 @@ def build(
     3. Executes build
     4. Measures output artifacts
     5. Generates SLSA v1.2 provenance
+
     """
     if output is None:
         output = project_dir
 
-    run_build_workflow(project_dir, output, release, verbose, attestation)
+    run_build_workflow(project_dir, output, release, verbose, attestation, shallow)
 
 
 @app.command(name="verify-provenance")
