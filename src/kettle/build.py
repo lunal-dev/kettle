@@ -142,13 +142,13 @@ def run_build_workflow(
             output_path=provenance_path,
         )
 
-        log_success(f"Provenance: {provenance_path}")
+        log_success("Provenance generated")
 
         # Generate manifest
         manifest_data = provenance.generate_verification_manifest(provenance_data)
         manifest_path = build_dir / "manifest.json"
         manifest_path.write_text(json.dumps(manifest_data, indent=2))
-        log_success(f"Manifest: {manifest_path}")
+        log_success("Manifest generated")
         if git_info:
             log(f"  Source: {git_info['commit_hash'][:8]}...", style="dim")
         # Show appropriate dependency count based on evaluation mode
