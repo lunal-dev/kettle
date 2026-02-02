@@ -42,6 +42,12 @@ class Toolchain(ABC):
         """SLSA build type URI for provenance."""
         ...
 
+    @property
+    @abstractmethod
+    def lockfile_name(self) -> str:
+        """Lockfile filename: 'Cargo.lock', 'flake.lock', etc."""
+        ...
+
     @abstractmethod
     def detect(self, project_dir: Path) -> bool:
         """Return True if this toolchain handles the project."""
@@ -65,6 +71,11 @@ class Toolchain(ABC):
     @abstractmethod
     def build(self, project_dir: Path, **kwargs) -> dict:
         """Execute build. Return {"ok": bool, "artifacts": list, "stdout": str, "stderr": str}."""
+        ...
+
+    @abstractmethod
+    def get_build_artifacts(self, project_dir: Path) -> list[Path]:
+        """Return paths to built executable artifacts."""
         ...
 
     @abstractmethod
