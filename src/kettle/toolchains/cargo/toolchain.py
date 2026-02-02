@@ -22,6 +22,10 @@ class CargoToolchain(Toolchain):
     def build_type_uri(self) -> str:
         return "https://attestable-builds.dev/kettle/cargo@v1"
 
+    @property
+    def lockfile_name(self) -> str:
+        return "Cargo.lock"
+
     def detect(self, project_dir: Path) -> bool:
         return (project_dir / "Cargo.toml").exists()
 
@@ -152,6 +156,19 @@ class CargoToolchain(Toolchain):
             return {"ok": False, "artifacts": [], "stdout": e.stdout or "", "stderr": e.stderr or ""}
         except FileNotFoundError:
             return {"ok": False, "artifacts": [], "stdout": "", "stderr": "cargo not found"}
+
+    def get_build_artifacts(self, project_dir: Path) -> list[Path]:
+        """Return paths to built executable artifacts."""
+        bin_dir = project_dir / "target" / "release"
+        artifacts = []
+
+        if bin_dir.exists():
+            for item in bin_dir.iterdir():
+                if item.is_file() and (not item.suffix or item.suffix == ".exe"):
+                    if item.stat().st_mode & 0o111:  # Executable
+                        artifacts.append(item)
+
+        return artifacts
 
     def dep_to_purl(self, dep: dict) -> dict:
         """Convert dependency to SLSA ResourceDescriptor with PURL."""

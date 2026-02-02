@@ -29,6 +29,10 @@ class NixToolchain(Toolchain):
     def build_type_uri(self) -> str:
         return "https://attestable-builds.dev/kettle/nix@v1"
 
+    @property
+    def lockfile_name(self) -> str:
+        return "flake.lock"
+
     def detect(self, project_dir: Path) -> bool:
         return (project_dir / "flake.nix").exists()
 
@@ -286,6 +290,18 @@ class NixToolchain(Toolchain):
             return {"ok": False, "artifacts": [], "store_paths": [], "stdout": e.stdout or "", "stderr": e.stderr or ""}
         except FileNotFoundError:
             return {"ok": False, "artifacts": [], "store_paths": [], "stdout": "", "stderr": "nix not found"}
+
+    def get_build_artifacts(self, project_dir: Path) -> list[Path]:
+        """Return paths to built executable artifacts."""
+        build_dir = project_dir / "kettle-build"
+        artifacts = []
+
+        if build_dir.exists():
+            for item in build_dir.iterdir():
+                if item.is_file() and item.stat().st_mode & 0o111:  # Executable
+                    artifacts.append(item)
+
+        return artifacts
 
     def dep_to_purl(self, dep: dict) -> dict:
         """Convert dependency to SLSA ResourceDescriptor with PURL.
