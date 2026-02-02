@@ -199,6 +199,29 @@ class NixToolchain(Toolchain):
 
         return result
 
+    def prefetch(self, project_dir: Path, timeout: int = 300) -> bool:
+        """Prefetch flake inputs to ensure they're in the nix store.
+
+        Args:
+            project_dir: Path to project containing flake.nix
+            timeout: Timeout in seconds for prefetch operation
+
+        Returns:
+            True if prefetch succeeded, False otherwise
+        """
+        try:
+            subprocess.run(
+                ["nix", "flake", "prefetch"],
+                cwd=project_dir,
+                capture_output=True,
+                text=True,
+                check=True,
+                timeout=timeout,
+            )
+            return True
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
+            return False
+
     def verify_deps(self, deps: list[dict]) -> list[dict]:
         """Verify flake inputs against nix store."""
         results = []
