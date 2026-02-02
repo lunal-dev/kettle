@@ -21,6 +21,7 @@ from .build_core import (
     extract_zip_source,
     get_builds_dir,
     run_build,
+    sanitize_error_message,
     setup_build,
 )
 
@@ -58,7 +59,9 @@ async def build(
     result = run_build(build_id, build_dir, project_dir)
 
     if result["status"] == "failed":
-        return JSONResponse(status_code=500, content=result)
+        # Client errors (bad input) get 400, server errors get 500
+        status_code = 400 if result.get("error_type") == "UnsupportedToolchainError" else 500
+        return JSONResponse(status_code=status_code, content=result)
 
     return result
 
@@ -247,7 +250,7 @@ async def run_workload(
             if attestation_path.exists():
                 attestation_b64 = attestation_path.read_text().strip()
         except Exception as e:
-            attestation_error = str(e)
+            attestation_error = sanitize_error_message(str(e), workload_dir)
             print(f"Warning: Attestation failed: {e}")
 
         full_results_dir = workload_dir / "full-results"
@@ -294,7 +297,8 @@ async def run_workload(
     except Exception as e:
         if workload_dir.exists():
             shutil.rmtree(workload_dir)
-        raise HTTPException(500, f"Workload execution failed: {str(e)}")
+        sanitized_msg = sanitize_error_message(str(e), workload_dir)
+        raise HTTPException(500, f"Workload execution failed: {sanitized_msg}")
 
 
 @app.get("/builds/{build_id}/workloads/{workload_id}/results")

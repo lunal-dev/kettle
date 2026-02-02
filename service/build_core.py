@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import shutil
 import traceback
 import zipfile
@@ -12,7 +13,94 @@ import typer
 
 from kettle import core
 from kettle.build import run_build_workflow
+from kettle.core import UnsupportedToolchainError
 from kettle.git import clone_repo
+
+
+# =============================================================================
+# Error Handling
+# =============================================================================
+
+
+class BuildError(Exception):
+    """Raised when a build fails with a sanitized message."""
+
+    def __init__(self, message: str, error_type: str = "BuildError"):
+        self.error_type = error_type
+        super().__init__(message)
+
+
+def sanitize_traceback(tb: str, build_dir: Path | None = None) -> str:
+    """Remove local file paths from traceback to prevent information leakage.
+
+    Args:
+        tb: Raw traceback string
+        build_dir: Optional build directory to sanitize
+
+    Returns:
+        Sanitized traceback with paths replaced
+    """
+    # Remove or replace common sensitive path patterns
+    sanitized = tb
+
+    # Replace home directory paths
+    home = str(Path.home())
+    sanitized = sanitized.replace(home, "~")
+
+    # Replace build directory with generic placeholder
+    if build_dir:
+        sanitized = sanitized.replace(str(build_dir), "<build_dir>")
+
+    # Replace common temp directories
+    sanitized = re.sub(r"/tmp/kettle/[a-f0-9-]+", "<build_dir>", sanitized)
+    sanitized = re.sub(r"/var/folders/[^/]+/[^/]+/T/[^/]+", "<temp>", sanitized)
+
+    # Replace absolute paths to site-packages (keep just the package path)
+    sanitized = re.sub(
+        r"/[^\s\"']+/site-packages/",
+        "<site-packages>/",
+        sanitized,
+    )
+
+    # Replace nix store paths (keep the hash for debugging)
+    sanitized = re.sub(
+        r"/nix/store/([a-z0-9]{32})-",
+        r"<nix-store>/\1-",
+        sanitized,
+    )
+
+    return sanitized
+
+
+def sanitize_error_message(msg: str, build_dir: Path | None = None) -> str:
+    """Sanitize an error message to remove local paths.
+
+    Args:
+        msg: Raw error message
+        build_dir: Optional build directory to sanitize
+
+    Returns:
+        Sanitized error message
+    """
+    sanitized = msg
+
+    # Replace build directory
+    if build_dir:
+        sanitized = sanitized.replace(str(build_dir), "<build_dir>")
+
+    # Replace temp kettle directories
+    sanitized = re.sub(r"/tmp/kettle/[a-f0-9-]+", "<build_dir>", sanitized)
+
+    # Replace home directory
+    home = str(Path.home())
+    sanitized = sanitized.replace(home, "~")
+
+    return sanitized
+
+
+# =============================================================================
+# Build Directory Management
+# =============================================================================
 
 
 def get_builds_dir() -> Path:
@@ -120,13 +208,8 @@ def run_build(build_id: str, build_dir: Path, project_dir: Path) -> dict:
         Build result dict with status, artifacts, provenance, etc.
     """
     try:
-        toolchain = core.detect(project_dir)
-        if not toolchain:
-            return {
-                "build_id": build_id,
-                "status": "failed",
-                "error": "No supported build system detected (expected Cargo.toml or flake.nix)",
-            }
+        # Raises UnsupportedToolchainError if no toolchain matches
+        toolchain = core.detect(project_dir, raise_on_none=True)
 
         try:
             run_build_workflow(
@@ -137,11 +220,10 @@ def run_build(build_id: str, build_dir: Path, project_dir: Path) -> dict:
                 attestation=False,
             )
         except typer.Exit as e:
-            return {
-                "build_id": build_id,
-                "status": "failed",
-                "error": f"Build workflow failed with exit code {e.exit_code}",
-            }
+            raise BuildError(
+                f"Build workflow failed with exit code {e.exit_code}",
+                error_type="BuildWorkflowError",
+            ) from None
 
         flatten_artifacts(build_dir)
         provenance, manifest, attestation = load_results(build_dir)
@@ -160,15 +242,37 @@ def run_build(build_id: str, build_dir: Path, project_dir: Path) -> dict:
             "build_config_files": build_config_files,
         }
 
-    except Exception as e:
-        error_details = traceback.format_exc()
-        print(f"Build error: {error_details}")
+    except UnsupportedToolchainError as e:
         return {
             "build_id": build_id,
             "status": "failed",
             "error": str(e),
+            "error_type": "UnsupportedToolchainError",
+            "supported_toolchains": e.supported_toolchains,
+            "found_files": e.found_files,
+        }
+
+    except BuildError as e:
+        return {
+            "build_id": build_id,
+            "status": "failed",
+            "error": str(e),
+            "error_type": e.error_type,
+        }
+
+    except Exception as e:
+        # Log full traceback server-side for debugging
+        error_details = traceback.format_exc()
+        print(f"Build error: {error_details}")
+
+        # Sanitize error message for client response
+        sanitized_msg = sanitize_error_message(str(e), build_dir)
+
+        return {
+            "build_id": build_id,
+            "status": "failed",
+            "error": sanitized_msg,
             "error_type": type(e).__name__,
-            "traceback": error_details,
         }
 
 

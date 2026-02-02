@@ -2,8 +2,25 @@
 
 from abc import ABC, abstractmethod
 from pathlib import Path
+from typing import Literal, overload
 
 _toolchains: list["Toolchain"] = []
+
+
+class UnsupportedToolchainError(Exception):
+    """Raised when no supported toolchain is detected for a project."""
+
+    def __init__(self, project_dir: Path, found_files: list[str] | None = None):
+        self.project_dir = project_dir
+        self.found_files = found_files or []
+        self.supported_toolchains = get_supported_toolchains()
+
+        msg = (
+            f"No supported build system detected. "
+            f"Supported toolchains: {', '.join(self.supported_toolchains)}. "
+            f"Expected one of: Cargo.toml (Rust/Cargo), flake.nix (Nix)."
+        )
+        super().__init__(msg)
 
 
 def register(tc: "Toolchain") -> None:
@@ -11,11 +28,43 @@ def register(tc: "Toolchain") -> None:
     _toolchains.append(tc)
 
 
-def detect(project_dir: Path) -> "Toolchain | None":
-    """Auto-detect toolchain for project. Returns first match."""
+def get_supported_toolchains() -> list[str]:
+    """Get list of registered toolchain names."""
+    return [tc.name for tc in _toolchains]
+
+
+@overload
+def detect(project_dir: Path, raise_on_none: Literal[True]) -> "Toolchain": ...
+
+
+@overload
+def detect(project_dir: Path, raise_on_none: Literal[False] = ...) -> "Toolchain | None": ...
+
+
+def detect(project_dir: Path, raise_on_none: bool = False) -> "Toolchain | None":
+    """Auto-detect toolchain for project.
+
+    Args:
+        project_dir: Path to the project directory
+        raise_on_none: If True, raise UnsupportedToolchainError instead of returning None
+
+    Returns:
+        Matching Toolchain or None
+
+    Raises:
+        UnsupportedToolchainError: If raise_on_none=True and no toolchain matches
+    """
     for tc in _toolchains:
         if tc.detect(project_dir):
             return tc
+
+    if raise_on_none:
+        found_files = [
+            f.name for f in project_dir.iterdir()
+            if f.is_file() and not f.name.startswith(".")
+        ][:10]
+        raise UnsupportedToolchainError(project_dir, found_files)
+
     return None
 
 
