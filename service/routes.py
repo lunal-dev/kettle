@@ -9,8 +9,12 @@ from pathlib import Path
 from typing import List
 from uuid import uuid4
 
+import asyncio
+import queue
+import threading
+
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
 from kettle import core
 from kettle.build import run_build_workflow
@@ -159,6 +163,168 @@ async def build(source: UploadFile = File(...)):
                 "traceback": error_details
             }
         )
+
+
+@router.post("/build/stream")
+async def build_stream(source: UploadFile = File(...)):
+    """Upload source.zip and stream build progress via SSE.
+
+    Returns Server-Sent Events with build progress updates.
+    Final event contains the complete build result.
+    """
+    builds_dir = get_builds_dir()
+    build_id = str(uuid4())[:8]
+    build_dir = builds_dir / build_id
+    build_dir.mkdir()
+
+    # Save source.zip and extract source directory
+    zip_path = build_dir / "source.zip"
+    zip_path.write_bytes(await source.read())
+
+    source_dir = build_dir / "source"
+    source_dir.mkdir()
+    with zipfile.ZipFile(zip_path, "r") as z:
+        z.extractall(source_dir)
+
+    # Find project directory
+    project_dir = source_dir
+    if not (project_dir / "Cargo.toml").exists() and not (project_dir / "flake.nix").exists():
+        subdirs = [d for d in source_dir.iterdir() if d.is_dir()]
+        if len(subdirs) == 1:
+            project_dir = subdirs[0]
+
+    progress_queue: queue.Queue = queue.Queue()
+
+    def on_progress(event_type: str, message: str):
+        """Callback invoked by logger functions."""
+        progress_queue.put({"type": event_type, "message": message})
+
+    def run_build():
+        """Execute build in background thread."""
+        import typer
+        from kettle.logger import set_progress_callback
+
+        set_progress_callback(on_progress)
+
+        try:
+            toolchain = core.detect(project_dir)
+            if not toolchain:
+                progress_queue.put({
+                    "type": "complete",
+                    "result": {
+                        "build_id": build_id,
+                        "status": "failed",
+                        "error": "No supported build system detected",
+                    }
+                })
+                return
+
+            try:
+                run_build_workflow(
+                    project_dir=project_dir,
+                    output_dir=build_dir,
+                    release=True,
+                    verbose=True,
+                    attestation=False,
+                )
+            except typer.Exit as e:
+                progress_queue.put({
+                    "type": "complete",
+                    "result": {
+                        "build_id": build_id,
+                        "status": "failed",
+                        "error": f"Build workflow failed with exit code {e.exit_code}",
+                    }
+                })
+                return
+
+            # Flatten structure
+            nested_build_dir = build_dir / "kettle-build"
+            if (nested_build_dir / "provenance.json").exists():
+                shutil.copy2(nested_build_dir / "provenance.json", build_dir / "provenance.json")
+            if (nested_build_dir / "evidence.b64").exists():
+                shutil.copy2(nested_build_dir / "evidence.b64", build_dir / "evidence.b64")
+            if (nested_build_dir / "manifest.json").exists():
+                shutil.copy2(nested_build_dir / "manifest.json", build_dir / "manifest.json")
+
+            # Load results
+            provenance_path = build_dir / "provenance.json"
+            manifest_path = build_dir / "manifest.json"
+            attestation_path = build_dir / "evidence.b64"
+
+            provenance_data = json.loads(provenance_path.read_text()) if provenance_path.exists() else None
+            manifest_data = json.loads(manifest_path.read_text()) if manifest_path.exists() else None
+            attestation_b64 = attestation_path.read_text().strip() if attestation_path.exists() else None
+
+            # Copy artifacts
+            artifacts_dir = build_dir / "artifacts"
+            artifacts_dir.mkdir()
+            artifact_names = []
+            for artifact_path in toolchain.get_build_artifacts(project_dir):
+                shutil.copy2(artifact_path, artifacts_dir / artifact_path.name)
+                artifact_names.append(artifact_path.name)
+
+            # Copy lock file
+            build_config_dir = build_dir / "build-config"
+            build_config_dir.mkdir()
+            build_config_files = []
+            lock_path = project_dir / toolchain.lockfile_name
+            if lock_path.exists():
+                shutil.copy2(lock_path, build_config_dir / toolchain.lockfile_name)
+                build_config_files.append(toolchain.lockfile_name)
+
+            result = {
+                "build_id": build_id,
+                "status": "success",
+                "build_system": toolchain.name,
+                "provenance": provenance_data,
+                "manifest": manifest_data,
+                "attestation": attestation_b64,
+                "artifacts": artifact_names,
+                "build_config_files": build_config_files,
+                "attestation_status": "success" if attestation_b64 else "unavailable",
+            }
+
+            progress_queue.put({"type": "complete", "result": result})
+
+        except Exception as e:
+            import traceback
+            progress_queue.put({
+                "type": "complete",
+                "result": {
+                    "build_id": build_id,
+                    "status": "failed",
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                    "traceback": traceback.format_exc(),
+                }
+            })
+        finally:
+            set_progress_callback(None)
+            progress_queue.put(None)  # Signal end of stream
+
+    async def event_generator():
+        """Generate SSE events from progress queue."""
+        thread = threading.Thread(target=run_build, daemon=True)
+        thread.start()
+
+        loop = asyncio.get_event_loop()
+        while True:
+            try:
+                item = await loop.run_in_executor(
+                    None, lambda: progress_queue.get(timeout=0.1)
+                )
+                if item is None:
+                    break
+                yield f"data: {json.dumps(item)}\n\n"
+            except queue.Empty:
+                continue
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 # =============================================================================

@@ -21,6 +21,7 @@ manifest.json
 
 builds/
 outputs/
+scripts/
 
 claude.md
 .claudeignore
