@@ -126,3 +126,41 @@ def get_git_info(repo_path: Path) -> dict | None:
     except Exception:
         # Not a git repository or git command failed
         return None
+
+
+def clone_repo(
+    repo_url: str,
+    dest: Path,
+    ref: str | None = None,
+    depth: int = 1,
+    timeout: int = 300,
+) -> dict | None:
+    """Clone a git repository and return its metadata.
+
+    Args:
+        repo_url: URL of the git repository to clone
+        dest: Destination path for the cloned repository
+        ref: Optional branch, tag, or commit to checkout
+        depth: Clone depth (default 1 for shallow clone, 0 for full)
+        timeout: Timeout in seconds for the clone operation
+
+    Returns:
+        Git metadata dict from get_git_info(), or None on failure
+
+    Raises:
+        subprocess.CalledProcessError: If git clone fails
+        subprocess.TimeoutExpired: If clone times out
+    """
+    cmd = ["git", "clone"]
+
+    if depth > 0:
+        cmd.extend(["--depth", str(depth)])
+
+    if ref:
+        cmd.extend(["--branch", ref])
+
+    cmd.extend([repo_url, str(dest)])
+
+    subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=timeout)
+
+    return get_git_info(dest)
