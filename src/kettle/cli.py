@@ -48,7 +48,7 @@ def build(
         False,
         "--attestation",
         "-a",
-        help="Generate attestation report using attest-amd command",
+        help="Generate attestation report using attestation service command",
     ),
     shallow: bool = typer.Option(
         False,
@@ -152,10 +152,10 @@ def verify_attestation_cmd(
     """Verify an attestation report against a SLSA provenance document.
 
     Verifies:
-    1. Cryptographic signature (via attest-amd verify)
+    1. Cryptographic signature (via attestation service verify)
     2. Provenance binding (hash in attestation matches provenance)
 
-    Requires attest-amd to be installed.
+    Requires attestation service to be installed.
     """
     run_verify_attestation_workflow(attestation, provenance)
 

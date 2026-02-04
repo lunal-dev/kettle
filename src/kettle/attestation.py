@@ -1,7 +1,7 @@
 """Attestation report parsing and verification for Phase 2.
 
 This module handles verification of attestation reports from TEE systems.
-Cryptographic verification is delegated to attest-amd, while application-specific
+Cryptographic verification is delegated to attestation service, while application-specific
 verification (provenance binding, nonce freshness) is handled here.
 
 The attestation report cryptographically binds:
@@ -23,7 +23,7 @@ def verify_attestation(
 ) -> dict:
     """Comprehensive attestation verification.
 
-    Performs cryptographic verification via attest-amd, then verifies
+    Performs cryptographic verification via attestation service, then verifies
     application-specific properties (provenance binding, nonce freshness).
 
     Args:
@@ -45,8 +45,8 @@ def verify_attestation(
         }
 
     Raises:
-        CalledProcessError: If attest-amd verify fails
-        FileNotFoundError: If attest-amd is not installed
+        CalledProcessError: If attestation service verification fails
+        FileNotFoundError: If attestation service is not installed
     """
     results = {"valid": True, "checks": {}, "custom_data": None, "provenance": None}
 
@@ -65,10 +65,10 @@ def verify_attestation(
         }
         return results
 
-    # Step 2: Cryptographic verification via attest-amd
+    # Step 2: Cryptographic verification via attestation service
     try:
         result = subprocess.run(
-            ["./attest-amd", "verify", str(attestation_path), custom_data_hex, "--check-custom-data"],
+            ["/opt/lunal-services/attest-sev-snp", "verify", str(attestation_path), custom_data_hex, "--check-custom-data"],
             capture_output=True, text=True, check=True,
         )
 
@@ -115,7 +115,7 @@ def verify_attestation(
             if attestation_report.get('status') == 'verified':
                 results["checks"]["cryptographic"] = {
                     "verified": True,
-                    "message": "Cryptographic verification passed (attest-amd)",
+                    "message": "Cryptographic verification passed",
                     "report": attestation_report  # Store full report for later use
                 }
             else:
@@ -139,7 +139,7 @@ def verify_attestation(
         results["valid"] = False
         results["checks"]["cryptographic"] = {
             "verified": False,
-            "message": "attest-amd not found (required for verification)",
+            "message": "Attestation service not found (required for verification)",
         }
         return results
     except subprocess.CalledProcessError as e:

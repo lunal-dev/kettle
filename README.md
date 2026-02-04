@@ -121,13 +121,13 @@ Verification reconstructs the chain of trust from attestation through provenance
 
 **Without TEE attestation** (provenance-only verification): Kettle validates that the provenance document is well-formed SLSA v1.2. If you provide the project directory, it verifies the current git commit and tree hash match the provenance. If you provide the lockfile, it verifies the hash matches. If you provide the binary, it verifies the artifact hash matches. It can also recompute the input merkle root from current state and verify it matches the provenance.
 
-**With TEE attestation** (full verification): Kettle first verifies the attestation cryptographic signature using `attest-amd`. It checks that the provenance hash in the attestation matches the actual provenance document. Then it runs all the provenance checks. This gives you hardware-rooted proof that the provenance was generated inside a trusted execution environment, not fabricated after the fact.
+**With TEE attestation** (full verification): Kettle first verifies the attestation cryptographic signature using an attestation service. It checks that the provenance hash in the attestation matches the actual provenance document. Then it runs all the provenance checks. This gives you hardware-rooted proof that the provenance was generated inside a trusted execution environment, not fabricated after the fact.
 
 ```
                         evidence.b64
                              │
                              ▼
-                   [attest-amd verify]
+                   [attestation service verification]
                              │
           ┌──────────────────┼──────────────────┐
           │                  │                  │
@@ -230,7 +230,7 @@ Requirements:
 - Python 3.10 or later
 - Git
 - Cargo (for Rust projects) or Nix (for Nix projects)
-- For TEE attestation: AMD SEV-SNP hardware and `attest-amd` tool
+- For TEE attestation: recommended AMD SEV-SNP hardware and an attestation service installed
 - For remote builds: Access to a Kettle TEE service endpoint
 
 ## Commands

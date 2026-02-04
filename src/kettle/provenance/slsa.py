@@ -171,7 +171,7 @@ def generate_verification_manifest(provenance: dict, launch_measurement: str = N
                 if tool_digest:
                     manifest["toolchain"][f"{tool_name}_hash"] = tool_digest
 
-    # Extract byproducts (input_merkle_root, git_binary_hash, etc.)
+    # Extract byproducts (input_merkle_root)
     byproducts = run_details.get("byproducts", [])
     for byproduct in byproducts:
         name = byproduct.get("name")

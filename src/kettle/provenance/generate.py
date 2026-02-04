@@ -63,10 +63,8 @@ def generate(
     else:
         resolved_deps = [toolchain.dep_to_purl(dep) for dep in lock["deps"]]
 
-    # Byproducts
+    # Byproducts (only the input merkle root - build artifacts are in subject)
     byproducts = [build_byproduct("input_merkle_root", input_merkle)]
-    if git and git.get("git_binary_hash"):
-        byproducts.append(build_byproduct("git_binary_hash", git["git_binary_hash"]))
 
     # Generate statement
     statement = generate_slsa_statement(

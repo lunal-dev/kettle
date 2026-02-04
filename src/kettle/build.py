@@ -12,7 +12,7 @@ from kettle.provenance.verification import verify_inputs
 
 
 def generate_attestation(provenance_data: dict, output_dir: Path) -> Path:
-    """Generate attestation using attest-amd command.
+    """Generate attestation using attestation service command.
 
     Args:
         provenance_data: SLSA provenance dictionary to hash for attestation
@@ -35,15 +35,15 @@ def generate_attestation(provenance_data: dict, output_dir: Path) -> Path:
     attestation_path = output_dir / "evidence.b64"
 
     try:
-        log(f"\nRunning: sudo attest-amd attest --custom-data {custom_data[:16]}...", style="dim")
+        log(f"\nGenerating Attestation and signing {custom_data[:16]}...", style="dim")
         result = subprocess.run(
-            ["sudo", "attest-amd", "attest", "--custom-data", custom_data],
+            ["sudo", "/opt/lunal-services/attest-sev-snp", "attest", "--custom-data", custom_data],
             capture_output=True,
             text=True,
             check=True,
         )
 
-        # attest-amd saves to evidence.b64 in current directory
+        # attesation saves to evidence.b64 in current directory
         default_attestation = Path("evidence.b64")
         if default_attestation.exists() and default_attestation.resolve() != attestation_path.resolve():
             default_attestation.rename(attestation_path)
@@ -59,7 +59,7 @@ def generate_attestation(provenance_data: dict, output_dir: Path) -> Path:
             log(f"\n{e.stderr}")
         raise typer.Exit(1)
     except FileNotFoundError:
-        log_error("attest-amd command not found")
+        log_error("Attestation service not found")
         raise typer.Exit(1)
 
 
@@ -84,7 +84,7 @@ def run_build_workflow(
         output_dir: Output directory for provenance.json
         release: Build in release mode (Cargo only)
         verbose: Show verbose output
-        attestation: Generate attestation using attest-amd
+        attestation: Generate attestation using an attestation service
         shallow: Use shallow verification (skip derivation graph evaluation)
 
     Raises:

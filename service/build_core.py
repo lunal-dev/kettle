@@ -217,7 +217,7 @@ def run_build(build_id: str, build_dir: Path, project_dir: Path) -> dict:
                 output_dir=build_dir,
                 release=True,
                 verbose=True,
-                attestation=False,
+                attestation=True,
             )
         except typer.Exit as e:
             raise BuildError(
