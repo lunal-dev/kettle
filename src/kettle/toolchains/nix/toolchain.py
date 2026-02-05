@@ -95,26 +95,62 @@ class NixToolchain(Toolchain):
         """
         fetches = []
 
-        for drv_path, drv_data in graph.items():
-            env = drv_data.get("env", {})
+        # New nix format nests derivations under a "derivations" key
+        if "derivations" in graph and isinstance(graph["derivations"], dict):
+            derivations = graph["derivations"]
+        else:
+            # Old format: derivations directly in graph
+            derivations = graph
 
-            # Fixed-output derivations have outputHash in env
-            if "outputHash" not in env:
+        print(f"DEBUG: Total derivations in graph: {len(derivations)}")
+
+        for drv_path, drv_data in derivations.items():
+            # Skip non-dict entries
+            if not isinstance(drv_data, dict):
+                continue
+
+            env = drv_data.get("env", {})
+            outputs = drv_data.get("outputs", {})
+
+            # Check for fixed-output derivation in new format (outputs.*.hash)
+            # or old format (env.outputHash)
+            output_hash = None
+            hash_algo = "sha256"
+            hash_mode = None
+
+            # New format: hash info in outputs (hash is like "sha256-base64...")
+            for _, out_spec in outputs.items():
+                if isinstance(out_spec, dict) and out_spec.get("hash"):
+                    hash_str = out_spec["hash"]
+                    # Parse "sha256-base64hash" format
+                    if "-" in hash_str:
+                        hash_algo, output_hash = hash_str.split("-", 1)
+                    else:
+                        output_hash = hash_str
+                    hash_mode = out_spec.get("method")  # "flat" or "nar"
+                    break
+
+            # Old format: hash info in env
+            if not output_hash and "outputHash" in env:
+                output_hash = env["outputHash"]
+                hash_algo = env.get("outputHashAlgo", "sha256")
+                hash_mode = env.get("outputHashMode")
+
+            if not output_hash:
                 continue
 
             fetch = {
                 "name": drv_data.get("name", env.get("name", "unknown")),
                 "drv_path": drv_path,
-                "outputHash": env["outputHash"],
-                "outputHashAlgo": env.get("outputHashAlgo", "sha256"),
+                "outputHash": output_hash,
+                "outputHashAlgo": hash_algo,
             }
 
-            # Optional fields
-            if "outputHashMode" in env:
-                fetch["outputHashMode"] = env["outputHashMode"]
-            if "url" in env:
+            if hash_mode:
+                fetch["outputHashMode"] = hash_mode
+            if env.get("url"):
                 fetch["url"] = env["url"]
-            if "urls" in env:
+            if env.get("urls"):
                 fetch["urls"] = env["urls"]
 
             fetches.append(fetch)
