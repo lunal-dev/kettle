@@ -102,8 +102,6 @@ class NixToolchain(Toolchain):
             # Old format: derivations directly in graph
             derivations = graph
 
-        print(f"DEBUG: Total derivations in graph: {len(derivations)}")
-
         for drv_path, drv_data in derivations.items():
             # Skip non-dict entries
             if not isinstance(drv_data, dict):
