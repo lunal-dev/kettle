@@ -109,7 +109,8 @@ def verify_inputs(
 
     # Prefetch dependencies if toolchain supports it (ensures store paths exist)
     if hasattr(toolchain, "prefetch"):
-        toolchain.prefetch(project_dir)
+        if not toolchain.prefetch(project_dir):
+            log_warning("Prefetch failed - dependency verification may fail")
 
     results = toolchain.verify_deps(lock["deps"])
     display_dependency_results(results, verbose=verbose)
