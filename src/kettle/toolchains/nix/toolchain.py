@@ -288,7 +288,7 @@ class NixToolchain(Toolchain):
         version_result = subprocess.run(["nix", "--version"], capture_output=True, text=True, check=True)
 
         return {
-            "nix_path": str(nix_path),
+            # "nix_path": str(nix_path),
             "nix_hash": hashlib.sha256(nix_path.read_bytes()).hexdigest(),
             "nix_version": version_result.stdout.strip(),
         }
