@@ -5,6 +5,7 @@ import json
 import queue
 import shutil
 import threading
+import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List
@@ -72,7 +73,36 @@ async def build(
         status_code = 400 if result.get("error_type") == "UnsupportedToolchainError" else 500
         return JSONResponse(status_code=status_code, content=result)
 
-    return result
+    builds_dir = get_builds_dir()
+    build_output = builds_dir / build_id
+    zip_path = build_output / f"{build_id}.zip"
+
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+        # Artifacts
+        artifacts_dir = build_output / "artifacts"
+        if artifacts_dir.exists():
+            for f in artifacts_dir.iterdir():
+                if f.is_file():
+                    zf.write(f, f"artifacts/{f.name}")
+
+        # Provenance, manifest, attestation
+        for name in ["provenance.json", "manifest.json", "evidence.b64"]:
+            p = build_output / name
+            if p.exists():
+                zf.write(p, name)
+
+        # Build config (lockfiles)
+        config_dir = build_output / "build-config"
+        if config_dir.exists():
+            for f in config_dir.iterdir():
+                if f.is_file():
+                    zf.write(f, f"build-config/{f.name}")
+
+    return FileResponse(
+        path=zip_path,
+        filename=f"{build_id}.zip",
+        media_type="application/zip",
+    )
 
 
 @app.post("/build/stream")
