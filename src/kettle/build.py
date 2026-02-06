@@ -50,7 +50,8 @@ def generate_attestation(provenance_data: dict, output_dir: Path) -> Path:
         elif not attestation_path.exists():
             attestation_path.write_text(result.stdout.strip())
 
-        log_success(f"Attestation saved: {attestation_path}")
+        # log_success(f"Attestation saved: {attestation_path}")
+        log_success(f"Attestation saved: {attestation_path.name}")
         return attestation_path
 
     except subprocess.CalledProcessError as e:
@@ -163,8 +164,10 @@ def run_build_workflow(
             attestation_path = generate_attestation(provenance_data, build_dir)
             log("\n")
             log_success("Build complete with attestation")
-            log(f"  Provenance: {provenance_path}", style="dim")
-            log(f"  Attestation: {attestation_path}", style="dim")
+            # log(f"  Provenance: {provenance_path}", style="dim")
+            # log(f"  Attestation: {attestation_path}", style="dim")
+            log(f"  Provenance: {provenance_path.name}", style="dim")
+            log(f"  Attestation: {attestation_path.name}", style="dim")
 
     except typer.Exit:
         raise

@@ -109,7 +109,8 @@ def verify_inputs(
 
     # Prefetch dependencies if toolchain supports it (ensures store paths exist)
     if hasattr(toolchain, "prefetch"):
-        toolchain.prefetch(project_dir)
+        if not toolchain.prefetch(project_dir):
+            log_warning("Prefetch failed - dependency verification may fail")
 
     results = toolchain.verify_deps(lock["deps"])
     display_dependency_results(results, verbose=verbose)
@@ -161,7 +162,8 @@ def run_verify_passport_workflow(
 
     try:
         log_section("Provenance Verification")
-        log(f"Provenance: {passport}", style="dim")
+        # log(f"Provenance: {passport}", style="dim")
+        log(f"Provenance: {passport.name}", style="dim")
 
         results = verify_provenance(
             provenance_path=passport,
@@ -213,8 +215,10 @@ def run_verify_attestation_workflow(
 
     try:
         log_section("Attestation Verification")
-        log(f"Attestation: {attestation}", style="dim")
-        log(f"Provenance: {passport}", style="dim")
+        # log(f"Attestation: {attestation}", style="dim")
+        # log(f"Provenance: {passport}", style="dim")
+        log(f"Attestation: {attestation.name}", style="dim")
+        log(f"Provenance: {passport.name}", style="dim")
 
         results = verify_attestation(
             attestation_path=attestation,
@@ -265,7 +269,7 @@ def run_combined_verify_workflow(
             log_error(f"provenance.json not found in {build_dir}")
             raise typer.Exit(1)
 
-        log(f"Build directory: {build_dir}", style="dim")
+        # log(f"Build directory: {build_dir}", style="dim")
         has_attestation = attestation_path.exists()
 
         attestation_passed = True
