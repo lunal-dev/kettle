@@ -16,8 +16,7 @@ venv/
 uv.lock
 
 .DS_Store
-passport.json
-manifest.json
+provenance.json
 
 builds/
 outputs/

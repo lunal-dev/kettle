@@ -7,7 +7,6 @@ from .slsa import (
     build_subject,
     build_source_descriptor,
     build_byproduct,
-    generate_verification_manifest,
 )
 from .verification import (
     verify_inputs,
@@ -26,7 +25,6 @@ __all__ = [
     "build_subject",
     "build_source_descriptor",
     "build_byproduct",
-    "generate_verification_manifest",
     # Verification workflows
     "verify_inputs",
     "verify_git_source",

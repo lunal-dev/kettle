@@ -83,9 +83,9 @@ When the build completes, output artifacts are measured and their hashes recorde
 
 The TEE generates a signing key derived from its hardware root of trust. This key is bound to the specific TEE instance and its measured state: it can only be produced by a TEE with exactly this configuration.
 
-The TEE signs a manifest containing all input hashes (including the Merkle root), the TEE attestation, and all output hashes. This signature cryptographically binds the outputs to the attested build environment and verified inputs.
+The TEE signs a provenance.json containing all input hashes (including the Merkle root), the TEE attestation, and all output hashes. This signature cryptographically binds the outputs to the attested build environment and verified inputs.
 
-The signed manifest includes the output measurement: the same hash that will appear in runtime attestation when this artifact runs in a confidential VM. The build attestation and runtime attestation now reference the same measurement, closing the loop.
+The signed provenance.json includes the output measurement: the same hash that will appear in runtime attestation when this artifact runs in a confidential VM. The build attestation and runtime attestation now reference the same measurement, closing the loop.
 
 ### The Complete Chain
 
@@ -129,15 +129,13 @@ Kettle is our implementation of attestable builds. It handles input verification
 
 A Kettle build generates three artifacts:
 
-- manifest.json: complete record of all inputs and outputs, including git hashes, lockfile hash, dependency checksums, toolchain hashes, Merkle root, and output artifact hashes
 - provenance.json: SLSA v1.2 provenance statement in standard in-toto format, enabling interoperability with other supply chain security tools
-- evidence.b64: TEE attestation report signed by AMD SEV-SNP hardware, binding the manifest hash to the hardware root of trust
+- evidence.b64: TEE attestation report signed by AMD SEV-SNP hardware, binding the provenance.json hash to the hardware root of trust
 
 ### Additional Features
 
 - Merkle inclusion proofs: clients can request proof that specific dependencies are in the input tree without revealing the full dependency graph, useful for targeted security audits
 - Remote TEE builds: for environments without local SEV-SNP hardware, Kettle supports remote builds via a TEE service API
-- Workload execution: run security analysis or other workloads on attested builds, with cryptographic proof of the execution context
 
 ## Trust Assumptions
 

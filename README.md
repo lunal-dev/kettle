@@ -85,31 +85,13 @@ The Merkle structure enables selective disclosure: you can prove a specific depe
 
 **Phase 3: Build Execution.** Kettle executes the actual build command. For Cargo projects, this is `cargo build --locked --release`. For Nix projects, `nix build`. The `--locked` flag ensures the lockfile cannot be modified during build. When compilation completes, Kettle hashes each output artifact.
 
-**Phase 4: Provenance Generation.** Kettle creates two documents. The manifest (`manifest.json`) is a human-readable summary of everything that went into and came out of the build: git hashes, lockfile hash, dependency list, toolchain info, artifact hashes, and the input merkle root. The provenance (`provenance.json`) is a SLSA v1.2 statement in the standard in-toto format. It contains the same information structured for interoperability with other supply chain security tools.
+**Phase 4: Provenance Generation.** Kettle creates a provenance document containing everything that went into and came out of the build: git hashes, lockfile hash, dependency list, toolchain info, artifact hashes, and the input merkle root. The provenance (`provenance.json`) is a SLSA v1.2 statement in the standard in-toto format. It is structured for interoperability with other supply chain security tools.
 
 **Phase 5: TEE Attestation (optional).** If you're building on AMD SEV-SNP hardware, Kettle can generate a hardware-signed attestation. It hashes the provenance document to 32 bytes and requests an attestation report from the CPU. The CPU signs a statement that includes this hash, proving "this provenance hash was presented to me, running in this measured environment, at this time." The attestation is saved as `evidence.b64`.
 
 ### What Kettle Produces
 
 A complete Kettle build generates three files in the output directory:
-
-**manifest.json** contains a readable summary of the build:
-
-```json
-{
-  "git_commit": "a1b2c3d4e5f67890abcdef1234567890abcdef12",
-  "git_tree": "7890abcdef1234567890abcdef1234567890abcde",
-  "lockfile_hash": "23b2e23aa04c93c350cac09ac73636e4ecedf564...",
-  "input_merkle_root": "72a97c73d0c59905c89dc7da145a5ecc3d809be5...",
-  "toolchain": {
-    "rustc_hash": "e6abf55ab1859e7c990be77fd593f5166...",
-    "cargo_hash": "51de284e8bb0d03dcee595a0fb1cb3a952..."
-  },
-  "artifacts": [
-    {"name": "my-app", "hash": "1d1ea25c371d4f6de8d6e3c26fdad2238..."}
-  ]
-}
-```
 
 **provenance.json** contains the SLSA v1.2 provenance statement. The structure follows the in-toto attestation specification: a subject (the output artifacts with their hashes), a predicate type identifying this as SLSA provenance, and a predicate containing the build definition (what was built, with what inputs) and run details (who built it, when, with what results). Dependencies are recorded as Package URLs (PURLs) like `pkg:cargo/serde@1.0.228?checksum=sha256:9a8e94ea...`.
 
@@ -162,23 +144,6 @@ This works because Merkle trees have a useful property: you can prove membership
 
 Use shallow mode for development iteration. Use deep mode for release builds when you need complete dependency coverage.
 
-### Workloads
-
-Kettle can execute arbitrary scripts on attested builds in a sandboxed environment. This is useful for security audits, compliance checks, or any analysis that needs cryptographic proof it ran on the claimed build.
-
-A workload is defined in `workload.yaml`:
-
-```yaml
-name: security-audit
-steps:
-  - name: run-analysis
-    run: ./analyze.sh $BUILD_ARTIFACTS
-inputs:
-  expected_input_root: "sha256:72a97c73d0c59905c89dc7da..."
-```
-
-The `expected_input_root` ensures the workload only runs if the build's input merkle root matches. Kettle generates workload provenance that chains to the original build provenance, creating a complete audit trail: this analysis ran on this build which came from this source.
-
 ## Common Issues
 
 **"Verification failed but I haven't changed anything."** Git verification requires a clean working tree. The tree hash changes if any tracked file changes, even if you haven't committed. Run `git status` and ensure there are no uncommitted changes before building.
@@ -187,7 +152,7 @@ The `expected_input_root` ensures the workload only runs if the build's input me
 
 **"I don't have AMD SEV-SNP hardware."** Kettle works without TEE attestation. The provenance-only mode still gives you verified build inputs and SLSA-compliant provenance. For hardware-backed attestation without local SEV-SNP, use `kettle tee-build` to build on a remote TEE service.
 
-**"The merkle root doesn't match between builds."** Input ordering is deterministic but toolchain-specific. Common causes: different toolchain version (different binary hash), modified lockfile (different dependency set or order), or running on different machines with different cached artifacts. Compare `manifest.json` files to identify which input differs.
+**"The merkle root doesn't match between builds."** Input ordering is deterministic but toolchain-specific. Common causes: different toolchain version (different binary hash), modified lockfile (different dependency set or order), or running on different machines with different cached artifacts. Compare `provenance.json` files to identify which input differs.
 
 **"Dependency verification failed: Store path not found."** For Nix, flake inputs must be in your local store before verification. Kettle runs `nix flake prefetch` automatically, but if your network is restricted or the prefetch fails, verification will fail. Run `nix flake prefetch` manually in the project directory to ensure inputs are cached.
 
@@ -302,29 +267,3 @@ Options:
 
 Supports partial hash matching. For example, `serde:1.0` matches any serde dependency starting with version 1.0.
 
-### Workloads
-
-**kettle run-workload** executes a workload on a local build.
-
-```bash
-kettle run-workload WORKLOAD_DIR BUILD_ID
-```
-
-**kettle tee-run-workload** executes on a remote TEE build.
-
-```bash
-kettle tee-run-workload WORKLOAD_DIR BUILD_ID EXPECTED_INPUT_ROOT [OPTIONS]
-
-Options:
-  --api URL            TEE service URL (default: http://localhost:8000)
-```
-
-**kettle tee-get-results** downloads workload results.
-
-```bash
-kettle tee-get-results BUILD_ID WORKLOAD_ID [OPTIONS]
-
-Options:
-  --api URL            TEE service URL
-  -o, --output PATH    Output directory (default: workload-results-{id})
-```

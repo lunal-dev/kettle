@@ -145,20 +145,6 @@ def run_build_workflow(
 
         log_success("Provenance generated")
 
-        # Generate manifest
-        manifest_data = provenance.generate_verification_manifest(provenance_data)
-        manifest_path = build_dir / "manifest.json"
-        manifest_path.write_text(json.dumps(manifest_data, indent=2))
-        log_success("Manifest generated")
-        if git_info:
-            log(f"  Source: {git_info['commit_hash'][:8]}...", style="dim")
-        # Show appropriate dependency count based on evaluation mode
-        if lock.get("fetches"):
-            log(f"  Dependencies: {len(lock['fetches'])} fetches (deep)", style="dim")
-        else:
-            log(f"  Dependencies: {len(lock['deps'])}", style="dim")
-        log(f"  Artifacts: {len(build_result['artifacts'])}", style="dim")
-
         # Attestation (optional)
         if attestation:
             attestation_path = generate_attestation(provenance_data, build_dir)

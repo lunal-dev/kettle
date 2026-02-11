@@ -1,4 +1,4 @@
-"""TEE Service Client for remote build and workload execution.
+"""TEE Service Client for remote build.
 
 This module provides functions for interacting with TEE build services,
 as well as complete workflow orchestrators for all TEE-related commands.
@@ -55,7 +55,7 @@ def create_source_archive(
     if exclude_patterns is None:
         exclude_patterns = [
             'target', '__pycache__', '.pytest_cache',
-            'node_modules', 'passport.json', 'manifest.json'
+            'node_modules', 'provenance.json'
         ]
 
     with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp:
@@ -123,88 +123,6 @@ def download_file(api_url: str, build_id: str, file_type: str, filename: str) ->
     return response.content
 
 
-def submit_workload(
-    api_url: str,
-    build_id: str,
-    expected_input_root: str,
-    workload_files: dict[str, list[Path]],
-    timeout: int = 600
-) -> dict:
-    """Submit workload for execution.
-
-    Args:
-        api_url: Base URL of TEE service
-        build_id: Build identifier
-        expected_input_root: Expected merkle root
-        workload_files: Dict mapping file types to list of paths
-                       Keys: 'workload', 'tools', 'scripts'
-        timeout: Request timeout in seconds
-
-    Returns:
-        Workload execution result dict
-
-    Raises:
-        TEEAPIError: If workload submission fails
-    """
-    files_to_upload = []
-
-    # Add workload file
-    if 'workload' in workload_files:
-        for wf in workload_files['workload']:
-            files_to_upload.append(
-                ("workload", (wf.name, open(wf, "rb"), "text/yaml"))
-            )
-
-    # Add tools
-    if 'tools' in workload_files:
-        for tool_file in workload_files['tools']:
-            files_to_upload.append(
-                ("tools", (tool_file.name, open(tool_file, "rb"), "application/octet-stream"))
-            )
-
-    # Add scripts
-    if 'scripts' in workload_files:
-        for script_file in workload_files['scripts']:
-            files_to_upload.append(
-                ("scripts", (script_file.name, open(script_file, "rb"), "text/plain"))
-            )
-
-    try:
-        response = requests.post(
-            f"{api_url.rstrip('/')}/builds/{build_id}/run-workload",
-            data={"expected_input_root": expected_input_root},
-            files=files_to_upload,
-            timeout=timeout,
-        )
-
-        return _handle_api_response(response)
-    finally:
-        # Close all file handles
-        for _, file_tuple in files_to_upload:
-            file_tuple[1].close()
-
-
-def get_workload_results(api_url: str, build_id: str, workload_id: str) -> dict:
-    """Get workload execution results.
-
-    Args:
-        api_url: Base URL of TEE service
-        build_id: Build identifier
-        workload_id: Workload identifier
-
-    Returns:
-        Workload results dict
-
-    Raises:
-        TEEAPIError: If retrieval fails
-    """
-    response = requests.get(
-        f"{api_url.rstrip('/')}/builds/{build_id}/workloads/{workload_id}/results",
-        timeout=60,
-    )
-
-    return _handle_api_response(response)
-
 
 # Workflow Orchestrators
 
@@ -265,7 +183,7 @@ def run_tee_build_workflow(project_dir: Path, api_url: str) -> None:
         source_dir = output_dir / "source"
         source_dir.mkdir(exist_ok=True)
 
-        # Save provenance, manifest, and attestation
+        # Save provenance, and attestation
         log(f"\n[3/5] Saving provenance and attestation to {output_dir}/...")
 
         # Save provenance (new format) or passport (backward compatibility)
@@ -273,17 +191,6 @@ def run_tee_build_workflow(project_dir: Path, api_url: str) -> None:
             provenance_path = output_dir / "provenance.json"
             provenance_path.write_text(json.dumps(result["provenance"], indent=2))
             log_success(f"Provenance: {provenance_path}")
-        elif result.get("passport"):
-            # Backward compatibility
-            passport_path = output_dir / "passport.json"
-            passport_path.write_text(json.dumps(result["passport"], indent=2))
-            log_success(f"Passport: {passport_path}")
-
-        # Save manifest (new format)
-        if result.get("manifest"):
-            manifest_path = output_dir / "manifest.json"
-            manifest_path.write_text(json.dumps(result["manifest"], indent=2))
-            log_success(f"Manifest: {manifest_path}")
 
         if result.get("attestation"):
             attestation_path = output_dir / "evidence.b64"
@@ -332,8 +239,6 @@ def run_tee_build_workflow(project_dir: Path, api_url: str) -> None:
             log("  - provenance.json", style="dim")
         elif result.get("passport"):
             log("  - passport.json", style="dim")
-        if result.get("manifest"):
-            log("  - manifest.json", style="dim")
         if result.get("attestation"):
             log("  - evidence.b64", style="dim")
         if result.get("build_config_files"):
@@ -359,208 +264,3 @@ def run_tee_build_workflow(project_dir: Path, api_url: str) -> None:
         raise typer.Exit(1)
 
 
-def run_tee_workload_workflow(
-    workload_dir: Path,
-    build_id: str,
-    expected_input_root: str,
-    api_url: str
-) -> None:
-    """Complete TEE workload execution workflow.
-
-    This function orchestrates the entire tee-run-workload command logic:
-    1. Prepares workload package (workload.yaml, tools/, scripts/)
-    2. Uploads and executes in TEE
-    3. Displays execution results
-
-    Args:
-        workload_dir: Path to workload directory
-        build_id: Build ID from remote build
-        expected_input_root: Expected input merkle root
-        api_url: Attestable builds API URL
-
-    Raises:
-        typer.Exit: If any step fails
-    """
-    import typer
-
-    try:
-        log_section("TEE Workload Execution")
-
-        # Check for workload.yaml
-        workload_yaml = workload_dir / "workload.yaml"
-        if not workload_yaml.exists():
-            log_error(f"workload.yaml not found in {workload_dir}")
-            raise typer.Exit(1)
-
-        log(f"\n[1/3] Preparing workload from {workload_dir}...")
-        log(f"Build ID: {build_id}", style="dim")
-        log(f"Expected Input Root: {expected_input_root[:32]}...", style="dim")
-
-        # Collect files to upload
-        workload_files = {"workload": [workload_yaml]}
-
-        # Add tools if they exist
-        tools_dir = workload_dir / "tools"
-        if tools_dir.exists() and tools_dir.is_dir():
-            tool_files = [f for f in tools_dir.iterdir() if f.is_file()]
-            if tool_files:
-                workload_files["tools"] = tool_files
-                log(f"  Found {len(tool_files)} tool(s)", style="dim")
-
-        # Add scripts if they exist
-        scripts_dir = workload_dir / "scripts"
-        if scripts_dir.exists() and scripts_dir.is_dir():
-            script_files = [f for f in scripts_dir.iterdir() if f.is_file()]
-            if script_files:
-                workload_files["scripts"] = script_files
-                log(f"  Found {len(script_files)} script(s)", style="dim")
-
-        log_success("Workload package ready")
-
-        # Upload and execute
-        log(f"\n[2/3] Uploading to {api_url} and executing in TEE...")
-        log("  (This may take a few minutes)", style="dim")
-
-        result = submit_workload(api_url, build_id, expected_input_root, workload_files)
-
-        workload_id = result["workload_id"]
-
-        log_success("Execution complete")
-        log_success(f"Workload ID: {workload_id}")
-        log_success(f"Status: {result['status']}")
-        log(f"Execution Time: {result['execution_time_seconds']:.2f}s", style="dim")
-
-        # Save results locally in kettle-workload-{id} directory
-        log(f"\n[3/3] Saving results locally...")
-        output_dir = Path.cwd() / f"kettle-workload-{workload_id}"
-        output_dir.mkdir(exist_ok=True)
-
-        # Save provenance
-        if result.get("workload_provenance"):
-            provenance_path = output_dir / "provenance.json"
-            provenance_path.write_text(json.dumps(result["workload_provenance"], indent=2))
-            log_success(f"Provenance: {provenance_path}")
-
-        # Save summary
-        if result.get("summary"):
-            summary_path = output_dir / "summary.json"
-            summary_path.write_text(json.dumps(result["summary"], indent=2))
-            log_success(f"Summary: {summary_path}")
-
-        # Save attestation
-        if result.get("attestation"):
-            attestation_path = output_dir / "evidence.b64"
-            attestation_path.write_text(result["attestation"])
-            log_success(f"Attestation: {attestation_path}")
-
-        # Display summary content if available
-        if result.get("summary", {}).get("content"):
-            log(f"\nResult Summary: {result['summary']['content']}", style="bold")
-
-        log("\n")
-        log_success("Workload execution complete")
-        log_success(f"Results saved: {output_dir}/")
-
-    except TEEAPIError as e:
-        log_error(f"API request failed: {e}")
-        raise typer.Exit(1)
-    except requests.exceptions.RequestException as e:
-        log_error(f"API request failed: {e}")
-        raise typer.Exit(1)
-    except Exception as e:
-        log_error(f"Error: {e}")
-        import traceback
-        traceback.print_exc()
-        raise typer.Exit(1)
-
-
-def run_tee_get_results_workflow(
-    build_id: str,
-    workload_id: str,
-    api_url: str,
-    output_dir: Optional[Path] = None
-) -> None:
-    """Complete TEE results download workflow.
-
-    This function orchestrates the entire tee-get-results command logic:
-    1. Downloads results from TEE service
-    2. Saves summary, full results, passport, and attestation
-    3. Displays summary
-
-    Args:
-        build_id: Build ID
-        workload_id: Workload ID from execution
-        api_url: Attestable builds API URL
-        output_dir: Output directory (default: workload-results-{workload_id})
-
-    Raises:
-        typer.Exit: If any step fails
-    """
-    import typer
-
-    try:
-        log_section("TEE Workload Results")
-
-        log(f"\n[1/2] Downloading results from {api_url}...")
-        log(f"Build ID: {build_id}", style="dim")
-        log(f"Workload ID: {workload_id}", style="dim")
-
-        result = get_workload_results(api_url, build_id, workload_id)
-
-        log_success("Results downloaded")
-
-        # Create output directory
-        if output_dir is None:
-            output_dir = Path(f"kettle-workload-{workload_id}")
-        output_dir.mkdir(exist_ok=True)
-
-        log(f"\n[2/2] Saving results to {output_dir}/...")
-
-        # Save workload provenance
-        if result.get("workload_provenance"):
-            provenance_path = output_dir / "provenance.json"
-            provenance_path.write_text(json.dumps(result["workload_provenance"], indent=2))
-            log_success(f"Provenance: {provenance_path}")
-
-        # Save summary
-        if result.get("summary"):
-            summary_path = output_dir / "summary.json"
-            summary_path.write_text(json.dumps(result["summary"], indent=2))
-            log_success(f"Summary: {summary_path}")
-
-            # Display summary content
-            summary = result["summary"]
-            if isinstance(summary, dict) and summary.get("summary", {}).get("content"):
-                log(f"\n  Result Summary: {summary['summary']['content']}", style="bold")
-            elif isinstance(summary, dict) and summary.get("content"):
-                log(f"\n  Result Summary: {summary['content']}", style="bold")
-
-        # Save full results as individual files in the output directory
-        if result.get("full_results"):
-            for filename, file_data in result["full_results"].items():
-                result_path = output_dir / filename
-                if file_data["type"] == "json":
-                    result_path.write_text(json.dumps(file_data["content"], indent=2))
-                elif file_data["type"] == "text":
-                    result_path.write_text(file_data["content"])
-                log_success(f"{filename}: {result_path}")
-
-        # Save attestation
-        if result.get("attestation"):
-            attestation_path = output_dir / "evidence.b64"
-            attestation_path.write_text(result["attestation"])
-            log_success(f"Attestation: {attestation_path}")
-
-        log("\n")
-        log_success("Results downloaded successfully")
-        log_success(f"Results in: {output_dir}/")
-
-    except TEEAPIError as e:
-        log_error(f"API request failed: {e}")
-        raise typer.Exit(1)
-    except requests.exceptions.RequestException as e:
-        log_error(f"API request failed: {e}")
-        raise typer.Exit(1)
-    except Exception as e:
-        log_error(f"Error: {e}")
-        raise typer.Exit(1)

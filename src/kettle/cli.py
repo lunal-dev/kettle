@@ -8,8 +8,6 @@ from pathlib import Path
 from .build import run_build_workflow
 from .client import (
     run_tee_build_workflow,
-    run_tee_workload_workflow,
-    run_tee_get_results_workflow,
 )
 from .logger import log, log_error, log_section, log_success
 from .provenance.verification import (
@@ -18,7 +16,6 @@ from .provenance.verification import (
     run_combined_verify_workflow,
 )
 from .merkle import prove_inclusion_from_provenance
-from .workload import WorkloadExecutor, generate_workload_provenance
 
 
 app = typer.Typer(help="Build-time verification and attestation for TEE deployments")
@@ -204,23 +201,6 @@ def verify(
     run_combined_verify_workflow(build_dir, project_dir, binary, strict)
 
 
-@app.command()
-def tee_build(
-    project_dir: Path = typer.Argument(
-        ".",
-        help="Path to project directory",
-        exists=True,
-        file_okay=False,
-    ),
-    api_url: str = typer.Option(
-        "http://localhost:8000",
-        "--api",
-        help="Attestable builds API URL",
-    ),
-):
-    """Build project remotely via TEE API and download results."""
-    run_tee_build_workflow(project_dir, api_url)
-
 
 @app.command(name="prove-inclusion")
 def prove_inclusion_cmd(
@@ -251,129 +231,6 @@ def prove_inclusion_cmd(
     """
     prove_inclusion_from_provenance(provenance_path, hashes, output)
 
-
-@app.command(name="tee-run-workload")
-def tee_run_workload(
-    workload_dir: Path = typer.Argument(
-        ...,
-        help="Path to workload directory containing workload.yaml",
-        exists=True,
-        file_okay=False,
-    ),
-    build_id: str = typer.Argument(..., help="Build ID from remote build"),
-    expected_input_root: str = typer.Argument(..., help="Expected input merkle root"),
-    api_url: str = typer.Option(
-        "http://localhost:8000",
-        "--api",
-        help="Attestable builds API URL",
-    ),
-):
-    """Upload and execute workload on remote build via TEE API."""
-    run_tee_workload_workflow(workload_dir, build_id, expected_input_root, api_url)
-
-
-@app.command(name="tee-get-results")
-def tee_get_results(
-    build_id: str = typer.Argument(..., help="Build ID"),
-    workload_id: str = typer.Argument(..., help="Workload ID from execution"),
-    api_url: str = typer.Option(
-        "http://localhost:8000",
-        "--api",
-        help="Attestable builds API URL",
-    ),
-    output_dir: Path = typer.Option(
-        None,
-        "--output",
-        "-o",
-        help="Output directory (default: workload-results-{workload_id})",
-    ),
-):
-    """Download full workload execution results from TEE."""
-    run_tee_get_results_workflow(build_id, workload_id, api_url, output_dir)
-
-
-@app.command(name="run-workload")
-def run_workload(
-    workload_location: Path = typer.Argument(
-        ...,
-        help="Path to workload directory containing workload.yaml",
-        exists=True,
-        file_okay=False,
-    ),
-    build_id: str = typer.Argument(
-        ...,
-        help="Build ID (build location will be /tmp/kettle-{build_id})",
-    ),
-):
-    """Execute workload in sandboxed environment and generate provenance."""
-    try:
-        log_section("Running Workload")
-
-        build_location = Path(f"/tmp/kettle/{build_id}")
-        if not build_location.exists():
-            log_error(f"Build location not found: {build_location}")
-            raise typer.Exit(1)
-
-        workload_yaml = workload_location / "workload.yaml"
-        if not workload_yaml.exists():
-            log_error(f"workload.yaml not found in {workload_location}")
-            raise typer.Exit(1)
-
-        log(f"\nWorkload: {workload_location}", style="bold")
-        log(f"Build: {build_location}", style="dim")
-
-        # Initialize and execute
-        log("\n[1/3] Initializing...")
-        executor = WorkloadExecutor(workload_yaml, build_location)
-        log_success(f"Workload: {executor.workload.name}")
-
-        log("\n[2/3] Executing...")
-        result = executor.execute()
-
-        for i, step in enumerate(result.steps, 1):
-            icon = "✓" if step.status == "SUCCESS" else "✗"
-            log(f"  [{i}] {step.name}: {icon} {step.status}")
-
-        log(f"\nStatus: {result.status}", style="bold")
-
-        # Generate provenance
-        log("\n[3/3] Generating provenance...")
-        provenance_path = build_location / "provenance.json"
-        tools_dir = workload_location / "tools"
-        scripts_dir = workload_location / "scripts"
-
-        provenance_data = generate_workload_provenance(
-            build_provenance_path=provenance_path,
-            workload_path=workload_yaml,
-            workload_result=result,
-            tools_dir=tools_dir if tools_dir.exists() else None,
-            scripts_dir=scripts_dir if scripts_dir.exists() else None,
-        )
-
-        import hashlib
-        workload_id = hashlib.sha256(json.dumps(provenance_data, sort_keys=True).encode()).hexdigest()[:8]
-
-        output_dir = Path.cwd() / f"kettle-workload-{workload_id}"
-        output_dir.mkdir(exist_ok=True)
-
-        (output_dir / "provenance.json").write_text(json.dumps(provenance_data, indent=2))
-        (output_dir / "summary.json").write_text(json.dumps(result.summary, indent=2))
-
-        for path, data in result.full_results.items():
-            result_file = output_dir / Path(path).name
-            if data["type"] == "json":
-                result_file.write_text(json.dumps(data["content"], indent=2))
-            elif data["type"] == "text":
-                result_file.write_text(data["content"])
-
-        log("\n")
-        log_success(f"Results saved: {output_dir}/")
-
-    except typer.Exit:
-        raise
-    except Exception as e:
-        log_error(f"Error: {e}")
-        raise typer.Exit(1)
 
 
 def main():
