@@ -27,3 +27,7 @@ claude.md
 .claudeignore
 
 .claude/
+
+# Added by cargo
+
+/target
