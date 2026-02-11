@@ -1,4 +1,13 @@
-use clap::{Parser, Subcommand};
+use clap::{
+    Parser, Subcommand,
+    builder::{Styles, styling::AnsiColor},
+};
+
+const STYLES: Styles = Styles::styled()
+    .header(AnsiColor::Yellow.on_default())
+    .usage(AnsiColor::Green.on_default())
+    .literal(AnsiColor::Green.on_default())
+    .placeholder(AnsiColor::Green.on_default());
 
 /// Kettle creates and validates cryptographically secure software builds.
 ///
@@ -6,7 +15,7 @@ use clap::{Parser, Subcommand};
 /// build process was not seen or interfered with by any third parties, thanks to attestations
 /// provided by the Trusted Execution Environment where the build was run.
 #[derive(Parser, Debug)]
-#[command(version)]
+#[command(version, styles=STYLES)]
 struct Args {
     #[command(subcommand)]
     command: Commands,
@@ -16,15 +25,15 @@ struct Args {
 enum Commands {
     /// Build a project inside a Trusted Execution Environment
     Build {
-        /// Path to the build manifest
-        #[arg(short, long)]
-        manifest: Option<String>,
+        /// Path to the Cargo or Nix project
+        #[arg(default_value = ".")]
+        path: String,
     },
     /// Verify a Kettle build, including provenance and attestation
     Verify {
-        /// Path to the provenance file to verify
-        #[arg(short, long)]
-        provenance: Option<String>,
+        /// Path to the project to verify
+        #[arg(default_value = ".")]
+        path: String,
     },
 }
 
@@ -32,11 +41,11 @@ fn main() {
     let args = Args::parse();
 
     match args.command {
-        Commands::Build { manifest } => {
-            println!("Building with manifest: {:?}", manifest);
+        Commands::Build { path } => {
+            println!("Building project in: {:?}", path);
         }
-        Commands::Verify { provenance } => {
-            println!("Verifying provenance: {:?}", provenance);
+        Commands::Verify { path } => {
+            println!("Verifying provenance in: {:?}", path);
         }
     }
 }
