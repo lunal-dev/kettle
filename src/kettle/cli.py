@@ -15,7 +15,6 @@ from .provenance.verification import (
     run_verify_attestation_workflow,
     run_combined_verify_workflow,
 )
-from .merkle import prove_inclusion_from_provenance
 
 
 app = typer.Typer(help="Build-time verification and attestation for TEE deployments")
@@ -199,39 +198,6 @@ def verify(
     - build_dir/evidence.b64 (optional)
     """
     run_combined_verify_workflow(build_dir, project_dir, binary, strict)
-
-
-
-@app.command(name="prove-inclusion")
-def prove_inclusion_cmd(
-    provenance_path: Path = typer.Argument(
-        ...,
-        help="Path to provenance JSON file",
-        exists=True,
-        file_okay=True,
-        dir_okay=False,
-    ),
-    hashes: list[str] = typer.Argument(
-        ...,
-        help="Hash values to prove inclusion for (supports partial matching)",
-    ),
-    output: Path = typer.Option(
-        None,
-        "--output",
-        "-o",
-        help="Save proofs to JSON file (default: print to stdout)",
-    ),
-):
-    """Generate and verify Merkle inclusion proofs.
-
-    Generates proofs that specified hashes are included in the
-    provenance's merkle root AND immediately verifies those proofs.
-
-    Supports partial hash matching (e.g., "abc123" or "serde:1.0").
-    """
-    prove_inclusion_from_provenance(provenance_path, hashes, output)
-
-
 
 def main():
     """Entry point for CLI."""
