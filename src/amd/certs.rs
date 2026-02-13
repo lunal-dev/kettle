@@ -200,7 +200,7 @@ pub struct Vcek(pub Certificate);
 impl Vcek {
     pub fn from_pem(pem: &str) -> Result<Self, ParseError> {
         let pem_obj = parse(pem.as_bytes())?;
-        let cert = Certificate::from_der(&pem_obj.contents())?;
+        let cert = Certificate::from_der(pem_obj.contents())?;
         Ok(Self(cert))
     }
 
@@ -230,8 +230,8 @@ pub fn build_cert_chain(pem: &str) -> Result<AmdChain, ParseError> {
         return Err(ParseError::WrongAmount(2, pem_objects.len()));
     }
 
-    let ask = Certificate::from_der(&pem_objects[0].contents())?;
-    let ark = Certificate::from_der(&pem_objects[1].contents())?;
+    let ask = Certificate::from_der(pem_objects[0].contents())?;
+    let ark = Certificate::from_der(pem_objects[1].contents())?;
 
     let chain = AmdChain { ask, ark };
 
@@ -248,9 +248,9 @@ mod tests {
         let pem_str = std::str::from_utf8(bytes).unwrap();
         let pem_objects = parse_many(pem_str.as_bytes()).unwrap();
 
-        let vcek = Certificate::from_der(&pem_objects[0].contents()).unwrap();
-        let ask = Certificate::from_der(&pem_objects[1].contents()).unwrap();
-        let ark = Certificate::from_der(&pem_objects[2].contents()).unwrap();
+        let vcek = Certificate::from_der(pem_objects[0].contents()).unwrap();
+        let ask = Certificate::from_der(pem_objects[1].contents()).unwrap();
+        let ark = Certificate::from_der(pem_objects[2].contents()).unwrap();
 
         let vcek = Vcek(vcek);
         let cert_chain = AmdChain { ask, ark };

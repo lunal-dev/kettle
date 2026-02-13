@@ -1,18 +1,15 @@
 use anyhow::Result;
-use base64::{Engine, prelude::BASE64_STANDARD};
+use base64::Engine;
 use ecdsa::{Signature, VerifyingKey};
 use p384::PublicKey;
-use serde::{Deserialize, Serialize};
 use sev::parser::Encoder;
-use sev::{firmware::guest::AttestationReport as SnpReport, parser::ByteParser};
+use sev::firmware::guest::AttestationReport as SnpReport;
 use sha2::{Digest, Sha384};
 use signature::DigestVerifier;
-use std::io::Read;
 use std::vec::Vec;
 
 use crate::amd::certs::Vcek;
-use crate::hcl::{HclReport, MAX_REPORT_SIZE};
-use crate::{amd, hcl::AttestationReport};
+use crate::hcl::MAX_REPORT_SIZE;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ValidateError {

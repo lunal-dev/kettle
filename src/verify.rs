@@ -1,19 +1,15 @@
 use anyhow::{Result, anyhow};
 use base64::{Engine, prelude::BASE64_STANDARD};
-use ecdsa::{Signature, VerifyingKey};
-use p384::PublicKey;
 use serde::{Deserialize, Serialize};
-use sev::parser::Encoder;
 use sev::{firmware::guest::AttestationReport as SnpReport, parser::ByteParser};
-use sha2::{Digest, Sha384};
-use signature::DigestVerifier;
+use sha2::Digest;
 use std::io::Read;
 use std::vec::Vec;
 
 use crate::amd::certs::Vcek;
 use crate::amd::snp_report::Validateable;
-use crate::hcl::{HclReport, MAX_REPORT_SIZE};
-use crate::{amd, hcl::AttestationReport};
+use crate::hcl::HclReport;
+use crate::amd;
 
 /// PEM encoded VCEK certificate and AMD certificate chain.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -77,11 +73,10 @@ pub fn verify(evidence_b64: String, custom_data: Option<Vec<u8>>) -> Result<Veri
         return Err(anyhow!("Report data hash doesn't match!"));
     }
 
-    if let Some(custom_data) = custom_data {
-        if custom_data != evidence.report_data {
+    if let Some(custom_data) = custom_data
+        && custom_data != evidence.report_data {
             return Err(anyhow!("Custom data hash doesn't match!"));
         }
-    }
 
     let result = VerificationResult {
         report: report_json,
