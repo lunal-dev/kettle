@@ -23,7 +23,7 @@ pub struct Certificates {
 pub struct AttestationEvidence {
     pub report: Vec<u8>,
     pub certs: Certificates,
-    pub report_data: Vec<u8>,
+    pub report_data: String,
 }
 
 impl AttestationEvidence {
@@ -45,12 +45,11 @@ pub struct VerificationResult {
     pub report_data: String,
 }
 
-pub fn verify(evidence_b64: String, custom_data: Option<Vec<u8>>) -> Result<VerificationResult> {
+pub fn verify(evidence_b64: String, custom_data: Option<String>) -> Result<VerificationResult> {
     let evidence_gz = BASE64_STANDARD.decode(evidence_b64)?;
     let mut evidence_bytes = Vec::new();
     flate2::read::MultiGzDecoder::new(&evidence_gz[..]).read_to_end(&mut evidence_bytes)?;
     let evidence = AttestationEvidence::from_bytes(&evidence_bytes[..])?;
-
     let certs = serde_json::to_value(&evidence.certs)?;
 
     let hcl_report = HclReport::new(evidence.report)?;
@@ -78,12 +77,9 @@ pub fn verify(evidence_b64: String, custom_data: Option<Vec<u8>>) -> Result<Veri
         return Err(anyhow!("Custom data hash doesn't match!"));
     }
 
-    let report_data = format!("{:x?}", evidence.report_data);
-    let result = VerificationResult {
+    Ok(VerificationResult {
         report,
         certs,
-        report_data,
-    };
-
-    Ok(result)
+        report_data: evidence.report_data,
+    })
 }

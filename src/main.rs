@@ -2,6 +2,7 @@ use clap::{
     Parser, Subcommand,
     builder::{Styles, styling::AnsiColor},
 };
+use sha2::{Digest, Sha256};
 
 mod amd;
 mod hcl;
@@ -51,9 +52,19 @@ fn main() {
         Commands::Verify { path } => {
             let project_dir =
                 fs_err::canonicalize(path).expect("Given path was not a valid directory");
+
             let evidence_b64 = fs_err::read_to_string(project_dir.join("evidence.b64"))
                 .expect("Could not read evidence file");
-            match verify::verify(evidence_b64, None) {
+
+            let provenance_path = project_dir.join("provenance.json");
+            let provenance_json =
+                fs_err::read(&provenance_path).expect("could not read provenance.json");
+            let provenance_value: serde_json::Value =
+                serde_json::from_slice(&provenance_json).expect("could not parse provenance.json");
+            let provenance = provenance_value.to_string();
+            let checksum = hex::encode(Sha256::digest(provenance));
+
+            match verify::verify(evidence_b64, Some(checksum)) {
                 Ok(result) => println!("{:?}", result),
                 Err(e) => eprintln!("{:?}", e),
             }
