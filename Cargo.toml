@@ -17,6 +17,7 @@ clap = { version = "4.5.58", features = [
     "color",
 ] }
 der = "0.7.10"
+ecdsa = { version = "0.16.9", features = ["sha2", "serde", "std", "pem", "signing", "verifying"] }
 flate2 = "1.1.9"
 fs-err = "3.3.0"
 memoffset = "0.9.1"

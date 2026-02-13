@@ -6,7 +6,7 @@ use serde_big_array::BigArray;
 use sev::{firmware::guest::AttestationReport as SnpReport, parser::ByteParser};
 use sha2::{Digest, Sha256};
 
-const MAX_REPORT_SIZE: usize = 1184;
+pub const MAX_REPORT_SIZE: usize = 1184;
 const SNP_REPORT_TYPE: u32 = 2;
 const TDX_REPORT_TYPE: u32 = 4;
 const HW_REPORT_OFFSET: usize = offset_of!(AttestationReport, hw_report);

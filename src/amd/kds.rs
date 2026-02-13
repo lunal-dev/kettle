@@ -108,7 +108,7 @@ pub fn get_vcek(report: &AttestationReport) -> Result<Vcek, AmdKdsError> {
     let bytes = get(&url)?;
     println!("🔍 Received {} bytes from KDS", bytes.len());
 
-    // Add some basic validation of the DER data
+    // Add some bSNP_REPORT_SIZEic validation of the DER data
     println!(
         "🔍 First 32 bytes: {:02x?}",
         &bytes[..std::cmp::min(32, bytes.len())]

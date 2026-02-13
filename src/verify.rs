@@ -1,13 +1,19 @@
-use crate::amd;
-use crate::amd::certs::Vcek;
 use anyhow::Result;
 use base64::{Engine, prelude::BASE64_STANDARD};
+use ecdsa::{Signature, VerifyingKey};
+use p384::PublicKey;
 use serde::{Deserialize, Serialize};
+use sev::parser::Encoder;
 use sev::{firmware::guest::AttestationReport as SnpReport, parser::ByteParser};
+use sha2::{Digest, Sha384};
+use signature::DigestVerifier;
 use std::io::Read;
 use std::vec::Vec;
 
-use crate::hcl::HclReport;
+use crate::amd::certs::Vcek;
+use crate::amd::snp_report::Validateable;
+use crate::hcl::{HclReport, MAX_REPORT_SIZE};
+use crate::{amd, hcl::AttestationReport};
 
 /// PEM encoded VCEK certificate and AMD certificate chain.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -59,7 +65,7 @@ pub fn verify(evidence_b64: String) -> Result<VerificationResult> {
     let report_json = serde_json::to_value(snp_report)?;
 
     // Get and validate certificate chain
-    let cert_chain = amd::kds::get_cert_chain(&snp_report);
+    let cert_chain = amd::kds::get_cert_chain(&snp_report)?;
     let vcek = Vcek::from_pem(&evidence.certs.vcek)?;
 
     // Validate certificates and report
