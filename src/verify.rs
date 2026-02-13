@@ -62,10 +62,10 @@ pub fn verify(evidence_b64: String) -> Result<VerificationResult> {
     let cert_chain = amd::kds::get_cert_chain(&snp_report);
     let vcek = Vcek::from_pem(&evidence.certs.vcek)?;
 
-    // // Validate certificates and report
-    // cert_chain.validate()?;
-    // vcek.validate(&cert_chain)?;
-    // snp_report.validate(&vcek)?;
+    // Validate certificates and report
+    cert_chain.validate()?;
+    vcek.validate(&cert_chain)?;
+    snp_report.validate(&vcek)?;
 
     // // Verify var_data_hash matches report_data
     // if var_data_hash != snp_report.report_data[..32] {
