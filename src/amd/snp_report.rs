@@ -1,9 +1,8 @@
 use anyhow::Result;
-use base64::Engine;
 use ecdsa::{Signature, VerifyingKey};
 use p384::PublicKey;
-use sev::parser::Encoder;
 use sev::firmware::guest::AttestationReport as SnpReport;
+use sev::parser::Encoder;
 use sha2::{Digest, Sha384};
 use signature::DigestVerifier;
 use std::vec::Vec;

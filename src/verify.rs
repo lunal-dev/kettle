@@ -1,15 +1,14 @@
 use anyhow::{Result, anyhow};
 use base64::{Engine, prelude::BASE64_STANDARD};
 use serde::{Deserialize, Serialize};
-use sev::{firmware::guest::AttestationReport as SnpReport, parser::ByteParser};
-use sha2::Digest;
+use sev::firmware::guest::AttestationReport as SnpReport;
 use std::io::Read;
 use std::vec::Vec;
 
+use crate::amd;
 use crate::amd::certs::Vcek;
 use crate::amd::snp_report::Validateable;
 use crate::hcl::HclReport;
-use crate::amd;
 
 /// PEM encoded VCEK certificate and AMD certificate chain.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -43,7 +42,7 @@ impl AttestationEvidence {
 pub struct VerificationResult {
     pub report: serde_json::Value,
     pub certs: serde_json::Value,
-    pub report_data: Vec<u8>,
+    pub report_data: String,
 }
 
 pub fn verify(evidence_b64: String, custom_data: Option<Vec<u8>>) -> Result<VerificationResult> {
@@ -52,12 +51,12 @@ pub fn verify(evidence_b64: String, custom_data: Option<Vec<u8>>) -> Result<Veri
     flate2::read::MultiGzDecoder::new(&evidence_gz[..]).read_to_end(&mut evidence_bytes)?;
     let evidence = AttestationEvidence::from_bytes(&evidence_bytes[..])?;
 
-    let certs_json = serde_json::to_value(&evidence.certs)?;
+    let certs = serde_json::to_value(&evidence.certs)?;
 
     let hcl_report = HclReport::new(evidence.report)?;
     let var_data_hash = hcl_report.var_data_sha256();
     let snp_report: SnpReport = hcl_report.try_into()?;
-    let report_json = serde_json::to_value(snp_report)?;
+    let report = serde_json::to_value(snp_report)?;
 
     // Get and validate certificate chain
     let cert_chain = amd::kds::get_cert_chain(&snp_report)?;
@@ -74,14 +73,16 @@ pub fn verify(evidence_b64: String, custom_data: Option<Vec<u8>>) -> Result<Veri
     }
 
     if let Some(custom_data) = custom_data
-        && custom_data != evidence.report_data {
-            return Err(anyhow!("Custom data hash doesn't match!"));
-        }
+        && custom_data != evidence.report_data
+    {
+        return Err(anyhow!("Custom data hash doesn't match!"));
+    }
 
+    let report_data = format!("{:x?}", evidence.report_data);
     let result = VerificationResult {
-        report: report_json,
-        certs: certs_json,
-        report_data: evidence.report_data,
+        report,
+        certs,
+        report_data,
     };
 
     Ok(result)

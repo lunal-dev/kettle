@@ -1,7 +1,7 @@
 use der::Encode;
 use p256::{PublicKey as P256PublicKey, ecdsa::VerifyingKey as P256VerifyingKey};
 use p384::{PublicKey as P384PublicKey, ecdsa::VerifyingKey as P384VerifyingKey}; // Add P-384 support
-use pem::{parse, parse_many};
+use pem::parse;
 use rsa::pkcs1::DecodeRsaPublicKey;
 use rsa::{RsaPublicKey, pkcs1v15::VerifyingKey, pss::VerifyingKey as PssVerifyingKey};
 use sha2::{Digest, Sha256, Sha384};
@@ -42,8 +42,6 @@ pub enum ValidateError {
     UnsupportedAlgorithm(ObjectIdentifier),
     #[error("Unsupported public key algorithm: {0}")]
     UnsupportedPublicKeyAlgorithm(ObjectIdentifier),
-    #[error("Invalid public key format")]
-    InvalidPublicKeyFormat,
     #[error("ARK is not self-signed")]
     ArkNotSelfSigned,
     #[error("ASK is not signed by ARK")]
@@ -218,24 +216,6 @@ pub enum ParseError {
     X509(#[from] x509_cert::der::Error),
     #[error("PEM parsing error: {0}")]
     Pem(#[from] pem::PemError),
-    #[error("wrong amount of certificates (expected {0:?}, found {1:?})")]
-    WrongAmount(usize, usize),
-}
-
-/// build ASK + ARK certificate chain from a multi-pem string
-pub fn build_cert_chain(pem: &str) -> Result<AmdChain, ParseError> {
-    let pem_objects = parse_many(pem.as_bytes())?;
-
-    if pem_objects.len() != 2 {
-        return Err(ParseError::WrongAmount(2, pem_objects.len()));
-    }
-
-    let ask = Certificate::from_der(pem_objects[0].contents())?;
-    let ark = Certificate::from_der(pem_objects[1].contents())?;
-
-    let chain = AmdChain { ask, ark };
-
-    Ok(chain)
 }
 
 #[cfg(test)]
@@ -246,7 +226,7 @@ mod tests {
     fn test_validate_certificates() {
         let bytes = include_bytes!("../../test/files/certs.pem");
         let pem_str = std::str::from_utf8(bytes).unwrap();
-        let pem_objects = parse_many(pem_str.as_bytes()).unwrap();
+        let pem_objects = pem::parse_many(pem_str.as_bytes()).unwrap();
 
         let vcek = Certificate::from_der(pem_objects[0].contents()).unwrap();
         let ask = Certificate::from_der(pem_objects[1].contents()).unwrap();

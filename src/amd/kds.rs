@@ -1,4 +1,4 @@
-use crate::amd::certs::{AmdChain, Vcek};
+use crate::amd::certs::AmdChain;
 use pem::parse_many;
 use sev::Generation;
 use sev::firmware::guest::AttestationReport;
@@ -73,54 +73,4 @@ pub fn get_cert_chain(report: &AttestationReport) -> Result<AmdChain, AmdKdsErro
     let chain = AmdChain { ask, ark };
 
     Ok(chain)
-}
-
-fn hexify(bytes: &[u8]) -> String {
-    let mut hex_string = String::new();
-    for byte in bytes {
-        hex_string.push_str(&format!("{byte:02x}"));
-    }
-    hex_string
-}
-
-/// Retrieve a VCEK cert from AMD's KDS, based on an AttestationReport's platform information
-pub fn get_vcek(report: &AttestationReport) -> Result<Vcek, AmdKdsError> {
-    let product_name = get_product_name(report);
-    let hw_id = hexify(&report.chip_id);
-    let url = format!(
-        "{KDS_CERT_SITE}{KDS_VCEK}/{product_name}/{hw_id}?blSPL={:02}&teeSPL={:02}&snpSPL={:02}&ucodeSPL={:02}",
-        report.reported_tcb.bootloader,
-        report.reported_tcb.tee,
-        report.reported_tcb.snp,
-        report.reported_tcb.microcode
-    );
-
-    println!("🔍 Fetching VCEK from URL: {}", url);
-    println!("🔍 Chip ID: {}", hw_id);
-    println!(
-        "🔍 TCB levels: bl={:02}, tee={:02}, snp={:02}, ucode={:02}",
-        report.reported_tcb.bootloader,
-        report.reported_tcb.tee,
-        report.reported_tcb.snp,
-        report.reported_tcb.microcode
-    );
-
-    let bytes = get(&url)?;
-    println!("🔍 Received {} bytes from KDS", bytes.len());
-
-    // Add some bSNP_REPORT_SIZEic validation of the DER data
-    println!(
-        "🔍 First 32 bytes: {:02x?}",
-        &bytes[..std::cmp::min(32, bytes.len())]
-    );
-    println!(
-        "🔍 Last 32 bytes: {:02x?}",
-        &bytes[bytes.len().saturating_sub(32)..]
-    );
-
-    let cert = Certificate::from_der(&bytes)?;
-    println!("🔍 Successfully parsed VCEK certificate");
-
-    let vcek = Vcek(cert);
-    Ok(vcek)
 }
