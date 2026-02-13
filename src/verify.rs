@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use base64::{Engine, prelude::BASE64_STANDARD};
 use ecdsa::{Signature, VerifyingKey};
 use p384::PublicKey;
@@ -47,17 +47,16 @@ impl AttestationEvidence {
 pub struct VerificationResult {
     pub report: serde_json::Value,
     pub certs: serde_json::Value,
-    pub report_data: String,
+    pub report_data: Vec<u8>,
 }
 
-pub fn verify(evidence_b64: String) -> Result<VerificationResult> {
+pub fn verify(evidence_b64: String, custom_data: Option<Vec<u8>>) -> Result<VerificationResult> {
     let evidence_gz = BASE64_STANDARD.decode(evidence_b64)?;
     let mut evidence_bytes = Vec::new();
     flate2::read::MultiGzDecoder::new(&evidence_gz[..]).read_to_end(&mut evidence_bytes)?;
     let evidence = AttestationEvidence::from_bytes(&evidence_bytes[..])?;
 
     let certs_json = serde_json::to_value(&evidence.certs)?;
-    let report_data = String::from_utf8_lossy(&evidence.report_data).to_string();
 
     let hcl_report = HclReport::new(evidence.report)?;
     let var_data_hash = hcl_report.var_data_sha256();
@@ -73,22 +72,21 @@ pub fn verify(evidence_b64: String) -> Result<VerificationResult> {
     vcek.validate(&cert_chain)?;
     snp_report.validate(&vcek)?;
 
-    // // Verify var_data_hash matches report_data
-    // if var_data_hash != snp_report.report_data[..32] {
-    //     return Err("Variable data hash mismatch".into());
-    // }
+    // Verify var_data_hash matches report_data
+    if var_data_hash != snp_report.report_data[..32] {
+        return Err(anyhow!("Report data hash doesn't match!"));
+    }
 
-    // if check_custom_data.unwrap_or(false) {
-    //     let data_vec: Vec<u8> = custom_data.into();
-    //     if data_vec != report_data {
-    //         return Err("Variable data hash mismatch".into());
-    //     }
-    // }
+    if let Some(custom_data) = custom_data {
+        if custom_data != evidence.report_data {
+            return Err(anyhow!("Custom data hash doesn't match!"));
+        }
+    }
 
     let result = VerificationResult {
         report: report_json,
         certs: certs_json,
-        report_data,
+        report_data: evidence.report_data,
     };
 
     Ok(result)

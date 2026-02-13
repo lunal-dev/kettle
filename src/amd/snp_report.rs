@@ -82,14 +82,14 @@ fn get_report_base(report: &SnpReport) -> Result<Vec<u8>, Box<bincode::ErrorKind
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hcl::HclReport;
+    use crate::hcl::HclReport;
 
     #[test]
     fn test_report_data_hash() {
-        let bytes: &[u8] = include_bytes!("../../vtpm-attestation/test/hcl-report-snp.bin");
+        let bytes: &[u8] = include_bytes!("../../test/files/hcl-report-snp.bin");
         let hcl_report = HclReport::new(bytes.to_vec()).unwrap();
         let var_data_hash = hcl_report.var_data_sha256();
-        let snp_report: AttestationReport = hcl_report.try_into().unwrap();
+        let snp_report: SnpReport = hcl_report.try_into().unwrap();
         assert!(var_data_hash == snp_report.report_data[..32]);
     }
 }

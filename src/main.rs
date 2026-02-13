@@ -53,7 +53,7 @@ fn main() {
                 fs_err::canonicalize(path).expect("Given path was not a valid directory");
             let evidence_b64 = fs_err::read_to_string(project_dir.join("evidence.b64"))
                 .expect("Could not read evidence file");
-            match verify::verify(evidence_b64) {
+            match verify::verify(evidence_b64, None) {
                 Ok(result) => println!("{:?}", result),
                 Err(e) => eprintln!("{:?}", e),
             }
