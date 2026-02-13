@@ -65,12 +65,8 @@ impl Validateable for SnpReport {
 }
 
 fn get_report_base(report: &SnpReport) -> Result<Vec<u8>, Box<bincode::ErrorKind>> {
-    // Use sev's write_bytes method (since SEV-6) for serializing SNP reports to ensure full compatibility
-    // Original bincode::serialize + size_of calculation is inaccurate on SEV 6.x
     let mut raw_bytes = Vec::with_capacity(MAX_REPORT_SIZE);
-    report
-        .encode(&mut raw_bytes, ())
-        .map_err(|e| Box::new(bincode::ErrorKind::Io(e)))?;
+    report.encode(&mut raw_bytes, ())?;
     let report_bytes_without_sig = &raw_bytes[0..0x2a0];
     Ok(report_bytes_without_sig.to_vec())
 }

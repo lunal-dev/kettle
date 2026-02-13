@@ -1,12 +1,12 @@
+use anyhow::Result;
 use clap::{
     Parser, Subcommand,
     builder::{Styles, styling::AnsiColor},
 };
-use sha2::{Digest, Sha256};
 
 mod amd;
+mod commands;
 mod hcl;
-mod verify;
 
 const STYLES: Styles = Styles::styled()
     .header(AnsiColor::Yellow.on_default())
@@ -36,38 +36,15 @@ enum Commands {
     },
     /// Verify a Kettle build, including provenance and attestation
     Verify {
-        /// Path to the project to verify
+        /// Path to directory containing provenance.json and evidence.b64
         #[arg(default_value = ".")]
         path: String,
     },
 }
 
-fn main() {
-    let args = Args::parse();
-
-    match args.command {
-        Commands::Build { path } => {
-            println!("Building project in: {:?}", path);
-        }
-        Commands::Verify { path } => {
-            let project_dir =
-                fs_err::canonicalize(path).expect("Given path was not a valid directory");
-
-            let evidence_b64 = fs_err::read_to_string(project_dir.join("evidence.b64"))
-                .expect("Could not read evidence file");
-
-            let provenance_path = project_dir.join("provenance.json");
-            let provenance_json =
-                fs_err::read(&provenance_path).expect("could not read provenance.json");
-            let provenance_value: serde_json::Value =
-                serde_json::from_slice(&provenance_json).expect("could not parse provenance.json");
-            let provenance = provenance_value.to_string();
-            let checksum = hex::encode(Sha256::digest(provenance));
-
-            match verify::verify(evidence_b64, Some(checksum)) {
-                Ok(result) => println!("{:?}", result),
-                Err(e) => eprintln!("{:?}", e),
-            }
-        }
+fn main() -> Result<()> {
+    match Args::parse().command {
+        Commands::Build { path } => commands::build::build(path),
+        Commands::Verify { path } => commands::verify::verify(path),
     }
 }

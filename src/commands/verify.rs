@@ -2,6 +2,7 @@ use anyhow::{Result, anyhow};
 use base64::{Engine, prelude::BASE64_STANDARD};
 use serde::{Deserialize, Serialize};
 use sev::firmware::guest::AttestationReport as SnpReport;
+use sha2::{Digest, Sha256};
 use std::io::Read;
 use std::vec::Vec;
 
@@ -45,8 +46,11 @@ pub struct VerificationResult {
     pub report_data: String,
 }
 
-pub fn verify(evidence_b64: String, custom_data: Option<String>) -> Result<VerificationResult> {
-    let evidence_gz = BASE64_STANDARD.decode(evidence_b64)?;
+pub fn verify_attestation(
+    evidence: Vec<u8>,
+    custom_data: Option<String>,
+) -> Result<VerificationResult> {
+    let evidence_gz = BASE64_STANDARD.decode(evidence)?;
     let mut evidence_bytes = Vec::new();
     flate2::read::MultiGzDecoder::new(&evidence_gz[..]).read_to_end(&mut evidence_bytes)?;
     let evidence = AttestationEvidence::from_bytes(&evidence_bytes[..])?;
@@ -82,4 +86,46 @@ pub fn verify(evidence_b64: String, custom_data: Option<String>) -> Result<Verif
         certs,
         report_data: evidence.report_data,
     })
+}
+
+pub(crate) struct ProvenanceVerification {
+    pub(crate) checksum: String,
+}
+
+pub(crate) fn verify_provenance(provenance: Vec<u8>) -> Result<ProvenanceVerification> {
+    let provenance_value: serde_json::Value = serde_json::from_slice(&provenance)?;
+    let checksum = hex::encode(Sha256::digest(provenance_value.to_string()));
+    let verification = ProvenanceVerification { checksum };
+    Ok(verification)
+}
+
+struct Build {
+    provenance: Vec<u8>,
+    evidence: Vec<u8>,
+}
+
+impl Build {
+    fn from_dir(path: String) -> Result<Build> {
+        let project_dir = fs_err::canonicalize(&path)?;
+        let evidence = fs_err::read(project_dir.join("evidence.b64"))?;
+        let provenance = fs_err::read(project_dir.join("provenance.json"))?;
+        let build = Build {
+            provenance,
+            evidence,
+        };
+
+        Ok(build)
+    }
+}
+
+pub(crate) fn verify(path: String) -> Result<()> {
+    let build = Build::from_dir(path)?;
+
+    let provenance_verification =
+        verify_provenance(build.provenance).expect("Provenance was not valid");
+
+    match verify_attestation(build.evidence, Some(provenance_verification.checksum)) {
+        Ok(_) => Ok(()),
+        Err(e) => Err(e),
+    }
 }
