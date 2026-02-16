@@ -138,7 +138,7 @@ impl TryFrom<&HclReport> for SnpReport {
         let bytes = hcl_report.report_slice();
         // Use the sev-6.x crate's from_bytes method which handles dynamic parsing
         // of different SNP report versions (v2, v3-PreTurin, v3-Turin)
-        let snp_report = SnpReport::from_bytes(bytes)
+        let snp_report: SnpReport = SnpReport::from_bytes(bytes)
             .map_err(|e| HclError::BinaryParseError(Box::new(bincode::ErrorKind::Io(e))))?;
         Ok(snp_report)
     }
