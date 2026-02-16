@@ -3,7 +3,6 @@ use base64::{Engine, prelude::BASE64_STANDARD};
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use sev::firmware::guest::AttestationReport as SnpReport;
-use sha2::{Digest, Sha256};
 use std::io::Read;
 use std::vec::Vec;
 use tabled::builder::Builder;
@@ -11,10 +10,11 @@ use tabled::settings::object::Columns;
 use tabled::settings::themes::BorderCorrection;
 use tabled::settings::{Alignment, Panel, Style};
 
-use crate::amd;
 use crate::amd::certs::Vcek;
 use crate::amd::snp_report::Validateable;
 use crate::hcl::HclReport;
+use crate::provenance::Provenance;
+use crate::{amd, provenance};
 
 /// PEM encoded VCEK certificate and AMD certificate chain.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -92,9 +92,13 @@ pub fn verify_attestation(
         "Report data checksum does not match checksum",
     );
 
-    if let Some(custom_data) = custom_data {
+    if let Some(data) = custom_data {
+        println!("json checksum {:?}", data);
+        println!("evidence data {:?}", evidence.report_data);
+        let comparison = data == evidence.report_data;
+        println!("comparison {:?}", comparison);
         print_result(
-            custom_data == evidence.report_data,
+            data == evidence.report_data,
             "Custom data checksum matches attestation checksum",
             "Custom data checksum doesn't match attestation checksum!",
         );
@@ -115,15 +119,44 @@ pub(crate) fn print_result(check: bool, success: &str, failure: &str) {
     }
 }
 
-pub(crate) struct ProvenanceResult {
-    pub(crate) checksum: String,
+#[derive(thiserror::Error, Debug)]
+pub enum ProvenanceError {
+    #[error("invalid provenance _type value {}", 0)]
+    InvalidType(String),
+    #[error("invalid predicateType value {}", 0)]
+    InvalidPredicate(String),
 }
 
-pub(crate) fn verify_provenance(provenance: Vec<u8>) -> Result<ProvenanceResult> {
-    let provenance_value: serde_json::Value = serde_json::from_slice(&provenance)?;
-    let checksum = hex::encode(Sha256::digest(provenance_value.to_string()));
-    let verification = ProvenanceResult { checksum };
-    Ok(verification)
+pub(crate) fn verify_provenance(data: Vec<u8>) -> Result<Provenance> {
+    // Parsed successfully, so it has the exact structure we need
+    let provenance: Provenance = serde_json::from_slice(&data)?;
+
+    if provenance._type != "https://in-toto.io/Statement/v1" {
+        return Err(ProvenanceError::InvalidType(provenance._type).into());
+    }
+
+    if provenance.predicate_type != "https://slsa.dev/provenance/v1" {
+        return Err(ProvenanceError::InvalidPredicate(provenance.predicate_type).into());
+    }
+
+    Ok(provenance)
+
+    // let build_type = &value["predicate"]["buildDefinition"]["buildType"];
+    // let run_details = &value["predicate"]["runDetails"];
+    // let builder = &value["predicate"]["runDetails"]["builder"]["id"];
+    // let build_id = &value["predicate"]["runDetails"]["metadata"]["invocationId"];
+    // let timestamp = &value["predicate"]["runDetails"]["metadata"]["startedOn"];
+    // let merkle_tree_root = &value["predicate"]["runDetails"]["byproducts"][0]["digest"]["sha256"];
+    // println!("{}", serde_json::to_string(&provenance)?);
+    // Ok(ProvenanceResult {
+    //     checksum: provenance.checksum()?,
+    //     format: provenance::Format::SLSAv1dot2,
+    //     toolchain: provenance.toolchain().clone(),
+    //     merkle_tree_root: [
+    //         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    //         1, 1, 1,
+    //     ],
+    // })
 }
 
 struct Build {
@@ -149,29 +182,27 @@ pub(crate) fn verify(path: String) -> Result<()> {
     let build = Build::from_dir(&path)?;
 
     // Get the provenance and attestation results
-    let provenance_verification =
-        verify_provenance(build.provenance).expect("Provenance was not valid");
+    let provenance_verification = verify_provenance(build.provenance)?;
     let attestation_result =
-        verify_attestation(build.evidence, Some(provenance_verification.checksum))?;
+        verify_attestation(build.evidence, Some(provenance_verification.checksum()))?;
 
     // Format and print the attestation results
-    let mut b = Builder::with_capacity(0, 0);
-    b.push_record(["✅", &"AMD certificate chain is valid".green()]);
+    // let mut b = Builder::with_capacity(0, 0);
+    // b.push_record(["✅", &"AMD certificate chain is valid".green()]);
 
-    let mut table = b.build();
-    table.modify(Columns::first(), Alignment::center());
-    table.with(Style::modern());
-    table.with(Panel::header(format!(
-        "\n{} {}\n",
-        "Verifying".bold(),
-        &path
-    )));
-    table.with(BorderCorrection::span());
-    println!("{}\n", table);
+    // let mut table = b.build();
+    // table.modify(Columns::first(), Alignment::center());
+    // table.with(Style::modern());
+    // table.with(Panel::header(format!(
+    //     "\n{} {}\n",
+    //     "Verifying".bold(),
+    //     &path
+    // )));
+    // table.with(BorderCorrection::span());
+    // println!("{}\n", table);
 
-    println!("✅ {}", "Verification PASSED".green());
-
-    println!("⛔️ {}", "Verification FAILED".red());
+    // println!("✅ {}", "Verification PASSED".green());
+    // println!("⛔️ {}", "Verification FAILED".red());
 
     Ok(())
 }

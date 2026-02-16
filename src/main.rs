@@ -25,6 +25,8 @@ const STYLES: Styles = Styles::styled()
 struct Args {
     #[command(subcommand)]
     command: Commands,
+    #[arg(long, help = "Enable verbose output")]
+    verbose: bool,
 }
 
 #[derive(Subcommand, Debug)]
@@ -43,15 +45,22 @@ enum Commands {
     },
 }
 
-fn main() {
-    let result = match Args::parse().command {
+fn main() -> anyhow::Result<()> {
+    let args = Args::parse();
+    let result = match args.command {
         Commands::Build { path } => commands::build::build(path),
         Commands::Verify { path } => commands::verify::verify(path),
     };
 
-    if let Err(e) = result {
-        eprintln!("{}", "Error during run:".red());
-        eprintln!("  {}", e);
-        std::process::exit(1);
+    if args.verbose {
+        result
+    } else {
+        if let Err(e) = result {
+            eprintln!("{}", "Error during run:".red());
+            eprintln!("  {}", e);
+            std::process::exit(1);
+        }
+
+        Ok(())
     }
 }
