@@ -1,10 +1,15 @@
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use base64::{Engine, prelude::BASE64_STANDARD};
+use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use sev::firmware::guest::AttestationReport as SnpReport;
 use sha2::{Digest, Sha256};
 use std::io::Read;
 use std::vec::Vec;
+use tabled::builder::Builder;
+use tabled::settings::object::Columns;
+use tabled::settings::themes::BorderCorrection;
+use tabled::settings::{Alignment, Panel, Style};
 
 use crate::amd;
 use crate::amd::certs::Vcek;
@@ -40,7 +45,7 @@ impl AttestationEvidence {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct VerificationResult {
+pub struct AttestationResult {
     pub report: serde_json::Value,
     pub certs: serde_json::Value,
     pub report_data: String,
@@ -49,7 +54,7 @@ pub struct VerificationResult {
 pub fn verify_attestation(
     evidence: Vec<u8>,
     custom_data: Option<String>,
-) -> Result<VerificationResult> {
+) -> Result<AttestationResult> {
     let evidence_gz = BASE64_STANDARD.decode(evidence)?;
     let mut evidence_bytes = Vec::new();
     flate2::read::MultiGzDecoder::new(&evidence_gz[..]).read_to_end(&mut evidence_bytes)?;
@@ -66,36 +71,58 @@ pub fn verify_attestation(
     let vcek = Vcek::from_pem(&evidence.certs.vcek)?;
 
     // Validate certificates and report
-    cert_chain.validate()?;
-    vcek.validate(&cert_chain)?;
-    snp_report.validate(&vcek)?;
+    print_result(
+        cert_chain.validate().is_ok(),
+        "AMD certificate chain is valid",
+        "AMD certificate chain is not valid",
+    );
+    print_result(
+        vcek.validate(&cert_chain).is_ok(),
+        "Vcek valid",
+        "Vcek invalid",
+    );
+    print_result(
+        snp_report.validate(&vcek).is_ok(),
+        "SNP valid",
+        "SNP invalid",
+    );
+    print_result(
+        var_data_hash == snp_report.report_data[..32],
+        "Report data checksum matches attestation checksum",
+        "Report data checksum does not match checksum",
+    );
 
-    // Verify var_data_hash matches report_data
-    if var_data_hash != snp_report.report_data[..32] {
-        return Err(anyhow!("Report data hash doesn't match!"));
+    if let Some(custom_data) = custom_data {
+        print_result(
+            custom_data == evidence.report_data,
+            "Custom data checksum matches attestation checksum",
+            "Custom data checksum doesn't match attestation checksum!",
+        );
     }
 
-    if let Some(custom_data) = custom_data
-        && custom_data != evidence.report_data
-    {
-        return Err(anyhow!("Custom data hash doesn't match!"));
-    }
-
-    Ok(VerificationResult {
+    Ok(AttestationResult {
         report,
         certs,
         report_data: evidence.report_data,
     })
 }
 
-pub(crate) struct ProvenanceVerification {
+pub(crate) fn print_result(check: bool, success: &str, failure: &str) {
+    if check {
+        println!("✅ {}", success.green())
+    } else {
+        println!("⛔️ {}", failure.red())
+    }
+}
+
+pub(crate) struct ProvenanceResult {
     pub(crate) checksum: String,
 }
 
-pub(crate) fn verify_provenance(provenance: Vec<u8>) -> Result<ProvenanceVerification> {
+pub(crate) fn verify_provenance(provenance: Vec<u8>) -> Result<ProvenanceResult> {
     let provenance_value: serde_json::Value = serde_json::from_slice(&provenance)?;
     let checksum = hex::encode(Sha256::digest(provenance_value.to_string()));
-    let verification = ProvenanceVerification { checksum };
+    let verification = ProvenanceResult { checksum };
     Ok(verification)
 }
 
@@ -105,8 +132,8 @@ struct Build {
 }
 
 impl Build {
-    fn from_dir(path: String) -> Result<Build> {
-        let project_dir = fs_err::canonicalize(&path)?;
+    fn from_dir(path: &str) -> Result<Build> {
+        let project_dir = fs_err::canonicalize(path)?;
         let evidence = fs_err::read(project_dir.join("evidence.b64"))?;
         let provenance = fs_err::read(project_dir.join("provenance.json"))?;
         let build = Build {
@@ -119,13 +146,32 @@ impl Build {
 }
 
 pub(crate) fn verify(path: String) -> Result<()> {
-    let build = Build::from_dir(path)?;
+    let build = Build::from_dir(&path)?;
 
+    // Get the provenance and attestation results
     let provenance_verification =
         verify_provenance(build.provenance).expect("Provenance was not valid");
+    let attestation_result =
+        verify_attestation(build.evidence, Some(provenance_verification.checksum))?;
 
-    match verify_attestation(build.evidence, Some(provenance_verification.checksum)) {
-        Ok(_) => Ok(()),
-        Err(e) => Err(e),
-    }
+    // Format and print the attestation results
+    let mut b = Builder::with_capacity(0, 0);
+    b.push_record(["✅", &"AMD certificate chain is valid".green()]);
+
+    let mut table = b.build();
+    table.modify(Columns::first(), Alignment::center());
+    table.with(Style::modern());
+    table.with(Panel::header(format!(
+        "\n{} {}\n",
+        "Verifying".bold(),
+        &path
+    )));
+    table.with(BorderCorrection::span());
+    println!("{}\n", table);
+
+    println!("✅ {}", "Verification PASSED".green());
+
+    println!("⛔️ {}", "Verification FAILED".red());
+
+    Ok(())
 }
