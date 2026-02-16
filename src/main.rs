@@ -1,12 +1,13 @@
-use anyhow::Result;
 use clap::{
     Parser, Subcommand,
     builder::{Styles, styling::AnsiColor},
 };
+use colored::Colorize;
 
 mod amd;
 mod commands;
 mod hcl;
+mod provenance;
 
 const STYLES: Styles = Styles::styled()
     .header(AnsiColor::Yellow.on_default())
@@ -42,9 +43,15 @@ enum Commands {
     },
 }
 
-fn main() -> Result<()> {
-    match Args::parse().command {
+fn main() {
+    let result = match Args::parse().command {
         Commands::Build { path } => commands::build::build(path),
         Commands::Verify { path } => commands::verify::verify(path),
+    };
+
+    if let Err(e) = result {
+        eprintln!("{}", "Error during run:".red());
+        eprintln!("  {}", e);
+        std::process::exit(1);
     }
 }
