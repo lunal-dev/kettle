@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Number;
 use sha2::{Digest as _, Sha256};
 
 #[derive(Serialize, Deserialize)]
@@ -67,6 +68,7 @@ pub(crate) struct BuildDefiniton {
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ResolvedDependency {
+    annotations: Option<Annotation>,
     digest: Digest,
     name: String,
     uri: String,
@@ -103,6 +105,8 @@ pub(crate) struct SourceDigest {
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct InternalParameters {
+    evaluation: Option<Evaluation>,
+    flake_inputs: Option<Vec<FlakeInput>>,
     lockfile_hash: Digest,
     pub(crate) toolchain: Toolchain,
 }
@@ -143,4 +147,30 @@ pub(crate) enum Toolchain {
 pub(crate) struct ToolchainVersion {
     digest: Digest,
     version: String,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct Annotation {
+    drv_path: String,
+    output_hash_mode: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    urls: Option<String>,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct Evaluation {
+    derivation_count: Number,
+    fetch_count: Number,
+    mode: String,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct FlakeInput {
+    name: String,
+    nar_hash: String,
 }
