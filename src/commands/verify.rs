@@ -10,11 +10,11 @@ use tabled::settings::object::Columns;
 use tabled::settings::themes::BorderCorrection;
 use tabled::settings::{Alignment, Panel, Style};
 
+use crate::amd;
 use crate::amd::certs::Vcek;
 use crate::amd::snp_report::Validateable;
 use crate::hcl::HclReport;
 use crate::provenance::Provenance;
-use crate::{amd, provenance};
 
 /// PEM encoded VCEK certificate and AMD certificate chain.
 #[derive(Serialize, Deserialize, Debug, Clone)]

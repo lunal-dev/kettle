@@ -115,10 +115,6 @@ pub(crate) struct Byproduct {
     name: String,
 }
 
-pub(crate) enum Format {
-    SLSAv1dot2,
-}
-
 #[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct Toolchain {
     cargo: ToolchainVersion,
