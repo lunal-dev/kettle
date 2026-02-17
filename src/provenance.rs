@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 use sha2::{Digest as _, Sha256};
@@ -137,10 +139,19 @@ pub(crate) enum Toolchain {
     NixToolchain {
         nix: ToolchainVersion,
     },
-    CargoToolchain {
+    RustToolchain {
         cargo: ToolchainVersion,
         rustc: ToolchainVersion,
     },
+}
+
+impl Display for Toolchain {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Toolchain::NixToolchain { nix } => write!(f, "{}", nix.version),
+            Toolchain::RustToolchain { cargo: _, rustc } => write!(f, "{}", rustc.version),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -1,9 +1,13 @@
 use anyhow::Result;
 use base64::{Engine, prelude::BASE64_STANDARD};
 use colored::Colorize;
+use fs_err::DirEntry;
 use serde::{Deserialize, Serialize};
 use sev::firmware::guest::AttestationReport as SnpReport;
+use sha2::Digest;
+use std::ffi::OsStr;
 use std::io::Read;
+use std::path::PathBuf;
 use std::vec::Vec;
 use tabled::builder::Builder;
 use tabled::settings::object::Columns;
@@ -155,6 +159,7 @@ pub(crate) fn verify_provenance(data: Vec<u8>) -> Result<Provenance> {
 struct Build {
     provenance: Vec<u8>,
     evidence: Vec<u8>,
+    artifacts: Vec<DirEntry>,
 }
 
 impl Build {
@@ -162,13 +167,23 @@ impl Build {
         let project_dir = fs_err::canonicalize(path)?;
         let evidence = fs_err::read(project_dir.join("evidence.b64"))?;
         let provenance = fs_err::read(project_dir.join("provenance.json"))?;
+        let artifacts = fs_err::read_dir(project_dir.join("artifacts"))?
+            .filter_map(|e| e.ok())
+            .collect();
+
         let build = Build {
             provenance,
             evidence,
+            artifacts,
         };
 
         Ok(build)
     }
+}
+
+struct Verification {
+    success: bool,
+    message: String,
 }
 
 pub(crate) fn verify(path: String) -> Result<()> {
@@ -182,20 +197,32 @@ pub(crate) fn verify(path: String) -> Result<()> {
     let header = format!("\n{} {}\n", "Verifying".bold(), &path);
     let build_id = format!("{} {}", "Build ID".bold(), provenance.build_id(),);
     let built_at = format!("{} {}", "Built at".bold(), provenance.timestamp(),);
-    let toolchain = format!("{:?}", provenance.toolchain());
+    let toolchain = format!("{} {}", "Built with".bold(), provenance.toolchain());
+
+    let mut results: Vec<Verification> = vec![];
+    if provenance.verify_predicate() {
+        results.push(Verification {
+            success: true,
+            message: "Provenance predicateType is SLSA v1".to_string(),
+        })
+    } else {
+        results.push(Verification {
+            success: false,
+            message: format!(
+                "Provenance predicateType is unknown: {}",
+                provenance.predicate_type
+            ),
+        })
+    }
+    for a in build.artifacts {}
 
     let mut b = Builder::with_capacity(0, 0);
-    if provenance.verify_predicate() {
-        b.push_record(["✅", &"Provenance predicateType is SLSA v1".green()]);
-    } else {
-        b.push_record([
-            "⛔️",
-            &format!(
-                "{} {}",
-                "Provenance predicateType is unknown: ".green(),
-                &provenance.predicate_type
-            ),
-        ]);
+    for result in results {
+        if result.success {
+            b.push_record(["✅", &result.message]);
+        } else {
+            b.push_record(["⛔️", &result.message]);
+        }
     }
     b.push_record(["✅", &"AMD certificate chain is valid".green()]);
 
@@ -208,11 +235,12 @@ pub(crate) fn verify(path: String) -> Result<()> {
 
     let mut table = b.build();
     table.modify(Columns::first(), Alignment::center());
-    table.with(Panel::header(built_at));
-    table.with(Panel::header(build_id));
-    table.with(Panel::header(header));
     table.with(Style::modern());
     table.with(Panel::footer(result));
+    table.with(Panel::header(build_id));
+    table.with(Panel::header(built_at));
+    table.with(Panel::header(toolchain));
+    table.with(Panel::header(header));
     table.with(BorderCorrection::span());
     println!("{}\n", table);
 
