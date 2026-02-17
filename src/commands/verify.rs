@@ -182,6 +182,7 @@ pub(crate) fn verify(path: String) -> Result<()> {
     let header = format!("\n{} {}\n", "Verifying".bold(), &path);
     let build_id = format!("{} {}", "Build ID".bold(), provenance.build_id(),);
     let built_at = format!("{} {}", "Built at".bold(), provenance.timestamp(),);
+    let toolchain = format!("{:?}", provenance.toolchain());
 
     let mut b = Builder::with_capacity(0, 0);
     if provenance.verify_predicate() {

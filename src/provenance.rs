@@ -43,7 +43,7 @@ pub(crate) struct Subject {
     name: String,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct Digest {
     sha256: String,
 }
@@ -127,13 +127,19 @@ pub(crate) struct Byproduct {
     name: String,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
-pub(crate) struct Toolchain {
-    cargo: ToolchainVersion,
-    rustc: ToolchainVersion,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub(crate) enum Toolchain {
+    NixToolchain {
+        nix: ToolchainVersion,
+    },
+    CargoToolchain {
+        cargo: ToolchainVersion,
+        rustc: ToolchainVersion,
+    },
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct ToolchainVersion {
     digest: Digest,
     version: String,
