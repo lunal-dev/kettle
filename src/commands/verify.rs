@@ -183,22 +183,22 @@ pub(crate) fn verify(path: String) -> Result<()> {
         verify_attestation(build.evidence, Some(provenance_verification.checksum()))?;
 
     // Format and print the attestation results
-    // let mut b = Builder::with_capacity(0, 0);
-    // b.push_record(["✅", &"AMD certificate chain is valid".green()]);
+    let mut b = Builder::with_capacity(0, 0);
+    b.push_record(["✅", &"AMD certificate chain is valid".green()]);
 
-    // let mut table = b.build();
-    // table.modify(Columns::first(), Alignment::center());
-    // table.with(Style::modern());
-    // table.with(Panel::header(format!(
-    //     "\n{} {}\n",
-    //     "Verifying".bold(),
-    //     &path
-    // )));
-    // table.with(BorderCorrection::span());
-    // println!("{}\n", table);
+    let mut table = b.build();
+    table.with(Panel::header(format!(
+        "\n{} {}\n",
+        "Verifying".bold(),
+        &path
+    )));
+    table.modify(Columns::first(), Alignment::center());
+    table.with(Style::modern());
+    table.with(BorderCorrection::span());
+    println!("{}\n", table);
 
-    // println!("✅ {}", "Verification PASSED".green());
-    // println!("⛔️ {}", "Verification FAILED".red());
+    println!("✅ {}", "Verification PASSED".green());
+    println!("⛔️ {}", "Verification FAILED".red());
 
     Ok(())
 }
