@@ -23,6 +23,14 @@ impl Provenance {
             .internal_parameters
             .toolchain
     }
+
+    pub fn build_id(&self) -> &String {
+        &self.predicate.run_details.metadata.invocation_id
+    }
+
+    pub fn timestamp(&self) -> &String {
+        &self.predicate.run_details.metadata.started_on
+    }
 }
 
 #[derive(Serialize, Deserialize)]

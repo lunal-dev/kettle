@@ -8,7 +8,7 @@ use std::vec::Vec;
 use tabled::builder::Builder;
 use tabled::settings::object::Columns;
 use tabled::settings::themes::BorderCorrection;
-use tabled::settings::{Alignment, Panel, Style};
+use tabled::settings::{Alignment, Panel, Span, Style};
 
 use crate::amd;
 use crate::amd::certs::Vcek;
@@ -45,16 +45,13 @@ impl AttestationEvidence {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AttestationResult {
+pub struct Attestation {
     pub report: serde_json::Value,
     pub certs: serde_json::Value,
     pub report_data: String,
 }
 
-pub fn verify_attestation(
-    evidence: Vec<u8>,
-    custom_data: Option<String>,
-) -> Result<AttestationResult> {
+pub fn verify_attestation(evidence: Vec<u8>, custom_data: Option<String>) -> Result<Attestation> {
     let evidence_gz = BASE64_STANDARD.decode(evidence)?;
     let mut evidence_bytes = Vec::new();
     flate2::read::MultiGzDecoder::new(&evidence_gz[..]).read_to_end(&mut evidence_bytes)?;
@@ -100,7 +97,7 @@ pub fn verify_attestation(
         );
     }
 
-    Ok(AttestationResult {
+    Ok(Attestation {
         report,
         certs,
         report_data: evidence.report_data,
@@ -178,27 +175,32 @@ pub(crate) fn verify(path: String) -> Result<()> {
     let build = Build::from_dir(&path)?;
 
     // Get the provenance and attestation results
-    let provenance_verification = verify_provenance(build.provenance)?;
-    let attestation_result =
-        verify_attestation(build.evidence, Some(provenance_verification.checksum()))?;
+    let provenance = verify_provenance(build.provenance)?;
+    let _attestation = verify_attestation(build.evidence, Some(provenance.checksum()))?;
 
     // Format and print the attestation results
+    let header = format!("\n{} {}\n", "Verifying".bold(), &path);
+    let build_id = format!("{} {}", "Build ID".bold(), provenance.build_id(),);
+    let built_at = format!("{} {}", "Built at".bold(), provenance.timestamp(),);
+
     let mut b = Builder::with_capacity(0, 0);
     b.push_record(["✅", &"AMD certificate chain is valid".green()]);
 
     let mut table = b.build();
-    table.with(Panel::header(format!(
-        "\n{} {}\n",
-        "Verifying".bold(),
-        &path
-    )));
     table.modify(Columns::first(), Alignment::center());
+    table.with(Panel::header(built_at));
+    table.with(Panel::header(build_id));
+    table.with(Panel::header(header));
     table.with(Style::modern());
     table.with(BorderCorrection::span());
     println!("{}\n", table);
 
-    println!("✅ {}", "Verification PASSED".green());
-    println!("⛔️ {}", "Verification FAILED".red());
+    let valid = true;
+    if valid {
+        println!("✅ {}", "Verification PASSED".green());
+    } else {
+        println!("⛔️ {}", "Verification FAILED".red());
+    }
 
     Ok(())
 }
