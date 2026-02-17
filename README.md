@@ -1,8 +1,18 @@
 # Kettle
 
+Kettle is a CLI tool for creating and verifying **attested builds**. You can use Kettle to manage cryptographic signatures showing exactly what source code, dependencies, and toolchains were used to create a set of binaries.
+
+## Why Kettle?
+
+Existing attestation systems require you to trust the provider running the build. If you use GitHub's "[artifact attestations][1]", you are getting
+
+[1]: https://docs.github.com/en/actions/concepts/security/artifact-attestations
+
+## How does this work?
+
 Kettle generates cryptographic proof that software was built from specific source code, dependencies, and toolchain. By the end of this document, you'll understand why proving "this binary came from this source" is a hard problem, how Kettle solves it without requiring bit-for-bit reproducible builds, and how TEE attestation makes that proof hardware-backed. We assume familiarity with git, package managers, and the concept of cryptographic hashes.
 
-## The Problem
+### The Problem
 
 You receive a binary from your CI system. You want to verify it was built from commit `a1b2c3d4` with dependencies locked to specific versions. Today, you cannot do this. You trust that your CI server wasn't compromised. You trust that your package registry served the correct packages. You trust that nothing modified the binary between build and deployment. Each of these is an assumption, not a verification.
 
@@ -10,13 +20,13 @@ This matters now because supply chain attacks are increasingly common and increa
 
 The standard answer is reproducible builds: rebuild from source and compare hashes. If you get an identical binary, you've verified the build. The problem is that most toolchains produce non-deterministic output. Compilers embed timestamps, parallelize in varying order, and make optimization decisions that differ between runs. Achieving bit-for-bit identical output requires controlling all of this across your entire dependency tree. It's years of engineering work, and a single non-reproducible component breaks the whole chain. Even if you achieve it, verifiers must actually rebuild to verify. They won't.
 
-## The Approach
+### The Approach
 
 Kettle inverts the verification model. Instead of proving "the same inputs always produce identical outputs," it proves "these specific inputs were used to produce this output in a verified process."
 
 The key insight: you don't need deterministic compilation if you can cryptographically verify what went into the build and bind that to what came out.
 
-```
+```text
 Reproducible Builds:
   Source A ─[build]──> Binary X
   Source A ─[rebuild]─> Binary Y
@@ -35,15 +45,13 @@ Attestable Builds (Kettle):
 
 A verifier checks cryptographic signatures and attestation reports in milliseconds rather than rebuilding for hours. The verification is independent: anyone can verify without trusting the builder's claims.
 
-## How It Works
-
 ### The Build Process
 
 When you run `kettle build`, five phases execute in sequence.
 
 **Phase 1: Input Verification.** Before compilation begins, Kettle verifies and hashes every build input. For source code, it records the git commit hash, tree hash (a content-addressed hash of the entire source tree), and the hash of the git binary itself. For dependencies, it parses the lockfile (Cargo.lock or flake.lock), extracts the list of pinned packages with their checksums, and verifies that cached artifacts match those checksums. For the toolchain, it hashes the actual compiler binaries (rustc, cargo, or nix).
 
-```
+```text
 ━━━ Verifying Build Inputs ━━━
 
 [1/4] Verifying git source...
@@ -67,7 +75,7 @@ When you run `kettle build`, five phases execute in sequence.
 
 **Phase 2: Merkle Tree Construction.** All input hashes become leaves in a Merkle tree. The tree is constructed in deterministic order: git information first, then lockfile hash, then dependencies sorted alphabetically, then toolchain hashes. The root of this tree, the `input_merkle_root`, is a single 32-byte hash that uniquely identifies the complete set of build inputs. If any input changes by a single byte, the root changes.
 
-```
+```text
                       [input_merkle_root]
                       ────────┬────────
                     ┌─────────┴─────────┐
@@ -105,7 +113,7 @@ Verification reconstructs the chain of trust from attestation through provenance
 
 **With TEE attestation** (full verification): Kettle first verifies the attestation cryptographic signature using an attestation service. It checks that the provenance hash in the attestation matches the actual provenance document. Then it runs all the provenance checks. This gives you hardware-rooted proof that the provenance was generated inside a trusted execution environment, not fabricated after the fact.
 
-```
+```text
                         evidence.b64
                              │
                              ▼
@@ -144,7 +152,7 @@ This works because Merkle trees have a useful property: you can prove membership
 
 Use shallow mode for development iteration. Use deep mode for release builds when you need complete dependency coverage.
 
-## Common Issues
+### Common Issues
 
 **"Verification failed but I haven't changed anything."** Git verification requires a clean working tree. The tree hash changes if any tracked file changes, even if you haven't committed. Run `git status` and ensure there are no uncommitted changes before building.
 
@@ -159,6 +167,7 @@ Use shallow mode for development iteration. Use deep mode for release builds whe
 ## Security Model
 
 **What Kettle proves:**
+
 - All build inputs (source, dependencies, toolchain) match specific cryptographic hashes
 - The build process executed with exactly these inputs
 - Output artifacts have specific hashes bound to those inputs
@@ -166,12 +175,14 @@ Use shallow mode for development iteration. Use deep mode for release builds whe
 - (With TEE) The attestation is fresh, not replayed from a previous build
 
 **What you must trust:**
+
 - AMD CPU and firmware, if using TEE attestation
 - Git repository integrity for source code (Kettle verifies hashes, not that the repository is trustworthy)
 - Package registry infrastructure (crates.io, nixpkgs) for dependency checksums
 - The Kettle codebase itself (open source, auditable)
 
 **What Kettle does not prove:**
+
 - Source code is free of vulnerabilities (that's your responsibility)
 - Dependencies are safe to use (Kettle verifies they match checksums, not that they're secure)
 - The compiler is bug-free (Kettle hashes the compiler, doesn't verify its correctness)
@@ -181,26 +192,12 @@ The trust model shifts from trusting build infrastructure to trusting hardware v
 ## Installation
 
 ```bash
-git clone https://github.com/lunal-dev/attestable-builds.git
-cd attestable-builds
-
-# Install with uv (recommended)
-uv pip install -e .
-
-# Or with pip
-pip install -e .
+cargo install kettle
 ```
-
-Requirements:
-- Python 3.10 or later
-- Git
-- Cargo (for Rust projects) or Nix (for Nix projects)
-- For TEE attestation: recommended AMD SEV-SNP hardware and an attestation service installed
-- For remote builds: Access to a Kettle TEE service endpoint
 
 ## Commands
 
-### Building
+### Build
 
 **kettle build** builds a project with full input verification and provenance generation.
 
@@ -226,7 +223,7 @@ Options:
 
 Creates a source archive, uploads to the remote TEE, and downloads the resulting artifacts to `kettle-{build_id}/`.
 
-### Verification
+### Verify
 
 **kettle verify** performs full verification (attestation and provenance).
 
@@ -266,4 +263,3 @@ Options:
 ```
 
 Supports partial hash matching. For example, `serde:1.0` matches any serde dependency starting with version 1.0.
-
