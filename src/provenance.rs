@@ -4,10 +4,10 @@ use sha2::{Digest as _, Sha256};
 #[derive(Serialize, Deserialize)]
 pub struct Provenance {
     pub _type: String,
-    pub subject: Vec<Subject>,
+    pub predicate: Predicate,
     #[serde(rename = "predicateType")]
     pub predicate_type: String,
-    pub predicate: Predicate,
+    pub subject: Vec<Subject>,
 }
 
 impl Provenance {
@@ -27,8 +27,8 @@ impl Provenance {
 
 #[derive(Serialize, Deserialize)]
 pub(crate) struct Subject {
-    name: String,
     digest: Digest,
+    name: String,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -55,16 +55,16 @@ pub(crate) struct BuildDefiniton {
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ResolvedDependency {
-    uri: String,
     digest: Digest,
     name: String,
+    uri: String,
 }
 
 #[derive(Serialize, Deserialize)]
 struct RunDetails {
     builder: Builder,
-    metadata: Metadata,
     byproducts: Vec<Byproduct>,
+    metadata: Metadata,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -91,8 +91,8 @@ pub(crate) struct SourceDigest {
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct InternalParameters {
-    pub(crate) toolchain: Toolchain,
     lockfile_hash: Digest,
+    pub(crate) toolchain: Toolchain,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -111,8 +111,8 @@ pub(crate) struct Metadata {
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Byproduct {
-    name: String,
     digest: Digest,
+    name: String,
 }
 
 pub(crate) enum Format {
@@ -121,12 +121,12 @@ pub(crate) enum Format {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct Toolchain {
-    rustc: ToolchainVersion,
     cargo: ToolchainVersion,
+    rustc: ToolchainVersion,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct ToolchainVersion {
-    version: String,
     digest: Digest,
+    version: String,
 }
