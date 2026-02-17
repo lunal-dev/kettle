@@ -184,7 +184,26 @@ pub(crate) fn verify(path: String) -> Result<()> {
     let built_at = format!("{} {}", "Built at".bold(), provenance.timestamp(),);
 
     let mut b = Builder::with_capacity(0, 0);
+    if provenance.verify_predicate() {
+        b.push_record(["✅", &"Provenance predicateType is SLSA v1".green()]);
+    } else {
+        b.push_record([
+            "⛔️",
+            &format!(
+                "{} {}",
+                "Provenance predicateType is unknown: ".green(),
+                &provenance.predicate_type
+            ),
+        ]);
+    }
     b.push_record(["✅", &"AMD certificate chain is valid".green()]);
+
+    let valid = true;
+    let result = if valid {
+        format!("✅ {}", "Verification PASSED".green())
+    } else {
+        format!("⛔️ {}", "Verification FAILED".red())
+    };
 
     let mut table = b.build();
     table.modify(Columns::first(), Alignment::center());
@@ -192,15 +211,9 @@ pub(crate) fn verify(path: String) -> Result<()> {
     table.with(Panel::header(build_id));
     table.with(Panel::header(header));
     table.with(Style::modern());
+    table.with(Panel::footer(result));
     table.with(BorderCorrection::span());
     println!("{}\n", table);
-
-    let valid = true;
-    if valid {
-        println!("✅ {}", "Verification PASSED".green());
-    } else {
-        println!("⛔️ {}", "Verification FAILED".red());
-    }
 
     Ok(())
 }

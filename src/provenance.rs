@@ -31,6 +31,10 @@ impl Provenance {
     pub fn timestamp(&self) -> &String {
         &self.predicate.run_details.metadata.started_on
     }
+
+    pub fn verify_predicate(&self) -> bool {
+        &self.predicate_type == "https://slsa.dev/provenance/v1"
+    }
 }
 
 #[derive(Serialize, Deserialize)]
