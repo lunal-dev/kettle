@@ -93,10 +93,6 @@ pub fn verify_attestation(
     );
 
     if let Some(data) = custom_data {
-        println!("json checksum {:?}", data);
-        println!("evidence data {:?}", evidence.report_data);
-        let comparison = data == evidence.report_data;
-        println!("comparison {:?}", comparison);
         print_result(
             data == evidence.report_data,
             "Custom data checksum matches attestation checksum",
