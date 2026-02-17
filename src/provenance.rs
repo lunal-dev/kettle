@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Number;
 use sha2::{Digest as _, Sha256};
 
+use crate::commands::verify::Verification;
+
 #[derive(Serialize, Deserialize)]
 pub struct Provenance {
     pub _type: String,
@@ -35,8 +37,18 @@ impl Provenance {
         &self.predicate.run_details.metadata.started_on
     }
 
-    pub fn verify_predicate(&self) -> bool {
-        &self.predicate_type == "https://slsa.dev/provenance/v1"
+    pub fn verify_predicate(&self) -> Verification {
+        let success = &self.predicate_type == "https://slsa.dev/provenance/v1";
+        let message = if success {
+            "Provenance predicateType is SLSA v1".to_string()
+        } else {
+            format!(
+                "Provenance predicateType is unknown: {}",
+                self.predicate_type
+            )
+        };
+
+        Verification { success, message }
     }
 }
 

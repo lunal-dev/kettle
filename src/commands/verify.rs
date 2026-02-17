@@ -181,9 +181,9 @@ impl Build {
     }
 }
 
-struct Verification {
-    success: bool,
-    message: String,
+pub(crate) struct Verification {
+    pub success: bool,
+    pub message: String,
 }
 
 pub(crate) fn verify(path: String) -> Result<()> {
@@ -200,21 +200,9 @@ pub(crate) fn verify(path: String) -> Result<()> {
     let toolchain = format!("{} {}", "Built with".bold(), provenance.toolchain());
 
     let mut results: Vec<Verification> = vec![];
-    if provenance.verify_predicate() {
-        results.push(Verification {
-            success: true,
-            message: "Provenance predicateType is SLSA v1".to_string(),
-        })
-    } else {
-        results.push(Verification {
-            success: false,
-            message: format!(
-                "Provenance predicateType is unknown: {}",
-                provenance.predicate_type
-            ),
-        })
-    }
     for a in build.artifacts {}
+
+    results.push(provenance.verify_predicate());
 
     let mut b = Builder::with_capacity(0, 0);
     for result in results {
