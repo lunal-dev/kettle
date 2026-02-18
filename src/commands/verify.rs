@@ -4,15 +4,12 @@ use colored::Colorize;
 use fs_err::DirEntry;
 use serde::{Deserialize, Serialize};
 use sev::firmware::guest::AttestationReport as SnpReport;
-use sha2::Digest;
-use std::ffi::OsStr;
 use std::io::Read;
-use std::path::PathBuf;
 use std::vec::Vec;
 use tabled::builder::Builder;
 use tabled::settings::object::Columns;
 use tabled::settings::themes::BorderCorrection;
-use tabled::settings::{Alignment, Panel, Span, Style};
+use tabled::settings::{Alignment, Panel, Style};
 
 use crate::amd;
 use crate::amd::certs::Vcek;
@@ -159,7 +156,7 @@ pub(crate) fn verify_provenance(data: Vec<u8>) -> Result<Provenance> {
 struct Build {
     provenance: Vec<u8>,
     evidence: Vec<u8>,
-    artifacts: Vec<DirEntry>,
+    _artifacts: Vec<DirEntry>,
 }
 
 impl Build {
@@ -174,7 +171,7 @@ impl Build {
         let build = Build {
             provenance,
             evidence,
-            artifacts,
+            _artifacts: artifacts,
         };
 
         Ok(build)
@@ -188,6 +185,7 @@ pub(crate) struct Verification {
 
 pub(crate) fn verify(path: String) -> Result<()> {
     let build = Build::from_dir(&path)?;
+    let mut results: Vec<Verification> = vec![];
 
     // Get the provenance and attestation results
     let provenance = verify_provenance(build.provenance)?;
@@ -199,9 +197,6 @@ pub(crate) fn verify(path: String) -> Result<()> {
     let built_at = format!("{} {}", "Built at".bold(), provenance.timestamp(),);
     let toolchain = format!("{} {}", "Built with".bold(), provenance.toolchain());
 
-    let mut results: Vec<Verification> = vec![];
-    for a in build.artifacts {}
-
     results.push(provenance.verify_predicate());
 
     let mut b = Builder::with_capacity(0, 0);
@@ -212,7 +207,6 @@ pub(crate) fn verify(path: String) -> Result<()> {
             b.push_record(["⛔️", &result.message]);
         }
     }
-    b.push_record(["✅", &"AMD certificate chain is valid".green()]);
 
     let valid = true;
     let result = if valid {
