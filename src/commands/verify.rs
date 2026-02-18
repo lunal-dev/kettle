@@ -34,14 +34,11 @@ pub struct AttestationEvidence {
 }
 
 impl AttestationEvidence {
-    /// Serialize to bytes using bincode
-    pub fn _to_bytes(&self) -> Result<Vec<u8>> {
-        Ok(bincode::serialize(self)?)
-    }
-
-    /// Deserialize from bytes using bincode
-    pub fn from_bytes(data: &[u8]) -> Result<Self> {
-        Ok(bincode::deserialize(data)?)
+    pub fn from_base64(bytes_b64: &[u8]) -> Result<Self> {
+        let bytes_gz = BASE64_STANDARD.decode(bytes_b64)?;
+        let mut evidence_bytes = Vec::new();
+        flate2::read::MultiGzDecoder::new(&bytes_gz[..]).read_to_end(&mut evidence_bytes)?;
+        Ok(bincode::deserialize(&evidence_bytes[..])?)
     }
 }
 
@@ -52,11 +49,8 @@ pub struct Attestation {
     pub report_data: String,
 }
 
-pub fn verify_attestation(evidence: Vec<u8>, custom_data: Option<String>) -> Result<Attestation> {
-    let evidence_gz = BASE64_STANDARD.decode(evidence)?;
-    let mut evidence_bytes = Vec::new();
-    flate2::read::MultiGzDecoder::new(&evidence_gz[..]).read_to_end(&mut evidence_bytes)?;
-    let evidence = AttestationEvidence::from_bytes(&evidence_bytes[..])?;
+pub fn verify_attestation(bytes: Vec<u8>, custom_data: Option<String>) -> Result<Attestation> {
+    let evidence = AttestationEvidence::from_base64(&bytes)?;
     let certs = serde_json::to_value(&evidence.certs)?;
 
     let hcl_report = HclReport::new(evidence.report)?;
@@ -154,23 +148,23 @@ pub(crate) fn verify_provenance(data: Vec<u8>) -> Result<Provenance> {
 }
 
 struct Build {
-    provenance: Vec<u8>,
-    evidence: Vec<u8>,
+    provenance_bytes: Vec<u8>,
+    evidence_bytes: Vec<u8>,
     _artifacts: Vec<DirEntry>,
 }
 
 impl Build {
     fn from_dir(path: &str) -> Result<Build> {
         let project_dir = fs_err::canonicalize(path)?;
-        let evidence = fs_err::read(project_dir.join("evidence.b64"))?;
-        let provenance = fs_err::read(project_dir.join("provenance.json"))?;
+        let evidence_bytes = fs_err::read(project_dir.join("evidence.b64"))?;
+        let provenance_bytes = fs_err::read(project_dir.join("provenance.json"))?;
         let artifacts = fs_err::read_dir(project_dir.join("artifacts"))?
             .filter_map(|e| e.ok())
             .collect();
 
         let build = Build {
-            provenance,
-            evidence,
+            provenance_bytes,
+            evidence_bytes,
             _artifacts: artifacts,
         };
 
@@ -188,8 +182,8 @@ pub(crate) fn verify(path: String) -> Result<()> {
     let mut results: Vec<Verification> = vec![];
 
     // Get the provenance and attestation results
-    let provenance = verify_provenance(build.provenance)?;
-    let _attestation = verify_attestation(build.evidence, Some(provenance.checksum()))?;
+    let provenance = verify_provenance(build.provenance_bytes)?;
+    let _attestation = verify_attestation(build.evidence_bytes, Some(provenance.checksum()))?;
 
     // Format and print the attestation results
     let header = format!("\n{} {}\n", "Verifying".bold(), &path);
