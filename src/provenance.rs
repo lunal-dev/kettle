@@ -82,6 +82,7 @@ pub(crate) struct BuildDefiniton {
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ResolvedDependency {
+    #[serde(skip_serializing_if = "Option::is_none")]
     annotations: Option<Annotation>,
     digest: Digest,
     name: String,
@@ -119,7 +120,9 @@ pub(crate) struct SourceDigest {
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct InternalParameters {
+    #[serde(skip_serializing_if = "Option::is_none")]
     evaluation: Option<Evaluation>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     flake_inputs: Option<Vec<FlakeInput>>,
     lockfile_hash: Digest,
     pub(crate) toolchain: Toolchain,
