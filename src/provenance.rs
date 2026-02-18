@@ -52,7 +52,7 @@ impl Provenance {
         Verification { success, message }
     }
 
-    pub fn verify_artifacts(&self, artifacts: &Vec<DirEntry>) -> Vec<Verification> {
+    pub fn verify_artifacts(&self, artifacts: &[DirEntry]) -> Vec<Verification> {
         artifacts
             .iter()
             .map(|entry| Verification {
