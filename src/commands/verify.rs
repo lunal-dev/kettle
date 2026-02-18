@@ -150,7 +150,7 @@ pub(crate) fn verify_provenance(data: Vec<u8>) -> Result<Provenance> {
 struct Build {
     provenance_bytes: Vec<u8>,
     evidence_bytes: Vec<u8>,
-    _artifacts: Vec<DirEntry>,
+    artifacts: Vec<DirEntry>,
 }
 
 impl Build {
@@ -165,7 +165,7 @@ impl Build {
         let build = Build {
             provenance_bytes,
             evidence_bytes,
-            _artifacts: artifacts,
+            artifacts,
         };
 
         Ok(build)
@@ -185,16 +185,11 @@ pub(crate) fn verify(path: String) -> Result<()> {
     let provenance = verify_provenance(build.provenance_bytes)?;
     let _attestation = verify_attestation(build.evidence_bytes, Some(provenance.checksum()))?;
 
-    // Format and print the attestation results
-    let header = format!("\n{} {}\n", "Verifying".bold(), &path);
-    let build_id = format!("{} {}", "Build ID".bold(), provenance.build_id(),);
-    let built_at = format!("{} {}", "Built at".bold(), provenance.timestamp(),);
-    let toolchain = format!("{} {}", "Built with".bold(), provenance.toolchain());
-
     results.push(provenance.verify_predicate());
+    results.extend(provenance.verify_artifacts(&build.artifacts));
 
     let mut b = Builder::with_capacity(0, 0);
-    for result in results {
+    for result in &results {
         if result.success {
             b.push_record(["✅", &result.message]);
         } else {
@@ -202,12 +197,17 @@ pub(crate) fn verify(path: String) -> Result<()> {
         }
     }
 
-    let valid = true;
-    let result = if valid {
+    let result = if results.iter().all(|r| r.success) {
         format!("✅ {}", "Verification PASSED".green())
     } else {
         format!("⛔️ {}", "Verification FAILED".red())
     };
+
+    // Format and print the attestation results
+    let header = format!("\n{} {}\n", "Verifying".bold(), &path);
+    let build_id = format!("{} {}", "Build ID".bold(), provenance.build_id(),);
+    let built_at = format!("{} {}", "Built at".bold(), provenance.timestamp(),);
+    let toolchain = format!("{} {}", "Built with".bold(), provenance.toolchain());
 
     let mut table = b.build();
     table.modify(Columns::first(), Alignment::center());

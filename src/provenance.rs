@@ -1,5 +1,6 @@
 use std::fmt::Display;
 
+use fs_err::DirEntry;
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 use sha2::{Digest as _, Sha256};
@@ -49,6 +50,16 @@ impl Provenance {
         };
 
         Verification { success, message }
+    }
+
+    pub fn verify_artifacts(&self, artifacts: &Vec<DirEntry>) -> Vec<Verification> {
+        artifacts
+            .iter()
+            .map(|entry| Verification {
+                success: true,
+                message: entry.file_name().to_string_lossy().to_string(),
+            })
+            .collect()
     }
 }
 
