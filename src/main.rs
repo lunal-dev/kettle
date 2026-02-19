@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use clap::{
     Parser, Subcommand,
     builder::{Styles, styling::AnsiColor},
@@ -41,7 +43,7 @@ enum Commands {
     Verify {
         /// Path to directory containing provenance.json and evidence.b64
         #[arg(default_value = ".")]
-        path: String,
+        path: PathBuf,
     },
 }
 

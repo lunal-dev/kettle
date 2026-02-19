@@ -38,6 +38,20 @@ impl Provenance {
         &self.predicate.run_details.metadata.started_on
     }
 
+    pub fn verify_type(&self) -> Verification {
+        let expected = "https://in-toto.io/Statement/v1";
+        if self._type == expected {
+            Verification::success("Provenance _type is in-toto v1")
+        } else {
+            Verification::failure(
+                "Provenance _type not in-toto v1",
+                &format!(
+                    "Expected _type {:?}, but instead found {:?}",
+                    expected, &self._type
+                ),
+            )
+        }
+    }
     pub fn verify_predicate(&self) -> Verification {
         let expected = "https://slsa.dev/provenance/v1";
         if self.predicate_type == expected {

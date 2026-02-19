@@ -5,6 +5,7 @@ use fs_err::DirEntry;
 use serde::{Deserialize, Serialize};
 use sev::firmware::guest::AttestationReport as SnpReport;
 use std::io::Read;
+use std::path::PathBuf;
 use std::vec::Vec;
 use tabled::builder::Builder;
 use tabled::settings::object::Columns;
@@ -107,46 +108,6 @@ pub(crate) fn print_result(check: bool, success: &str, failure: &str) {
     }
 }
 
-#[derive(thiserror::Error, Debug)]
-pub enum ProvenanceError {
-    #[error("invalid provenance _type value {}", 0)]
-    InvalidType(String),
-    #[error("invalid predicateType value {}", 0)]
-    InvalidPredicate(String),
-}
-
-pub(crate) fn verify_provenance(data: Vec<u8>) -> Result<Provenance> {
-    // Parsed successfully, so it has the exact structure we need
-    let provenance: Provenance = serde_json::from_slice(&data)?;
-
-    if provenance._type != "https://in-toto.io/Statement/v1" {
-        return Err(ProvenanceError::InvalidType(provenance._type).into());
-    }
-
-    if provenance.predicate_type != "https://slsa.dev/provenance/v1" {
-        return Err(ProvenanceError::InvalidPredicate(provenance.predicate_type).into());
-    }
-
-    Ok(provenance)
-
-    // let build_type = &value["predicate"]["buildDefinition"]["buildType"];
-    // let run_details = &value["predicate"]["runDetails"];
-    // let builder = &value["predicate"]["runDetails"]["builder"]["id"];
-    // let build_id = &value["predicate"]["runDetails"]["metadata"]["invocationId"];
-    // let timestamp = &value["predicate"]["runDetails"]["metadata"]["startedOn"];
-    // let merkle_tree_root = &value["predicate"]["runDetails"]["byproducts"][0]["digest"]["sha256"];
-    // println!("{}", serde_json::to_string(&provenance)?);
-    // Ok(ProvenanceResult {
-    //     checksum: provenance.checksum()?,
-    //     format: provenance::Format::SLSAv1dot2,
-    //     toolchain: provenance.toolchain().clone(),
-    //     merkle_tree_root: [
-    //         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    //         1, 1, 1,
-    //     ],
-    // })
-}
-
 struct Build {
     provenance_bytes: Vec<u8>,
     evidence_bytes: Vec<u8>,
@@ -154,7 +115,7 @@ struct Build {
 }
 
 impl Build {
-    fn from_dir(path: &str) -> Result<Build> {
+    fn from_dir(path: &PathBuf) -> Result<Build> {
         let project_dir = fs_err::canonicalize(path)?;
         let evidence_bytes = fs_err::read(project_dir.join("evidence.b64"))?;
         let provenance_bytes = fs_err::read(project_dir.join("provenance.json"))?;
@@ -192,29 +153,39 @@ impl Verification {
     }
 }
 
-pub(crate) fn verify(path: String) -> Result<()> {
+pub(crate) fn verify(path: PathBuf) -> Result<()> {
     let build = Build::from_dir(&path)?;
-    let mut results: Vec<Verification> = vec![];
 
-    // Get the provenance and attestation results
-    let provenance = verify_provenance(build.provenance_bytes)?;
+    // Get the provenance and attestation
+    let provenance: Provenance = serde_json::from_slice(&build.provenance_bytes)?;
     let _attestation = verify_attestation(build.evidence_bytes, Some(provenance.checksum()))?;
 
+    let mut results: Vec<Verification> = vec![];
+    results.push(provenance.verify_type());
     results.push(provenance.verify_predicate());
     results.extend(provenance.verify_artifacts(&build.artifacts));
 
-    let mut b = Builder::with_capacity(0, 0);
-    for result in &results {
-        match result {
-            Verification::Success { message } => b.push_record(["✅", message]),
-            Verification::Failure {
-                message,
-                details: _,
-            } => b.push_record(["⛔️", message]),
-        }
-    }
+    // Print build information
+    let header = format!(
+        "\n{} {}\n",
+        "Verifying build dir".bold(),
+        &path.file_name().unwrap().to_string_lossy()
+    );
+    let build_id = "Build ID".bold().to_string();
+    let built_at = "Built at".bold().to_string();
+    let toolchain = "Built with".bold().to_string();
+    print_table(
+        &vec![header],
+        &vec![
+            vec![&build_id, provenance.build_id()],
+            vec![&built_at, provenance.timestamp()],
+            vec![&toolchain, &format!("{}", provenance.toolchain())],
+        ],
+        &vec![],
+    );
 
-    let result = if results
+    // Print verification results
+    let summary = if results
         .iter()
         .any(|r| matches!(r, Verification::Failure { .. }))
     {
@@ -222,23 +193,48 @@ pub(crate) fn verify(path: String) -> Result<()> {
     } else {
         format!("✅ {}", "Verification PASSED".green())
     };
+    let rows: &Vec<Vec<&str>> = &results
+        .iter()
+        .map(|r| match r {
+            Verification::Success { message } => vec!["✅", &message],
+            Verification::Failure {
+                message,
+                details: _,
+            } => vec!["⛔️", &message],
+        })
+        .collect();
 
-    // Format and print the attestation results
-    let header = format!("\n{} {}\n", "Verifying".bold(), &path);
-    let build_id = format!("{} {}", "Build ID".bold(), provenance.build_id(),);
-    let built_at = format!("{} {}", "Built at".bold(), provenance.timestamp(),);
-    let toolchain = format!("{} {}", "Built with".bold(), provenance.toolchain());
+    let headers = vec![format!("{}", "Verification Results".bold())];
+    let footers = vec![summary];
+    print_table(&headers, rows, &footers);
+
+    // Print detailed information about failures (if any)
+    for r in results {
+        match r {
+            Verification::Success { .. } => (),
+            Verification::Failure { message, details } => {
+                eprintln!("{}\n{}\n", message.red().bold(), details);
+            }
+        }
+    }
+    Ok(())
+}
+
+fn print_table(headers: &Vec<String>, rows: &Vec<Vec<&str>>, footers: &Vec<String>) {
+    let mut b = Builder::with_capacity(rows.len(), 2);
+    for row in rows {
+        b.push_record(row.clone());
+    }
 
     let mut table = b.build();
     table.modify(Columns::first(), Alignment::center());
     table.with(Style::modern());
-    table.with(Panel::footer(result));
-    table.with(Panel::header(build_id));
-    table.with(Panel::header(built_at));
-    table.with(Panel::header(toolchain));
-    table.with(Panel::header(header));
+    for footer in footers {
+        table.with(Panel::footer(footer));
+    }
+    for header in headers {
+        table.with(Panel::header(header));
+    }
     table.with(BorderCorrection::span());
     println!("{}\n", table);
-
-    Ok(())
 }
