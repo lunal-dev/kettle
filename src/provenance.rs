@@ -39,24 +39,24 @@ impl Provenance {
     }
 
     pub fn verify_predicate(&self) -> Verification {
-        let success = &self.predicate_type == "https://slsa.dev/provenance/v1";
-        let message = if success {
-            "Provenance predicateType is SLSA v1".to_string()
+        let expected = "https://slsa.dev/provenance/v1";
+        if self.predicate_type == expected {
+            Verification::success("Provenance predicateType is SLSA v1")
         } else {
-            format!(
-                "Provenance predicateType is unknown: {}",
-                self.predicate_type
+            Verification::failure(
+                "Provenance predicateType not SLSA v1",
+                &format!(
+                    "Expected predicateType {:?}, but instead found {:?}",
+                    expected, &self.predicate_type
+                ),
             )
-        };
-
-        Verification { success, message }
+        }
     }
 
     pub fn verify_artifacts(&self, artifacts: &[DirEntry]) -> Vec<Verification> {
         artifacts
             .iter()
-            .map(|entry| Verification {
-                success: true,
+            .map(|entry| Verification::Success {
                 message: entry.file_name().to_string_lossy().to_string(),
             })
             .collect()

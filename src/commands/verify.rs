@@ -172,9 +172,24 @@ impl Build {
     }
 }
 
-pub(crate) struct Verification {
-    pub success: bool,
-    pub message: String,
+pub(crate) enum Verification {
+    Success { message: String },
+    Failure { message: String, details: String },
+}
+
+impl Verification {
+    pub fn success(message: &str) -> Self {
+        Self::Success {
+            message: message.to_owned(),
+        }
+    }
+
+    pub fn failure(message: &str, details: &str) -> Self {
+        Self::Failure {
+            message: message.to_owned(),
+            details: details.to_owned(),
+        }
+    }
 }
 
 pub(crate) fn verify(path: String) -> Result<()> {
@@ -190,17 +205,22 @@ pub(crate) fn verify(path: String) -> Result<()> {
 
     let mut b = Builder::with_capacity(0, 0);
     for result in &results {
-        if result.success {
-            b.push_record(["✅", &result.message]);
-        } else {
-            b.push_record(["⛔️", &result.message]);
+        match result {
+            Verification::Success { message } => b.push_record(["✅", message]),
+            Verification::Failure {
+                message,
+                details: _,
+            } => b.push_record(["⛔️", message]),
         }
     }
 
-    let result = if results.iter().all(|r| r.success) {
-        format!("✅ {}", "Verification PASSED".green())
-    } else {
+    let result = if results
+        .iter()
+        .any(|r| matches!(r, Verification::Failure { .. }))
+    {
         format!("⛔️ {}", "Verification FAILED".red())
+    } else {
+        format!("✅ {}", "Verification PASSED".green())
     };
 
     // Format and print the attestation results
