@@ -1,9 +1,9 @@
-use std::fmt::Display;
-
+use anyhow::Result;
 use fs_err::DirEntry;
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 use sha2::{Digest as _, Sha256};
+use std::fmt::Display;
 
 use crate::commands::verify::Verification;
 
@@ -17,6 +17,10 @@ pub struct Provenance {
 }
 
 impl Provenance {
+    pub fn from_json(bytes: &[u8]) -> Result<Self> {
+        Ok(serde_json::from_slice(bytes)?)
+    }
+
     pub fn checksum(&self) -> String {
         let json = serde_json::to_string(&self).expect("could not generate JSON");
         hex::encode(Sha256::digest(json))
@@ -41,12 +45,12 @@ impl Provenance {
     pub fn verify_type(&self) -> Verification {
         let expected = "https://in-toto.io/Statement/v1";
         if self._type == expected {
-            Verification::success("Provenance _type is in-toto v1")
+            Verification::success("Provenance type is in-toto v1")
         } else {
             Verification::failure(
-                "Provenance _type not in-toto v1",
+                "Provenance type not in-toto v1",
                 &format!(
-                    "Expected _type {:?}, but instead found {:?}",
+                    "Expected _type {:?}\nActual _type   {:?}",
                     expected, &self._type
                 ),
             )
@@ -60,7 +64,7 @@ impl Provenance {
             Verification::failure(
                 "Provenance predicateType not SLSA v1",
                 &format!(
-                    "Expected predicateType {:?}, but instead found {:?}",
+                    "Expected predicateType {:?}\nActual predicateType   {:?}",
                     expected, &self.predicate_type
                 ),
             )

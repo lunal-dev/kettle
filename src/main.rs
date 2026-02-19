@@ -7,6 +7,7 @@ use clap::{
 use colored::Colorize;
 
 mod amd;
+mod attestation;
 mod commands;
 mod hcl;
 mod provenance;
