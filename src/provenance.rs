@@ -71,11 +71,37 @@ impl Provenance {
         }
     }
 
-    pub fn verify_artifacts(&self, artifacts: &[DirEntry]) -> Vec<Verification> {
+    pub fn verify_artifacts(&self, artifacts: &[DirEntry]) -> Result<Vec<Verification>> {
         artifacts
             .iter()
-            .map(|entry| Verification::Success {
-                message: entry.file_name().to_string_lossy().to_string(),
+            .map(|entry| {
+                let name = entry.file_name().to_string_lossy().into_owned();
+                let checksum = Sha256::digest(fs_err::read(entry.path())?);
+                let subject = self.subject.iter().find(|s| s.name == name);
+                if let Some(subject) = subject {
+                    if hex::encode(checksum) == subject.digest.sha256 {
+                        Ok(Verification::success(&format!(
+                            "Checksum match for binary `{}`",
+                            name
+                        )))
+                    } else {
+                        Ok(Verification::failure(
+                            "Checksum mismatch for `{}`!",
+                            &format!(
+                                "Provenance did not contain checksum for binary named {:?}",
+                                name
+                            ),
+                        ))
+                    }
+                } else {
+                    Ok(Verification::failure(
+                        &format!("Checksum missing for `{}`!", name),
+                        &format!(
+                            "Provenance did not contain checksum for binary named {:?}",
+                            name
+                        ),
+                    ))
+                }
             })
             .collect()
     }

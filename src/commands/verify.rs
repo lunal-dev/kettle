@@ -68,7 +68,7 @@ pub(crate) fn verify(path: PathBuf) -> Result<()> {
     results.push(attestation.verify_provenance(&provenance.checksum()));
     results.push(provenance.verify_type());
     results.push(provenance.verify_predicate());
-    results.extend(provenance.verify_artifacts(&build.artifacts));
+    results.extend(provenance.verify_artifacts(&build.artifacts)?);
 
     // Print build information
     print_table(

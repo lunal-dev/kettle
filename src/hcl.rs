@@ -105,9 +105,7 @@ impl HclReport {
                 self.attestation_report.hcl_data.report_data_hash_type
             );
         }
-        let mut hasher = Sha256::new();
-        hasher.update(self.var_data());
-        hasher.finalize().into()
+        Sha256::digest(self.var_data()).into()
     }
 
     /// Get the slice of the VarData section
