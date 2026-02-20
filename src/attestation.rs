@@ -1,16 +1,17 @@
-use std::io::Read;
+mod amd;
+mod hcl;
 
 use anyhow::Result;
 use base64::Engine;
 use base64::prelude::BASE64_STANDARD;
 use serde::{Deserialize, Serialize};
 use sev::firmware::guest::AttestationReport as SnpReport;
+use std::io::Read;
 
-use crate::amd;
-use crate::amd::certs::Vcek;
-use crate::amd::snp_report::Validateable;
+use crate::attestation::amd::certs::Vcek;
+use crate::attestation::amd::snp_report::Validateable;
+use crate::attestation::hcl::HclReport;
 use crate::commands::verify::Verification;
-use crate::hcl::HclReport;
 
 /// PEM encoded VCEK certificate and AMD certificate chain.
 #[derive(Serialize, Deserialize, Debug, Clone)]

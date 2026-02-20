@@ -6,11 +6,10 @@ use clap::{
 };
 use colored::Colorize;
 
-mod amd;
 mod attestation;
 mod commands;
-mod hcl;
 mod provenance;
+mod toolchain;
 
 const STYLES: Styles = Styles::styled()
     .header(AnsiColor::Yellow.on_default())
@@ -45,7 +44,7 @@ enum Commands {
         /// Path to directory containing provenance.json and evidence.b64
         #[arg(default_value = ".")]
         path: PathBuf,
-        #[arg(long, help = "Print the entire attestation report")]
+        #[arg(long, help = "Verbose output, including the entire attestation report")]
         verbose: bool,
     },
 }
