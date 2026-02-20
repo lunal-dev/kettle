@@ -1,4 +1,4 @@
-use crate::amd::certs::AmdChain;
+use crate::attestation::amd::certs::AmdChain;
 use pem::parse_many;
 use sev::Generation;
 use sev::firmware::guest::AttestationReport;

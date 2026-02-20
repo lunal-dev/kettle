@@ -224,7 +224,7 @@ mod tests {
 
     #[test]
     fn test_validate_certificates() {
-        let bytes = include_bytes!("../../test/files/certs.pem");
+        let bytes = include_bytes!("../../../test/files/certs.pem");
         let pem_str = std::str::from_utf8(bytes).unwrap();
         let pem_objects = pem::parse_many(pem_str.as_bytes()).unwrap();
 

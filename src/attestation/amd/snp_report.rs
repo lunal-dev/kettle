@@ -7,8 +7,8 @@ use sha2::{Digest, Sha384};
 use signature::DigestVerifier;
 use std::vec::Vec;
 
-use crate::amd::certs::Vcek;
-use crate::hcl::MAX_REPORT_SIZE;
+use crate::attestation::amd::certs::Vcek;
+use crate::attestation::hcl::MAX_REPORT_SIZE;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ValidateError {
@@ -74,11 +74,11 @@ fn get_report_base(report: &SnpReport) -> Result<Vec<u8>, Box<bincode::ErrorKind
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hcl::HclReport;
+    use crate::attestation::hcl::HclReport;
 
     #[test]
     fn test_report_data_hash() {
-        let bytes: &[u8] = include_bytes!("../../test/files/hcl-report-snp.bin");
+        let bytes: &[u8] = include_bytes!("../../../test/files/hcl-report-snp.bin");
         let hcl_report = HclReport::new(bytes.to_vec()).unwrap();
         let var_data_hash = hcl_report.var_data_sha256();
         let snp_report: SnpReport = hcl_report.try_into().unwrap();
