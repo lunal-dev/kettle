@@ -87,6 +87,10 @@ pub(crate) fn verify(path: PathBuf) -> Result<()> {
                 "Built with".bold().to_string(),
                 format!("{}", provenance.toolchain()),
             ],
+            vec![
+                "Git commit".bold().to_string(),
+                format!("{}", provenance.git_commit()),
+            ],
         ],
         vec![],
     );

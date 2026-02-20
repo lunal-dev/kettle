@@ -42,6 +42,16 @@ impl Provenance {
         &self.predicate.run_details.metadata.started_on
     }
 
+    pub fn git_commit(&self) -> &String {
+        &self
+            .predicate
+            .build_definition
+            .external_parameters
+            .source
+            .digest
+            .git_commit
+    }
+
     pub fn verify_type(&self) -> Verification {
         let expected = "https://in-toto.io/Statement/v1";
         if self._type == expected {

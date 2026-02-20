@@ -18,8 +18,7 @@
   - [x] print provenance checksum verify result
   - [x] verify artifacts against provenance.json checksums
   - [x] print launch measurements, guest_svn, policy, version, and vmpl
-  - [ ] print git commit sha
-  - [ ] print merkle tree root sha
+  - [x] print git commit sha
   - [x] print detailed error message after table with expected and actual checksums
 
 - [ ] `kettle build` command
