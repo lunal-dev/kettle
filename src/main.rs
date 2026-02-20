@@ -28,7 +28,7 @@ const STYLES: Styles = Styles::styled()
 struct Args {
     #[command(subcommand)]
     command: Commands,
-    #[arg(long, help = "Enable verbose output")]
+    #[arg(long, help = "Enable verbose output", global = true)]
     verbose: bool,
 }
 
@@ -38,7 +38,7 @@ enum Commands {
     Build {
         /// Path to the Cargo or Nix project
         #[arg(default_value = ".")]
-        path: String,
+        path: PathBuf,
     },
     /// Verify a Kettle build, including provenance and attestation
     Verify {
@@ -51,8 +51,8 @@ enum Commands {
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let result = match args.command {
-        Commands::Build { path } => commands::build::build(path),
-        Commands::Verify { path } => commands::verify::verify(path),
+        Commands::Build { ref path } => commands::build::build(&args, path),
+        Commands::Verify { ref path } => commands::verify::verify(&args, path),
     };
 
     if args.verbose {

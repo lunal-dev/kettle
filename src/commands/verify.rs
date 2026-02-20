@@ -8,6 +8,7 @@ use tabled::settings::object::Columns;
 use tabled::settings::themes::BorderCorrection;
 use tabled::settings::{Alignment, Panel, Style};
 
+use crate::Args;
 use crate::attestation::Attestation;
 use crate::provenance::Provenance;
 
@@ -56,8 +57,27 @@ impl Verification {
     }
 }
 
-pub(crate) fn verify(path: PathBuf) -> Result<()> {
-    let build = Build::from_dir(&path)?;
+fn print_table(headers: Vec<String>, rows: Vec<Vec<String>>, footers: Vec<String>) {
+    let mut b = Builder::with_capacity(rows.len(), 2);
+    for row in rows {
+        b.push_record(row.clone());
+    }
+
+    let mut table = b.build();
+    table.modify(Columns::first(), Alignment::center());
+    table.with(Style::modern());
+    for footer in footers {
+        table.with(Panel::footer(footer));
+    }
+    for header in headers {
+        table.with(Panel::header(header));
+    }
+    table.with(BorderCorrection::span());
+    println!("{}\n", table);
+}
+
+pub(crate) fn verify(args: &Args, path: &PathBuf) -> Result<()> {
+    let build = Build::from_dir(path)?;
 
     // Get the provenance and attestation
     let provenance = Provenance::from_json(&build.provenance_bytes)?;
@@ -95,24 +115,6 @@ pub(crate) fn verify(path: PathBuf) -> Result<()> {
         vec![],
     );
 
-    println!(
-        "{}\n{}\n{}",
-        "Attestation measurement".bold(),
-        hex::encode(&attestation.report.measurement[..24]),
-        hex::encode(&attestation.report.measurement[24..])
-    );
-    println!("{} {}", "Guest SVN".bold(), attestation.report.guest_svn);
-    println!("{}", attestation.report.policy);
-    println!("{} {}", "Version".bold(), attestation.report.version);
-    println!("{} {}", "VMPL".bold(), attestation.report.vmpl);
-    println!(
-        "{}\n{}\n{}",
-        "Report data".bold(),
-        hex::encode(&attestation.report.report_data[0..32]),
-        hex::encode(&attestation.report.report_data[32..])
-    );
-    println!();
-
     // Print verification results
     let summary = if results
         .iter()
@@ -132,7 +134,6 @@ pub(crate) fn verify(path: PathBuf) -> Result<()> {
             } => vec!["⛔️".to_string(), message.clone()],
         })
         .collect();
-
     let headers = vec![format!("{}", "Verification Results".bold())];
     let footers = vec![summary];
     print_table(headers, rows, footers);
@@ -147,24 +148,25 @@ pub(crate) fn verify(path: PathBuf) -> Result<()> {
         }
     }
 
+    if args.verbose {
+        println!(
+            "{}\n{}\n{}",
+            "Attestation measurement".bold(),
+            hex::encode(&attestation.report.measurement[..24]),
+            hex::encode(&attestation.report.measurement[24..])
+        );
+        println!("{} {}", "Guest SVN".bold(), attestation.report.guest_svn);
+        println!("{}", attestation.report.policy);
+        println!("{} {}", "Version".bold(), attestation.report.version);
+        println!("{} {}", "VMPL".bold(), attestation.report.vmpl);
+        println!(
+            "{}\n{}\n{}",
+            "Report data".bold(),
+            hex::encode(&attestation.report.report_data[0..32]),
+            hex::encode(&attestation.report.report_data[32..])
+        );
+        println!();
+    }
+
     Ok(())
-}
-
-fn print_table(headers: Vec<String>, rows: Vec<Vec<String>>, footers: Vec<String>) {
-    let mut b = Builder::with_capacity(rows.len(), 2);
-    for row in rows {
-        b.push_record(row.clone());
-    }
-
-    let mut table = b.build();
-    table.modify(Columns::first(), Alignment::center());
-    table.with(Style::modern());
-    for footer in footers {
-        table.with(Panel::footer(footer));
-    }
-    for header in headers {
-        table.with(Panel::header(header));
-    }
-    table.with(BorderCorrection::span());
-    println!("{}\n", table);
 }
