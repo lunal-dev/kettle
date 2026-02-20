@@ -45,14 +45,16 @@ enum Commands {
         /// Path to directory containing provenance.json and evidence.b64
         #[arg(default_value = ".")]
         path: PathBuf,
+        #[arg(long, help = "Print the entire attestation report")]
+        verbose: bool,
     },
 }
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let result = match args.command {
-        Commands::Build { ref path } => commands::build::build(&args, path),
-        Commands::Verify { ref path } => commands::verify::verify(&args, path),
+        Commands::Build { ref path } => commands::build::build(path),
+        Commands::Verify { ref path, verbose } => commands::verify::verify(path, verbose),
     };
 
     if args.verbose {

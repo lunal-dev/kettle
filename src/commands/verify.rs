@@ -8,7 +8,6 @@ use tabled::settings::object::Columns;
 use tabled::settings::themes::BorderCorrection;
 use tabled::settings::{Alignment, Panel, Style};
 
-use crate::Args;
 use crate::attestation::Attestation;
 use crate::provenance::Provenance;
 
@@ -76,7 +75,7 @@ fn print_table(headers: Vec<String>, rows: Vec<Vec<String>>, footers: Vec<String
     println!("{}\n", table);
 }
 
-pub(crate) fn verify(args: &Args, path: &PathBuf) -> Result<()> {
+pub(crate) fn verify(path: &PathBuf, verbose: bool) -> Result<()> {
     let build = Build::from_dir(path)?;
 
     // Get the provenance and attestation
@@ -148,7 +147,7 @@ pub(crate) fn verify(args: &Args, path: &PathBuf) -> Result<()> {
         }
     }
 
-    if args.verbose {
+    if verbose {
         println!(
             "{}\n{}\n{}",
             "Attestation measurement".bold(),
