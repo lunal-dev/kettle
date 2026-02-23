@@ -134,20 +134,20 @@ impl Provenance {
 
 #[derive(Serialize, Deserialize)]
 pub(crate) struct Subject {
-    digest: Digest,
-    name: String,
+    pub(crate) digest: Digest,
+    pub(crate) name: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct Digest {
-    sha256: String,
+pub(crate) struct Digest {
+    pub(crate) sha256: String,
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Predicate {
     pub(crate) build_definition: BuildDefiniton,
-    run_details: RunDetails,
+    pub(crate) run_details: RunDetails,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -163,17 +163,17 @@ pub(crate) struct BuildDefiniton {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ResolvedDependency {
     #[serde(skip_serializing_if = "Option::is_none")]
-    annotations: Option<Annotation>,
-    digest: Digest,
-    name: String,
-    uri: String,
+    pub(crate) annotations: Option<Annotation>,
+    pub(crate) digest: Digest,
+    pub(crate) name: String,
+    pub(crate) uri: String,
 }
 
 #[derive(Serialize, Deserialize)]
-struct RunDetails {
-    builder: Builder,
-    byproducts: Vec<Byproduct>,
-    metadata: Metadata,
+pub(crate) struct RunDetails {
+    pub(crate) builder: Builder,
+    pub(crate) byproducts: Vec<Byproduct>,
+    pub(crate) metadata: Metadata,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -193,39 +193,39 @@ pub(crate) struct Source {
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct SourceDigest {
-    git_commit: String,
-    git_tree: String,
+    pub(crate) git_commit: String,
+    pub(crate) git_tree: String,
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct InternalParameters {
     #[serde(skip_serializing_if = "Option::is_none")]
-    evaluation: Option<Evaluation>,
+    pub(crate) evaluation: Option<Evaluation>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    flake_inputs: Option<Vec<FlakeInput>>,
-    lockfile_hash: Digest,
+    pub(crate) flake_inputs: Option<Vec<FlakeInput>>,
+    pub(crate) lockfile_hash: Digest,
     pub(crate) toolchain: Toolchain,
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Builder {
-    id: String,
+    pub(crate) id: String,
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Metadata {
-    invocation_id: String,
-    started_on: String,
+    pub(crate) invocation_id: String,
+    pub(crate) started_on: String,
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Byproduct {
-    digest: Digest,
-    name: String,
+    pub(crate) digest: Digest,
+    pub(crate) name: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -251,8 +251,8 @@ impl Display for Toolchain {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct ToolchainVersion {
-    digest: Digest,
-    version: String,
+    pub(crate) digest: Digest,
+    pub(crate) version: String,
 }
 
 #[derive(Serialize, Deserialize)]
