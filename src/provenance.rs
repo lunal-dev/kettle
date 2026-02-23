@@ -166,6 +166,8 @@ pub(crate) struct ResolvedDependency {
     pub(crate) annotations: Option<Annotation>,
     pub(crate) digest: Digest,
     pub(crate) name: String,
+    #[serde(skip)]
+    pub(crate) version: String,
     pub(crate) uri: String,
 }
 

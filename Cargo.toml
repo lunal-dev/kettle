@@ -3,6 +3,9 @@ name = "kettle"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+attest = []
+
 [dependencies]
 anyhow = "1.0.101"
 base64 = "0.22.1"
