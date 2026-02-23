@@ -1,5 +1,6 @@
-use crate::commands::build::ProjectToolchain;
+use std::path::PathBuf;
 
-pub(crate) fn build(toolchain: &ProjectToolchain) {
+pub(crate) fn build(path: &PathBuf) {
+    let _ = path;
     todo!()
 }

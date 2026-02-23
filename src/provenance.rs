@@ -21,6 +21,21 @@ impl Provenance {
         Ok(serde_json::from_slice(bytes)?)
     }
 
+    pub fn from_dir(path: PathBuf) -> Result<Self> {
+        Ok(Provenance {
+            _type: "".to_string(),
+            predicate: Predicate {
+                build_definition: todo!(),
+                run_details: todo!(),
+            },
+            predicate_type: "".to_string(),
+            subject: vec![Subject {
+                digest: todo!(),
+                name: todo!(),
+            }],
+        })
+    }
+
     pub fn checksum(&self) -> String {
         let json = serde_json::to_string(&self).expect("could not generate JSON");
         hex::encode(Sha256::digest(json))
@@ -139,9 +154,9 @@ pub(crate) struct Predicate {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct BuildDefiniton {
     pub(crate) build_type: String,
-    external_parameters: ExternalParameters,
-    internal_parameters: InternalParameters,
-    resolved_dependencies: Vec<ResolvedDependency>,
+    pub(crate) external_parameters: ExternalParameters,
+    pub(crate) internal_parameters: InternalParameters,
+    pub(crate) resolved_dependencies: Vec<ResolvedDependency>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -164,15 +179,15 @@ struct RunDetails {
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ExternalParameters {
-    build_command: String,
-    source: Source,
+    pub(crate) build_command: String,
+    pub(crate) source: Source,
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Source {
-    digest: SourceDigest,
-    uri: String,
+    pub(crate) digest: SourceDigest,
+    pub(crate) uri: String,
 }
 
 #[derive(Serialize, Deserialize)]

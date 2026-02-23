@@ -35,7 +35,7 @@
   - [ ] generate attestation from provenance and build result
     - [ ] hash provenance for checksum
     - [ ] call attest with custom data of provenance checksum
-    - [ ] write the results into `evidence.b64`
+    - [ ] write the results into `evidence.json`
 
 ## future work
 
