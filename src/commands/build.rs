@@ -10,9 +10,9 @@ pub(crate) enum ProjectToolchain {
 impl ProjectToolchain {
     fn from_dir(path: &PathBuf) -> Result<Self> {
         if exists(path.join("flake.nix"))? {
-            Ok(Self::Cargo)
-        } else if exists(path.join("Cargo.lock"))? {
             Ok(Self::Nix)
+        } else if exists(path.join("Cargo.lock"))? {
+            Ok(Self::Cargo)
         } else {
             Err(anyhow!(
                 "Could not determine toolchain. Is {:?} a rust or nix project?",
