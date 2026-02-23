@@ -35,6 +35,28 @@ pub(crate) fn build(path: &PathBuf) -> Result<()> {
     let invocation_id = format!("build-{}-{}", now.format("%Y%m%d-%H%M%S"), id_suffix);
     let started_on = now.to_rfc3339_opts(chrono::SecondsFormat::Micros, false);
 
+    let mut merkle_entries = vec![
+        &git_commit,
+        &git_tree,
+        &git_hash,
+        &rustc_hash,
+        &rustc_version,
+        &cargo_hash,
+        &cargo_version,
+        &lockfile_hash,
+    ];
+    let merkle_deps = resolved_deps
+        .iter()
+        .map(|dep| format!("{}:{}:{}", dep.name, dep.version, dep.digest.sha256))
+        .collect::<Vec<String>>();
+    merkle_entries.extend(&merkle_deps);
+    let leafs = merkle_entries
+        .iter()
+        .map(prelude::Digest::try_from_hex)
+        .collect::<Result<Vec<_>, _>>()?;
+    let merkle_tree = MerkleTree::par_new(&leafs)?;
+    let merkle_root = merkle_tree.root().to_hex();
+
     // Run build
     println!("Running `cargo build --locked --release`");
     let status = Command::new("cargo")
