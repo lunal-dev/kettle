@@ -8,7 +8,7 @@ struct BuildInputs {
 
 }
 
-pub(crate) fn build(path: &PathBuf) {
+pub(crate) fn build(path: &PathBuf) -> Result<()> {
     // Clean and re-create build directory
     let output_dir = path.join("kettle-build");
     fs_err::remove_dir_all(&output_dir);

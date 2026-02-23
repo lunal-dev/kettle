@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 
-pub(crate) fn build(path: &PathBuf) {
+use anyhow::Result;
+
+pub(crate) fn build(path: &PathBuf) -> Result<()> {
     let _ = path;
     todo!()
 }
