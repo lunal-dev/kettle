@@ -21,21 +21,6 @@ impl Provenance {
         Ok(serde_json::from_slice(bytes)?)
     }
 
-    pub fn from_dir(path: PathBuf) -> Result<Self> {
-        Ok(Provenance {
-            _type: "".to_string(),
-            predicate: Predicate {
-                build_definition: todo!(),
-                run_details: todo!(),
-            },
-            predicate_type: "".to_string(),
-            subject: vec![Subject {
-                digest: todo!(),
-                name: todo!(),
-            }],
-        })
-    }
-
     pub fn checksum(&self) -> String {
         let json = serde_json::to_string(&self).expect("could not generate JSON");
         hex::encode(Sha256::digest(json))
