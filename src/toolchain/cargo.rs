@@ -30,3 +30,43 @@ pub(crate) fn build(path: &PathBuf) -> Result<()> {
 
     Ok(())
 }
+
+fn git_cmd(path: &PathBuf, args: &[&str]) -> Result<String> {
+    let out = Command::new("git")
+        .arg("-C")
+        .arg(path)
+        .args(args)
+        .output()
+        .context("git not found")?;
+    if !out.status.success() {
+        return Err(anyhow!(
+            "git {} failed: {}",
+            args.join(" "),
+            String::from_utf8_lossy(&out.stderr).trim()
+        ));
+    }
+    Ok(String::from_utf8(out.stdout)?.trim().to_string())
+}
+
+fn tool_info(cmd: &str) -> Result<(String, String)> {
+    let ver = Command::new(cmd)
+        .arg("--version")
+        .output()
+        .with_context(|| format!("{cmd} not found"))?;
+    let version = String::from_utf8(ver.stdout)?.trim().to_string();
+
+    let mut which = Command::new("rustup")
+        .args(["which", cmd])
+        .output()
+        .with_context(|| format!("rustup which {cmd} failed"))?;
+    if which.stdout.is_empty() {
+        which = Command::new("which")
+            .arg(cmd)
+            .output()
+            .with_context(|| format!("which {cmd} failed"))?;
+    }
+    let bin = PathBuf::from(String::from_utf8(which.stdout)?.trim().to_string());
+
+    let hash = hex::encode(Sha256::digest(fs_err::read(&bin)?));
+    Ok((version, hash))
+}
