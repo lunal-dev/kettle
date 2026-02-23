@@ -28,8 +28,8 @@ pub(crate) fn build(path: &PathBuf) -> Result<()> {
     let toolchain = ProjectToolchain::from_dir(path)?;
     println!("Found {:?} project", toolchain);
     match toolchain {
-        ProjectToolchain::Cargo => crate::toolchain::cargo::build(&path),
-        ProjectToolchain::Nix => crate::toolchain::nix::build(&path),
+        ProjectToolchain::Cargo => crate::toolchain::cargo::build(&path)?,
+        ProjectToolchain::Nix => crate::toolchain::nix::build(&path)?,
     }
 
     Ok(())

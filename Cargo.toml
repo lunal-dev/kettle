@@ -44,3 +44,4 @@ signature = "2.2.0"
 tabled = { version = "0.20.0", features = ["ansi"] }
 thiserror = "2.0.18"
 x509-cert = { version = "0.2.5", features = ["std"] }
+uuid = { version = "1.21.0", features = ["v4"] }
