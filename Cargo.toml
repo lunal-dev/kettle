@@ -55,4 +55,4 @@ tabled = { version = "0.20.0", features = ["ansi"] }
 thiserror = "2.0.18"
 x509-cert = { version = "0.2.5", features = ["std"] }
 uuid = { version = "1.21.0", features = ["v4"] }
-twenty-first = "1.1.0"
+rs_merkle = "1.5.0"

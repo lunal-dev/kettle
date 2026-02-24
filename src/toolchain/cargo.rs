@@ -1,8 +1,8 @@
 use anyhow::{Context, Result, anyhow};
+use rs_merkle::MerkleTree;
 use sha2::{Digest as _, Sha256};
 use std::path::PathBuf;
 use std::process::Command;
-use twenty_first::prelude::{self, MerkleTree};
 
 use crate::provenance::{
     BuildDefiniton, Builder, Byproduct, Digest, ExternalParameters, InternalParameters, Metadata,
@@ -45,17 +45,24 @@ pub(crate) fn build(path: &PathBuf) -> Result<()> {
         &cargo_version,
         &lockfile_hash,
     ];
+    println!("{merkle_entries:?}");
     let merkle_deps = resolved_deps
         .iter()
         .map(|dep| format!("{}:{}:{}", dep.name, dep.version, dep.digest.sha256))
         .collect::<Vec<String>>();
     merkle_entries.extend(&merkle_deps);
-    let leafs = merkle_entries
+    let leaves: Vec<[u8; 32]> = merkle_entries
         .iter()
-        .map(prelude::Digest::try_from_hex)
-        .collect::<Result<Vec<_>, _>>()?;
-    let merkle_tree = MerkleTree::par_new(&leafs)?;
-    let merkle_root = merkle_tree.root().to_hex();
+        .map(|e| Sha256::digest(e.as_bytes()).into())
+        .collect();
+    println!("{leaves:?}");
+
+    let merkle_tree = MerkleTree::<rs_merkle::algorithms::Sha256>::from_leaves(&leaves);
+    println!("built tree");
+    let merkle_root = merkle_tree
+        .root()
+        .ok_or(anyhow!("Merkle tree root calculation failed!"))?;
+    println!("root is {merkle_root:?}");
 
     // Run build
     println!("Running `cargo build --locked --release`");
@@ -128,7 +135,7 @@ pub(crate) fn build(path: &PathBuf) -> Result<()> {
                 byproducts: vec![Byproduct {
                     name: "input_merkle_root".to_string(),
                     digest: Digest {
-                        sha256: merkle_root,
+                        sha256: hex::encode(merkle_root),
                     },
                 }],
             },
