@@ -151,8 +151,6 @@ pub(crate) struct ResolvedDependency {
     pub(crate) annotations: Option<Annotation>,
     pub(crate) digest: Digest,
     pub(crate) name: String,
-    #[serde(skip)]
-    pub(crate) version: String,
     pub(crate) uri: String,
 }
 
@@ -206,6 +204,8 @@ pub(crate) struct Builder {
 pub(crate) struct Metadata {
     pub(crate) invocation_id: String,
     pub(crate) started_on: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) finished_on: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]

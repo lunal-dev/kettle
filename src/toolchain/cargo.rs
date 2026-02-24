@@ -1,4 +1,5 @@
 use anyhow::{Context, Result, anyhow};
+use chrono::DateTime;
 use rs_merkle::MerkleTree;
 use sha2::{Digest as _, Sha256};
 use std::path::PathBuf;
@@ -10,59 +11,111 @@ use crate::provenance::{
     Toolchain, ToolchainVersion,
 };
 
+struct BuildInputs {
+    git_commit: String,
+    git_tree: String,
+    source_uri: String,
+    rustc_version: String,
+    rustc_hash: String,
+    cargo_version: String,
+    cargo_hash: String,
+    lockfile_hash: String,
+    resolved_deps: Vec<ResolvedDependency>,
+    merkle_root: String,
+}
+
+impl BuildInputs {
+    fn from_dir(path: &PathBuf) -> Result<Self> {
+        let git_commit = git_cmd(path, &["rev-parse", "HEAD"])?;
+        let git_tree = git_cmd(path, &["rev-parse", "HEAD^{tree}"])?;
+        let source_uri = git_cmd(path, &["remote", "get-url", "origin"]).unwrap_or_default();
+
+        let (rustc_version, rustc_hash) = tool_info("rustc")?;
+        let (cargo_version, cargo_hash) = tool_info("cargo")?;
+
+        let lockfile_path = path.join("Cargo.lock");
+        let lockfile_bytes = fs_err::read(&lockfile_path).context("reading Cargo.lock")?;
+        let lockfile_hash = hex::encode(Sha256::digest(&lockfile_bytes));
+        let resolved_deps = parse_cargo_lock(&lockfile_bytes)?;
+
+        let mut merkle_entries = vec![
+            &git_commit,
+            &git_tree,
+            &rustc_hash,
+            &rustc_version,
+            &cargo_hash,
+            &cargo_version,
+            &lockfile_hash,
+        ];
+
+        let merkle_deps = resolved_deps
+            .iter()
+            .map(|dep| dep.uri.clone())
+            .collect::<Vec<String>>();
+
+        merkle_entries.extend(&merkle_deps);
+        let leaves: Vec<[u8; 32]> = merkle_entries
+            .iter()
+            .map(|e| Sha256::digest(e.as_bytes()).into())
+            .collect();
+
+        let merkle_tree = MerkleTree::<rs_merkle::algorithms::Sha256>::from_leaves(&leaves);
+        let merkle_root_bytes = merkle_tree
+            .root()
+            .ok_or(anyhow!("Merkle tree root calculation failed!"))?;
+        let merkle_root = hex::encode(merkle_root_bytes);
+
+        Ok(Self {
+            git_commit,
+            git_tree,
+            source_uri,
+            rustc_version,
+            rustc_hash,
+            cargo_version,
+            cargo_hash,
+            lockfile_hash,
+            resolved_deps,
+            merkle_root,
+        })
+    }
+}
+
+struct BuildMetadata {
+    invocation_id: String,
+    started_on: String,
+    finished_on: Option<String>,
+}
+
+impl BuildMetadata {
+    fn start() -> Self {
+        let now = chrono::Utc::now();
+        let id_suffix = &hex::encode(uuid::Uuid::new_v4())[..8];
+        let invocation_id = format!("build-{}-{}", now.format("%Y%m%d-%H%M%S"), id_suffix);
+
+        Self {
+            invocation_id,
+            started_on: Self::ts(now),
+            finished_on: None,
+        }
+    }
+
+    fn ts(now: DateTime<chrono::Utc>) -> String {
+        now.to_rfc3339_opts(chrono::SecondsFormat::Micros, false)
+    }
+
+    fn finish(&mut self) {
+        self.finished_on = Some(Self::ts(chrono::Utc::now()));
+    }
+}
+
 pub(crate) fn build(path: &PathBuf) -> Result<()> {
     // Clean and re-create build directory
     let output_dir = path.join("kettle-build");
     fs_err::remove_dir_all(&output_dir)?;
     fs_err::create_dir_all(&output_dir)?;
 
-    // Record inputs
-    let git_commit = git_cmd(path, &["rev-parse", "HEAD"])?;
-    let git_tree = git_cmd(path, &["rev-parse", "HEAD^{tree}"])?;
-    let source_uri = git_cmd(path, &["remote", "get-url", "origin"]).unwrap_or_default();
-
-    let (_, git_hash) = tool_info("git")?;
-    let (rustc_version, rustc_hash) = tool_info("rustc")?;
-    let (cargo_version, cargo_hash) = tool_info("cargo")?;
-
-    let lockfile_path = path.join("Cargo.lock");
-    let lockfile_bytes = fs_err::read(&lockfile_path).context("reading Cargo.lock")?;
-    let lockfile_hash = hex::encode(Sha256::digest(&lockfile_bytes));
-    let resolved_deps = parse_cargo_lock(&lockfile_bytes)?;
-
-    let now = chrono::Utc::now();
-    let id_suffix = &hex::encode(uuid::Uuid::new_v4())[..8];
-    let invocation_id = format!("build-{}-{}", now.format("%Y%m%d-%H%M%S"), id_suffix);
-    let started_on = now.to_rfc3339_opts(chrono::SecondsFormat::Micros, false);
-
-    let mut merkle_entries = vec![
-        &git_commit,
-        &git_tree,
-        &git_hash,
-        &rustc_hash,
-        &rustc_version,
-        &cargo_hash,
-        &cargo_version,
-        &lockfile_hash,
-    ];
-    println!("{merkle_entries:?}");
-    let merkle_deps = resolved_deps
-        .iter()
-        .map(|dep| format!("{}:{}:{}", dep.name, dep.version, dep.digest.sha256))
-        .collect::<Vec<String>>();
-    merkle_entries.extend(&merkle_deps);
-    let leaves: Vec<[u8; 32]> = merkle_entries
-        .iter()
-        .map(|e| Sha256::digest(e.as_bytes()).into())
-        .collect();
-    println!("{leaves:?}");
-
-    let merkle_tree = MerkleTree::<rs_merkle::algorithms::Sha256>::from_leaves(&leaves);
-    println!("built tree");
-    let merkle_root = merkle_tree
-        .root()
-        .ok_or(anyhow!("Merkle tree root calculation failed!"))?;
-    println!("root is {merkle_root:?}");
+    let build_inputs = BuildInputs::from_dir(path)?;
+    let mut build_metadata = BuildMetadata::start();
 
     // Run build
     println!("Running `cargo build --locked --release`");
@@ -79,68 +132,10 @@ pub(crate) fn build(path: &PathBuf) -> Result<()> {
     let release_dir = path.join("target").join("release");
     let artifacts = collect_artifacts(&release_dir)?;
 
-    // Build provenance
-    let provenance = Provenance {
-        _type: "https://in-toto.io/Statement/v1".to_string(),
-        predicate_type: "https://slsa.dev/provenance/v1".to_string(),
-        subject: artifacts
-            .iter()
-            .map(|(name, hash)| Subject {
-                name: name.clone(),
-                digest: Digest {
-                    sha256: hash.clone(),
-                },
-            })
-            .collect(),
-        predicate: Predicate {
-            build_definition: BuildDefiniton {
-                build_type: "https://attestable-builds.dev/kettle/cargo@v1".to_string(),
-                external_parameters: ExternalParameters {
-                    build_command: "cargo build".to_string(),
-                    source: Source {
-                        digest: SourceDigest {
-                            git_commit,
-                            git_tree,
-                        },
-                        uri: source_uri,
-                    },
-                },
-                internal_parameters: InternalParameters {
-                    evaluation: None,
-                    flake_inputs: None,
-                    lockfile_hash: Digest {
-                        sha256: lockfile_hash,
-                    },
-                    toolchain: Toolchain::RustToolchain {
-                        rustc: ToolchainVersion {
-                            version: rustc_version,
-                            digest: Digest { sha256: rustc_hash },
-                        },
-                        cargo: ToolchainVersion {
-                            version: cargo_version,
-                            digest: Digest { sha256: cargo_hash },
-                        },
-                    },
-                },
-                resolved_dependencies: resolved_deps,
-            },
-            run_details: RunDetails {
-                builder: Builder {
-                    id: "https://attestable-builds.dev/kettle-tee/v1".to_string(),
-                },
-                metadata: Metadata {
-                    invocation_id,
-                    started_on,
-                },
-                byproducts: vec![Byproduct {
-                    name: "input_merkle_root".to_string(),
-                    digest: Digest {
-                        sha256: hex::encode(merkle_root),
-                    },
-                }],
-            },
-        },
-    };
+    // Mark the build as completed at this time
+    build_metadata.finish();
+
+    let provenance = build_provenance(build_inputs, build_metadata, artifacts);
 
     // Write provenance
     let provenance_path = output_dir.join("provenance.json");
@@ -159,6 +154,79 @@ pub(crate) fn build(path: &PathBuf) -> Result<()> {
         &path
     );
     Ok(())
+}
+
+fn build_provenance(
+    inputs: BuildInputs,
+    metadata: BuildMetadata,
+    artifacts: Vec<(String, String)>,
+) -> Provenance {
+    Provenance {
+        _type: "https://in-toto.io/Statement/v1".to_string(),
+        predicate_type: "https://slsa.dev/provenance/v1".to_string(),
+        subject: artifacts
+            .iter()
+            .map(|(name, hash)| Subject {
+                name: name.clone(),
+                digest: Digest {
+                    sha256: hash.clone(),
+                },
+            })
+            .collect(),
+        predicate: Predicate {
+            build_definition: BuildDefiniton {
+                build_type: "https://attestable-builds.dev/kettle/cargo@v1".to_string(),
+                external_parameters: ExternalParameters {
+                    build_command: "cargo build".to_string(),
+                    source: Source {
+                        digest: SourceDigest {
+                            git_commit: inputs.git_commit,
+                            git_tree: inputs.git_tree,
+                        },
+                        uri: inputs.source_uri,
+                    },
+                },
+                internal_parameters: InternalParameters {
+                    evaluation: None,
+                    flake_inputs: None,
+                    lockfile_hash: Digest {
+                        sha256: inputs.lockfile_hash,
+                    },
+                    toolchain: Toolchain::RustToolchain {
+                        rustc: ToolchainVersion {
+                            version: inputs.rustc_version,
+                            digest: Digest {
+                                sha256: inputs.rustc_hash,
+                            },
+                        },
+                        cargo: ToolchainVersion {
+                            version: inputs.cargo_version,
+                            digest: Digest {
+                                sha256: inputs.cargo_hash,
+                            },
+                        },
+                    },
+                },
+                resolved_dependencies: inputs.resolved_deps,
+            },
+            run_details: RunDetails {
+                builder: Builder {
+                    id: "https://attestable-builds.dev/kettle-tee/v1".to_string(),
+                },
+                metadata: Metadata {
+                    invocation_id: metadata.invocation_id,
+                    started_on: metadata.started_on,
+                    finished_on: metadata.finished_on,
+                },
+                byproducts: vec![Byproduct {
+                    name: "input_merkle_root".to_string(),
+                    digest: Digest {
+                        sha256: inputs.merkle_root,
+                    },
+                }],
+            },
+        },
+    }
 }
 
 fn git_cmd(path: &PathBuf, args: &[&str]) -> Result<String> {
@@ -240,7 +308,6 @@ fn parse_cargo_lock(bytes: &[u8]) -> Result<Vec<ResolvedDependency>> {
                     sha256: checksum.to_string(),
                 },
                 name: name.to_string(),
-                version: version.to_string(),
                 uri: format!("pkg:cargo/{name}@{version}?checksum=sha256:{checksum}"),
             });
         }
