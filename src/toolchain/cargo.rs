@@ -274,7 +274,12 @@ fn collect_artifacts(release_dir: &PathBuf) -> Result<Vec<(String, String)>> {
     for entry in fs_err::read_dir(release_dir)? {
         let entry = entry?;
         let path = entry.path();
-        if !path.is_file() {
+        let is_dotfile = path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .starts_with(".");
+        if !path.is_file() || is_dotfile {
             continue;
         }
         let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
