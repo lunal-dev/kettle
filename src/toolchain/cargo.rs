@@ -144,13 +144,6 @@ pub(crate) fn build(path: &PathBuf) -> Result<()> {
     fs_err::write(&provenance_path, serde_json::to_string_pretty(&provenance)?)?;
     println!("Provenance: {}", provenance_path.display());
 
-    // Generate attestation
-    #[cfg(feature = "attest")]
-    attest();
-
-    #[cfg(not(feature = "attest"))]
-    eprintln!("Cannot attest build due to missing hardware security module.");
-
     println!(
         "Build in {:?} complete, output located in `kettle-build`",
         &path

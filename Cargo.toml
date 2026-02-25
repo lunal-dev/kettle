@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [features]
-attest = []
+attest = ["attestation/attest"]
 
 [dependencies]
 anyhow = "1.0.101"
@@ -56,3 +56,5 @@ thiserror = "2.0.18"
 x509-cert = { version = "0.2.5", features = ["std"] }
 uuid = { version = "1.21.0", features = ["v4"] }
 rs_merkle = "1.5.0"
+attestation = { git = "https://github.com/lunal-dev/attestation-rs", branch = "feat/overhaul-attestation", version = "0.1.0" }
+tokio = { version = "1.49.0", features = ["rt-multi-thread"] }

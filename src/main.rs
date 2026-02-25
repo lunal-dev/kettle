@@ -33,10 +33,15 @@ struct Args {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Build a project inside a Trusted Execution Environment
+    /// Build and attest a project inside a Trusted Execution Environment
+    Attest {
+        #[arg()]
+        path: PathBuf,
+    },
+    /// Build a project with SLSA v1.2 provenance
     Build {
         /// Path to the Cargo or Nix project
-        #[arg(default_value = ".")]
+        #[arg()]
         path: PathBuf,
     },
     /// Verify a Kettle build, including provenance and attestation
@@ -49,9 +54,11 @@ enum Commands {
     },
 }
 
-fn main() -> anyhow::Result<()> {
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let result = match args.command {
+        Commands::Attest { ref path } => commands::attest::attest(path).await,
         Commands::Build { ref path } => commands::build::build(path),
         Commands::Verify { ref path, verbose } => commands::verify::verify(path, verbose),
     };
