@@ -22,16 +22,16 @@
   - [x] print detailed error message after table with expected and actual checksums
 
 - [ ] `kettle build` command
-  - [ ] collect provenance data
-    - [ ] collect git repo data commit_hash, tree_hash, git_binary_hash, repository_url
-  - [ ] handle cargo build
-    - [ ] collect lockfile hash
-    - [ ] collect rustc + cargo binary info (path, hash, version)
-    - [ ] run `cargo build --locked --release`
-    - [ ] collect exectutables from target/release/* (path, hash, name)
+  - [x] collect provenance data
+    - [x] collect git repo data commit_hash, tree_hash, git_binary_hash, repository_url
+  - [x] handle cargo build
+    - [x] collect lockfile hash
+    - [x] collect rustc + cargo binary info (path, hash, version)
+    - [x] run `cargo build --locked --release`
+    - [x] collect exectutables from target/release/* (path, hash, name)
   - [ ] handle nix build
     - [ ] ???
-  - [ ] generate provenance.json file
+  - [x] generate provenance.json file
   - [ ] generate attestation from provenance and build result
     - [ ] hash provenance for checksum
     - [ ] call attest with custom data of provenance checksum
