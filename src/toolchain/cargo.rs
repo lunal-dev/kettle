@@ -111,7 +111,9 @@ impl BuildMetadata {
 pub(crate) fn build(path: &PathBuf) -> Result<()> {
     // Clean and re-create build directory
     let output_dir = path.join("kettle-build");
-    fs_err::remove_dir_all(&output_dir)?;
+    if fs_err::exists(&output_dir)? {
+        fs_err::remove_dir_all(&output_dir)?;
+    }
     fs_err::create_dir_all(&output_dir)?;
 
     let build_inputs = BuildInputs::from_dir(path)?;
