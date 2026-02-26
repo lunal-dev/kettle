@@ -32,10 +32,10 @@
   - [ ] handle nix build
     - [ ] ???
   - [x] generate provenance.json file
-  - [ ] generate attestation from provenance and build result
-    - [ ] hash provenance for checksum
-    - [ ] call attest with custom data of provenance checksum
-    - [ ] write the results into `evidence.json`
+  - [x] generate attestation from provenance and build result
+    - [x] hash provenance for checksum
+    - [x] call attest with custom data of provenance checksum
+    - [x] write the results into `evidence.json`
 
 ## future work
 
