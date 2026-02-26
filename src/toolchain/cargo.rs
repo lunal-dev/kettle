@@ -11,6 +11,54 @@ use crate::provenance::{
     Toolchain, ToolchainVersion,
 };
 
+pub(crate) fn build(path: &PathBuf) -> Result<()> {
+    // Clean and re-create build directory
+    let output_dir = path.join("kettle-build");
+    if fs_err::exists(&output_dir)? {
+        fs_err::remove_dir_all(&output_dir)?;
+    }
+    fs_err::create_dir_all(&output_dir)?;
+
+    let build_inputs = BuildInputs::from_dir(path)?;
+    let mut build_metadata = BuildMetadata::start();
+
+    // Run build
+    println!("Running `cargo build --locked --release`");
+    let status = Command::new("cargo")
+        .args(["build", "--locked", "--release"])
+        .current_dir(path)
+        .status()
+        .context("failed to spawn cargo")?;
+    if !status.success() {
+        return Err(anyhow!("cargo build failed (exit {:?})", status.code()));
+    }
+
+    // List and checksum files with no extension or .exe in target/release
+    let release_dir = path.join("target").join("release");
+    let artifacts = Artifact::in_dir(&release_dir)?;
+
+    // Mark the build as completed
+    build_metadata.finish();
+
+    // Generate the provenance file from the inputs and outputs
+    let provenance = build_provenance(build_inputs, build_metadata, &artifacts);
+    let provenance_path = output_dir.join("provenance.json");
+    fs_err::write(&provenance_path, serde_json::to_string_pretty(&provenance)?)?;
+
+    // Copy the artifacts
+    let artifacts_dir = output_dir.join("artifacts");
+    fs_err::create_dir_all(&artifacts_dir)?;
+    for artifact in &artifacts {
+        fs_err::copy(&artifact.path, artifacts_dir.join(&artifact.name))?;
+    }
+
+    println!(
+        "Build in {:?} complete, output located in `kettle-build`",
+        &path
+    );
+    Ok(())
+}
+
 struct BuildInputs {
     git_commit: String,
     git_tree: String,
@@ -108,63 +156,56 @@ impl BuildMetadata {
     }
 }
 
-pub(crate) fn build(path: &PathBuf) -> Result<()> {
-    // Clean and re-create build directory
-    let output_dir = path.join("kettle-build");
-    if fs_err::exists(&output_dir)? {
-        fs_err::remove_dir_all(&output_dir)?;
+struct Artifact {
+    name: String,
+    path: PathBuf,
+    checksum: String,
+}
+
+impl Artifact {
+    fn in_dir(path: &PathBuf) -> Result<Vec<Artifact>> {
+        let mut artifacts = Vec::new();
+        for entry in fs_err::read_dir(path)? {
+            let entry = entry?;
+            let path = entry.path();
+            let is_dotfile = path
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .starts_with(".");
+
+            if !path.is_file() || is_dotfile {
+                continue;
+            }
+            let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+            if ext.is_empty() || ext == "exe" {
+                let name = path.file_name().unwrap().to_string_lossy().into_owned();
+                let checksum = hex::encode(Sha256::digest(fs_err::read(&path)?));
+                artifacts.push(Artifact {
+                    name,
+                    path,
+                    checksum,
+                });
+            }
+        }
+        Ok(artifacts)
     }
-    fs_err::create_dir_all(&output_dir)?;
-
-    let build_inputs = BuildInputs::from_dir(path)?;
-    let mut build_metadata = BuildMetadata::start();
-
-    // Run build
-    println!("Running `cargo build --locked --release`");
-    let status = Command::new("cargo")
-        .args(["build", "--locked", "--release"])
-        .current_dir(path)
-        .status()
-        .context("failed to spawn cargo")?;
-    if !status.success() {
-        return Err(anyhow!("cargo build failed (exit {:?})", status.code()));
-    }
-
-    // List and checksum files with no extension or .exe in target/release
-    let release_dir = path.join("target").join("release");
-    let artifacts = collect_artifacts(&release_dir)?;
-
-    // Mark the build as completed at this time
-    build_metadata.finish();
-
-    let provenance = build_provenance(build_inputs, build_metadata, artifacts);
-
-    // Write provenance
-    let provenance_path = output_dir.join("provenance.json");
-    fs_err::write(&provenance_path, serde_json::to_string_pretty(&provenance)?)?;
-    println!("Provenance: {}", provenance_path.display());
-
-    println!(
-        "Build in {:?} complete, output located in `kettle-build`",
-        &path
-    );
-    Ok(())
 }
 
 fn build_provenance(
     inputs: BuildInputs,
     metadata: BuildMetadata,
-    artifacts: Vec<(String, String)>,
+    artifacts: &[Artifact],
 ) -> Provenance {
     Provenance {
         _type: "https://in-toto.io/Statement/v1".to_string(),
         predicate_type: "https://slsa.dev/provenance/v1".to_string(),
         subject: artifacts
             .iter()
-            .map(|(name, hash)| Subject {
-                name: name.clone(),
+            .map(|artifact| Subject {
+                name: artifact.name.clone(),
                 digest: Digest {
-                    sha256: hash.clone(),
+                    sha256: artifact.checksum.clone(),
                 },
             })
             .collect(),
@@ -262,29 +303,6 @@ fn tool_info(cmd: &str) -> Result<(String, String)> {
 
     let hash = hex::encode(Sha256::digest(fs_err::read(&bin)?));
     Ok((version, hash))
-}
-
-fn collect_artifacts(release_dir: &PathBuf) -> Result<Vec<(String, String)>> {
-    let mut artifacts = Vec::new();
-    for entry in fs_err::read_dir(release_dir)? {
-        let entry = entry?;
-        let path = entry.path();
-        let is_dotfile = path
-            .file_name()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .starts_with(".");
-        if !path.is_file() || is_dotfile {
-            continue;
-        }
-        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-        if ext.is_empty() || ext == "exe" {
-            let name = path.file_name().unwrap().to_string_lossy().into_owned();
-            let hash = hex::encode(Sha256::digest(fs_err::read(&path)?));
-            artifacts.push((name, hash));
-        }
-    }
-    Ok(artifacts)
 }
 
 fn parse_cargo_lock(bytes: &[u8]) -> Result<Vec<ResolvedDependency>> {
