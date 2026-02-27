@@ -2,7 +2,7 @@ use anyhow::Result;
 use std::path::PathBuf;
 
 #[cfg(feature = "attest")]
-pub(crate) async fn attest(path: &PathBuf) -> Result<()> {
+pub async fn attest(path: &PathBuf) -> Result<()> {
     use sha2::Digest as _;
 
     // Build the thing from scratch before we attest it
@@ -31,7 +31,7 @@ pub(crate) async fn attest(path: &PathBuf) -> Result<()> {
 }
 
 #[cfg(not(feature = "attest"))]
-pub(crate) async fn attest(_path: &PathBuf) -> Result<()> {
+pub async fn attest(_path: &PathBuf) -> Result<()> {
     use anyhow::anyhow;
     Err(anyhow!(
         "Attestation disabled. Rebuild Kettle with `--features attest` to enable this command."

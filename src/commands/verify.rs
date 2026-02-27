@@ -1,4 +1,5 @@
 use anyhow::Result;
+use attestation::VerificationResult;
 use colored::Colorize;
 use fs_err::DirEntry;
 use std::path::PathBuf;
@@ -8,21 +9,19 @@ use tabled::settings::object::Columns;
 use tabled::settings::themes::BorderCorrection;
 use tabled::settings::{Alignment, Panel, Style};
 
-use crate::attestation::Attestation;
 use crate::provenance::Provenance;
 
-pub(crate) fn verify(path: &PathBuf, verbose: bool) -> Result<()> {
+pub async fn verify(path: &PathBuf, verbose: bool) -> Result<()> {
     let build = Build::from_dir(path)?;
 
     // Get the provenance and attestation
     let provenance = Provenance::from_json(&build.provenance_bytes)?;
-    let attestation = Attestation::from_base64(&build.evidence_bytes)?;
+    let verification = attestation::verify(&build.evidence_bytes, &Default::default()).await?;
 
     let mut results: Vec<Verification> = vec![];
-    results.extend(attestation.verify()?);
-    results.push(attestation.verify_provenance(&provenance.checksum()));
-    results.push(provenance.verify_type());
+    results.push(verify_signature(&verification));
     results.push(provenance.verify_predicate());
+    results.push(verify_report_data(&verification, &provenance));
     results.extend(provenance.verify_artifacts(&build.artifacts)?);
 
     // Print build information
@@ -84,26 +83,50 @@ pub(crate) fn verify(path: &PathBuf, verbose: bool) -> Result<()> {
     }
 
     if verbose {
-        println!(
-            "{}\n{}\n{}",
-            "Attestation measurement".bold(),
-            hex::encode(&attestation.report.measurement[..24]),
-            hex::encode(&attestation.report.measurement[24..])
-        );
-        println!("{} {}", "Guest SVN".bold(), attestation.report.guest_svn);
-        println!("{}", attestation.report.policy);
-        println!("{} {}", "Version".bold(), attestation.report.version);
-        println!("{} {}", "VMPL".bold(), attestation.report.vmpl);
-        println!(
-            "{}\n{}\n{}",
-            "Report data".bold(),
-            hex::encode(&attestation.report.report_data[0..32]),
-            hex::encode(&attestation.report.report_data[32..])
-        );
+        println!("{}\n{:?}", "Attestation claims".bold(), &verification);
         println!();
     }
 
     Ok(())
+}
+
+fn verify_signature(verification_result: &VerificationResult) -> Verification {
+    match verification_result.signature_valid {
+        true => Verification::success("Attestation hardware signature valid"),
+        false => Verification::failure(
+            "Attestation hardware signature invalid",
+            "signature verification failed",
+        ),
+    }
+}
+
+fn verify_report_data(
+    verification_result: &VerificationResult,
+    provenance: &Provenance,
+) -> Verification {
+    let data_value = verification_result
+        .claims
+        .platform_data
+        .pointer("/tpm/nonce");
+    let checksum = hex::encode(provenance.checksum());
+
+    if let Some(report_data) = data_value {
+        match *report_data == checksum {
+            true => Verification::success("Provenance checksum match"),
+            false => Verification::failure(
+                "Provenance checksum mismatch",
+                &format!(
+                    "Expected provenance.json checksum {:?}\nActual provenance.json checksum   {:?}",
+                    report_data, checksum
+                ),
+            ),
+        }
+    } else {
+        Verification::failure(
+            "Provenance checksum missing",
+            "Expected to validate provenance.json checksum, but no checksum was present in the attestation.",
+        )
+    }
 }
 
 struct Build {
@@ -131,7 +154,7 @@ impl Build {
     }
 }
 
-pub(crate) enum Verification {
+pub enum Verification {
     Success { message: String },
     Failure { message: String, details: String },
 }

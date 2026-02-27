@@ -21,9 +21,9 @@ impl Provenance {
         Ok(serde_json::from_slice(bytes)?)
     }
 
-    pub fn checksum(&self) -> String {
+    pub fn checksum(&self) -> Vec<u8> {
         let json = serde_json::to_string(&self).expect("could not generate JSON");
-        hex::encode(Sha256::digest(json))
+        Sha256::digest(json).to_vec()
     }
 
     pub fn toolchain(&self) -> &Toolchain {

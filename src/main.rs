@@ -60,7 +60,7 @@ async fn main() -> anyhow::Result<()> {
     let result = match args.command {
         Commands::Attest { ref path } => commands::attest::attest(path).await,
         Commands::Build { ref path } => commands::build::build(path),
-        Commands::Verify { ref path, verbose } => commands::verify::verify(path, verbose),
+        Commands::Verify { ref path, verbose } => commands::verify::verify(path, verbose).await,
     };
 
     if args.verbose {
