@@ -11,70 +11,6 @@ use tabled::settings::{Alignment, Panel, Style};
 use crate::attestation::Attestation;
 use crate::provenance::Provenance;
 
-struct Build {
-    provenance_bytes: Vec<u8>,
-    evidence_bytes: Vec<u8>,
-    artifacts: Vec<DirEntry>,
-}
-
-impl Build {
-    fn from_dir(path: &PathBuf) -> Result<Build> {
-        let project_dir = fs_err::canonicalize(path)?;
-        let evidence_bytes = fs_err::read(project_dir.join("evidence.b64"))?;
-        let provenance_bytes = fs_err::read(project_dir.join("provenance.json"))?;
-        let artifacts = fs_err::read_dir(project_dir.join("artifacts"))?
-            .filter_map(|e| e.ok())
-            .collect();
-
-        let build = Build {
-            provenance_bytes,
-            evidence_bytes,
-            artifacts,
-        };
-
-        Ok(build)
-    }
-}
-
-pub(crate) enum Verification {
-    Success { message: String },
-    Failure { message: String, details: String },
-}
-
-impl Verification {
-    pub fn success(message: &str) -> Self {
-        Self::Success {
-            message: message.to_owned(),
-        }
-    }
-
-    pub fn failure(message: &str, details: &str) -> Self {
-        Self::Failure {
-            message: message.to_owned(),
-            details: details.to_owned(),
-        }
-    }
-}
-
-fn print_table(headers: Vec<String>, rows: Vec<Vec<String>>, footers: Vec<String>) {
-    let mut b = Builder::with_capacity(rows.len(), 2);
-    for row in rows {
-        b.push_record(row.clone());
-    }
-
-    let mut table = b.build();
-    table.modify(Columns::first(), Alignment::center());
-    table.with(Style::modern());
-    for footer in footers {
-        table.with(Panel::footer(footer));
-    }
-    for header in headers {
-        table.with(Panel::header(header));
-    }
-    table.with(BorderCorrection::span());
-    println!("{}\n", table);
-}
-
 pub(crate) fn verify(path: &PathBuf, verbose: bool) -> Result<()> {
     let build = Build::from_dir(path)?;
 
@@ -168,4 +104,68 @@ pub(crate) fn verify(path: &PathBuf, verbose: bool) -> Result<()> {
     }
 
     Ok(())
+}
+
+struct Build {
+    provenance_bytes: Vec<u8>,
+    evidence_bytes: Vec<u8>,
+    artifacts: Vec<DirEntry>,
+}
+
+impl Build {
+    fn from_dir(path: &PathBuf) -> Result<Build> {
+        let project_dir = fs_err::canonicalize(path)?;
+        let evidence_bytes = fs_err::read(project_dir.join("evidence.json"))?;
+        let provenance_bytes = fs_err::read(project_dir.join("provenance.json"))?;
+        let artifacts = fs_err::read_dir(project_dir.join("artifacts"))?
+            .filter_map(|e| e.ok())
+            .collect();
+
+        let build = Build {
+            provenance_bytes,
+            evidence_bytes,
+            artifacts,
+        };
+
+        Ok(build)
+    }
+}
+
+pub(crate) enum Verification {
+    Success { message: String },
+    Failure { message: String, details: String },
+}
+
+impl Verification {
+    pub fn success(message: &str) -> Self {
+        Self::Success {
+            message: message.to_owned(),
+        }
+    }
+
+    pub fn failure(message: &str, details: &str) -> Self {
+        Self::Failure {
+            message: message.to_owned(),
+            details: details.to_owned(),
+        }
+    }
+}
+
+fn print_table(headers: Vec<String>, rows: Vec<Vec<String>>, footers: Vec<String>) {
+    let mut b = Builder::with_capacity(rows.len(), 2);
+    for row in rows {
+        b.push_record(row.clone());
+    }
+
+    let mut table = b.build();
+    table.modify(Columns::first(), Alignment::center());
+    table.with(Style::modern());
+    for footer in footers {
+        table.with(Panel::footer(footer));
+    }
+    for header in headers {
+        table.with(Panel::header(header));
+    }
+    table.with(BorderCorrection::span());
+    println!("{}\n", table);
 }
