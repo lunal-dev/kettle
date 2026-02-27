@@ -52,30 +52,17 @@ impl Provenance {
             .git_commit
     }
 
-    pub fn verify_type(&self) -> Verification {
-        let expected = "https://in-toto.io/Statement/v1";
-        if self._type == expected {
-            Verification::success("Provenance type is in-toto v1")
-        } else {
-            Verification::failure(
-                "Provenance type not in-toto v1",
-                &format!(
-                    "Expected _type {:?}\nActual _type   {:?}",
-                    expected, &self._type
-                ),
-            )
-        }
-    }
     pub fn verify_predicate(&self) -> Verification {
-        let expected = "https://slsa.dev/provenance/v1";
-        if self.predicate_type == expected {
-            Verification::success("Provenance predicateType is SLSA v1")
+        let _type = "https://in-toto.io/Statement/v1";
+        let predicate = "https://slsa.dev/provenance/v1";
+        if self.predicate_type == predicate && self._type == _type {
+            Verification::success("Provenance is valid SLSA v1.2")
         } else {
             Verification::failure(
-                "Provenance predicateType not SLSA v1",
+                "Provenance not valid SLSA v1.2",
                 &format!(
-                    "Expected predicateType {:?}\nActual predicateType   {:?}",
-                    expected, &self.predicate_type
+                    "Expected _type {} and predicateType {:?}\nActual _type {:?} and predicateType   {:?}",
+                    _type, predicate, &self._type, &self.predicate_type
                 ),
             )
         }
