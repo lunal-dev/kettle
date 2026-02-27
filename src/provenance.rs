@@ -21,9 +21,12 @@ impl Provenance {
         Ok(serde_json::from_slice(bytes)?)
     }
 
+    pub fn to_json(&self) -> String {
+        serde_json::to_string(&self).expect("could not generate JSON")
+    }
+
     pub fn checksum(&self) -> Vec<u8> {
-        let json = serde_json::to_string(&self).expect("could not generate JSON");
-        Sha256::digest(json).to_vec()
+        Sha256::digest(self.to_json().trim_end()).to_vec()
     }
 
     pub fn toolchain(&self) -> &Toolchain {
@@ -105,7 +108,7 @@ impl Provenance {
 }
 
 #[derive(Serialize, Deserialize)]
-pub(crate) struct Subject {
+pub struct Subject {
     pub(crate) digest: Digest,
     pub(crate) name: String,
 }
@@ -117,7 +120,7 @@ pub(crate) struct Digest {
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct Predicate {
+pub struct Predicate {
     pub(crate) build_definition: BuildDefiniton,
     pub(crate) run_details: RunDetails,
 }
@@ -191,7 +194,6 @@ pub(crate) struct Builder {
 pub(crate) struct Metadata {
     pub(crate) invocation_id: String,
     pub(crate) started_on: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) finished_on: Option<String>,
 }
 
@@ -204,7 +206,7 @@ pub(crate) struct Byproduct {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
-pub(crate) enum Toolchain {
+pub enum Toolchain {
     NixToolchain {
         nix: ToolchainVersion,
     },
@@ -224,7 +226,7 @@ impl Display for Toolchain {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct ToolchainVersion {
+pub struct ToolchainVersion {
     pub(crate) digest: Digest,
     pub(crate) version: String,
 }

@@ -1,15 +1,11 @@
-use std::path::PathBuf;
-
 use clap::{
     Parser, Subcommand,
     builder::{Styles, styling::AnsiColor},
 };
 use colored::Colorize;
+use std::path::PathBuf;
 
-mod attestation;
-mod commands;
-mod provenance;
-mod toolchain;
+use kettle::commands;
 
 const STYLES: Styles = Styles::styled()
     .header(AnsiColor::Yellow.on_default())

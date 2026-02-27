@@ -22,7 +22,7 @@ impl ProjectToolchain {
     }
 }
 
-pub(crate) fn build(path: &PathBuf) -> Result<()> {
+pub fn build(path: &PathBuf) -> Result<()> {
     println!("Building project in: {:?}", path);
 
     let toolchain = ProjectToolchain::from_dir(path)?;
