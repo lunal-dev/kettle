@@ -234,25 +234,26 @@ pub struct ToolchainVersion {
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Annotation {
-    drv_path: String,
-    output_hash_mode: String,
+    pub(crate) drv_path: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    url: Option<String>,
+    pub(crate) output_hash_mode: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    urls: Option<String>,
+    pub(crate) url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) urls: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Evaluation {
-    derivation_count: Number,
-    fetch_count: Number,
-    mode: String,
+    pub(crate) derivation_count: Number,
+    pub(crate) fetch_count: Number,
+    pub(crate) mode: String,
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct FlakeInput {
-    name: String,
-    nar_hash: String,
+    pub(crate) name: String,
+    pub(crate) nar_hash: String,
 }
