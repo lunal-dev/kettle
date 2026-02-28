@@ -50,15 +50,7 @@ pub async fn verify(path: &PathBuf, verbose: bool) -> Result<()> {
     );
 
     // Print verification results
-    let summary = if results
-        .iter()
-        .any(|r| matches!(r, Verification::Failure { .. }))
-    {
-        format!("⛔️ {}", "Verification FAILED".red())
-    } else {
-        format!("✅ {}", "Verification PASSED".green())
-    };
-    let rows = results
+    let mut rows: Vec<Vec<String>> = results
         .iter()
         .map(|r| match r {
             Verification::Success { message } => vec!["✅".to_string(), message.clone()],
@@ -68,8 +60,22 @@ pub async fn verify(path: &PathBuf, verbose: bool) -> Result<()> {
             } => vec!["⛔️".to_string(), message.clone()],
         })
         .collect();
+    if results
+        .iter()
+        .any(|r| matches!(r, Verification::Failure { .. }))
+    {
+        rows.push(vec![
+            "⛔️".to_string(),
+            format!("{}", "Verification FAILED".red()),
+        ]);
+    } else {
+        rows.push(vec![
+            "✅".to_string(),
+            format!("{}", "Verification PASSED".green()),
+        ]);
+    };
     let headers = vec![format!("{}", "Verification Results".bold())];
-    let footers = vec![summary];
+    let footers = vec![];
     print_table(headers, rows, footers);
 
     // Print detailed information about failures (if any)
