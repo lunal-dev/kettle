@@ -227,5 +227,7 @@ pub(crate) trait ToolchainDriver: Sized {
     ) -> Result<Vec<Artifact>>;
 
     /// Return provenance fields for the shared scaffold to assemble.
-    fn provenance_fields(&self, git: &GitContext, merkle_root: &str) -> ProvenanceFields;
+    /// Takes `self` by value so impls can move owned fields (e.g. Vec<ResolvedDependency>)
+    /// without requiring Clone on provenance types.
+    fn provenance_fields(self, git: &GitContext, merkle_root: &str) -> ProvenanceFields;
 }
