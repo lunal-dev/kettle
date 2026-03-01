@@ -8,9 +8,7 @@ use crate::provenance::{
     Provenance, RunDetails, Source, SourceDigest, Subject,
 };
 
-use super::driver::{
-    Artifact, BuildMetadata, GitContext, ProvenanceFields, ToolchainDriver,
-};
+use super::driver::{Artifact, BuildMetadata, GitContext, ProvenanceFields, ToolchainDriver};
 
 pub(crate) fn run<T: ToolchainDriver>(path: &PathBuf) -> Result<()> {
     // 1. Clean / create output dir

@@ -1,18 +1,16 @@
 use anyhow::{Context as _, Result, anyhow};
-use rs_merkle::MerkleTree;
 use serde_json::Value;
 use sha2::{Digest as _, Sha256};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::{os::unix::fs::PermissionsExt as _, path::Path};
+use std::os::unix::fs::PermissionsExt as _;
 
 use crate::{
     provenance::{
-        Annotation, BuildDefiniton, Builder, Byproduct, Digest, Evaluation, ExternalParameters,
-        FlakeInput, InternalParameters, Metadata, Predicate, Provenance, ResolvedDependency,
-        RunDetails, Source, SourceDigest, Subject, Toolchain, ToolchainVersion,
+        Annotation, Digest, Evaluation, FlakeInput, InternalParameters, ResolvedDependency,
+        Toolchain, ToolchainVersion,
     },
-    toolchain::{Artifact, BuildMetadata, git_cmd},
+    toolchain::{Artifact, BuildOutput, GitContext, ProvenanceFields, ToolBinaryInfo, ToolchainDriver},
 };
 
 struct FlakeDep {
@@ -30,92 +28,156 @@ struct FetchEntry {
     urls: Option<String>,
 }
 
-struct BuildInputs {
-    git_commit: String,
-    git_tree: String,
-    source_uri: String,
+pub(crate) fn build(path: &PathBuf) -> Result<()> {
+    crate::toolchain::runner::run::<NixInputs>(path)
+}
+
+struct NixInputs {
     nix_version: String,
     nix_hash: String,
     lockfile_hash: String,
     flake_deps: Vec<FlakeDep>,
     fetches: Vec<FetchEntry>,
     derivation_count: usize,
-    merkle_root: String,
 }
 
-impl BuildInputs {
-    fn from_dir(path: &PathBuf) -> Result<Self> {
-        let git_commit = git_cmd(path, &["rev-parse", "HEAD"])?;
-        let git_tree = git_cmd(path, &["rev-parse", "HEAD^{tree}"])?;
-        let source_uri = git_cmd(path, &["remote", "get-url", "origin"]).unwrap_or_default();
+impl ToolchainDriver for NixInputs {
+    fn lockfile_filename() -> &'static str {
+        "flake.lock"
+    }
 
-        let (nix_version, nix_hash) = nix_tool_info()?;
+    fn build_command_display() -> &'static str {
+        "nix build --no-link --print-out-paths"
+    }
 
-        let lockfile_path = path.join("flake.lock");
-        let lockfile_bytes = fs_err::read(&lockfile_path).context("reading flake.lock")?;
-        let lockfile_hash = hex::encode(Sha256::digest(&lockfile_bytes));
-        let flake_deps = parse_flake_lock(&lockfile_bytes)?;
-
+    fn collect_inputs(
+        path: &PathBuf,
+        _git: &GitContext,
+        lockfile_hash: &str,
+        lockfile_bytes: &[u8],
+    ) -> Result<Self> {
+        let nix = ToolBinaryInfo::via_which("nix")?;
+        let flake_deps = parse_flake_lock(lockfile_bytes)?;
         let graph = evaluate_derivation_graph(path)?;
         let derivation_count = graph.as_object().map(|o| o.len()).unwrap_or(0);
         let fetches = extract_fixed_output_hashes(&graph);
+        Ok(Self {
+            nix_version: nix.version,
+            nix_hash: nix.sha256,
+            lockfile_hash: lockfile_hash.to_string(),
+            flake_deps,
+            fetches,
+            derivation_count,
+        })
+    }
 
-        // Merkle entries: git_commit, git_tree, lockfile_hash, then fetches (sorted by name),
-        // then nix_hash, nix_version
-        let mut merkle_strings: Vec<String> =
-            vec![git_commit.clone(), git_tree.clone(), lockfile_hash.clone()];
-
-        for fod in &fetches {
-            merkle_strings.push(format!(
+    fn merkle_entries(&self, git: &GitContext, lockfile_hash: &str) -> Vec<String> {
+        // Ordering is a frozen contract — do not change without bumping the build_type URI.
+        let mut entries = vec![
+            git.commit.clone(),
+            git.tree.clone(),
+            lockfile_hash.to_string(),
+        ];
+        for fod in &self.fetches {
+            entries.push(format!(
                 "fetch:{}:{}:{}",
                 fod.name, fod.output_hash_algo, fod.output_hash
             ));
         }
+        entries.push(self.nix_hash.clone());
+        entries.push(self.nix_version.clone());
+        entries
+    }
 
-        merkle_strings.push(nix_hash.clone());
-        merkle_strings.push(nix_version.clone());
+    fn run_build(path: &PathBuf) -> Result<BuildOutput> {
+        let output = Command::new("nix")
+            .args([
+                "build",
+                "--no-link",
+                "--print-out-paths",
+                "--extra-experimental-features",
+                "nix-command",
+                "--extra-experimental-features",
+                "flakes",
+            ])
+            .current_dir(path)
+            .output()
+            .context("failed to spawn nix")?;
+        if !output.status.success() {
+            return Err(anyhow!("nix build failed (exit {:?})", output.status.code()));
+        }
+        Ok(BuildOutput { stdout: output.stdout, stderr: output.stderr })
+    }
 
-        let leaves: Vec<[u8; 32]> = merkle_strings
-            .iter()
-            .map(|e| Sha256::digest(e.as_bytes()).into())
+    fn collect_artifacts(
+        output: &BuildOutput,
+        _path: &PathBuf,
+        artifacts_dir: &Path,
+    ) -> Result<Vec<Artifact>> {
+        let store_paths_str = std::str::from_utf8(&output.stdout)?;
+        nix_artifacts_from_store_paths(store_paths_str, artifacts_dir)
+    }
+
+    fn provenance_fields(self, _git: &GitContext, _merkle_root: &str) -> ProvenanceFields {
+        let fetch_count = self.fetches.len();
+
+        let resolved_dependencies: Vec<ResolvedDependency> = self
+            .fetches
+            .into_iter()
+            .map(|fetch| {
+                let uri = format!(
+                    "pkg:nix-fetch/{}?hash={}:{}",
+                    fetch.name, fetch.output_hash_algo, fetch.output_hash
+                );
+                ResolvedDependency {
+                    annotations: Some(Annotation {
+                        drv_path: fetch.drv_path,
+                        output_hash_mode: fetch.output_hash_mode,
+                        url: fetch.url,
+                        urls: fetch.urls,
+                    }),
+                    digest: Digest { sha256: fetch.output_hash },
+                    name: fetch.name,
+                    uri,
+                }
+            })
             .collect();
 
-        let merkle_tree = MerkleTree::<rs_merkle::algorithms::Sha256>::from_leaves(&leaves);
-        let merkle_root_bytes = merkle_tree
-            .root()
-            .ok_or(anyhow!("Merkle tree root calculation failed!"))?;
-        let merkle_root = hex::encode(merkle_root_bytes);
+        // Flake inputs are always included in internalParameters for human context
+        let flake_inputs: Vec<FlakeInput> = self
+            .flake_deps
+            .into_iter()
+            .filter_map(|dep| {
+                dep.nar_hash.map(|nar_hash| FlakeInput {
+                    name: dep.name,
+                    nar_hash,
+                })
+            })
+            .collect();
 
-        Ok(Self {
-            git_commit,
-            git_tree,
-            source_uri,
-            nix_version,
-            nix_hash,
-            lockfile_hash,
-            flake_deps,
-            fetches,
-            derivation_count,
-            merkle_root,
-        })
+        // Evaluation metadata only present in deep mode
+        let evaluation = Evaluation {
+            derivation_count: serde_json::Number::from(self.derivation_count),
+            fetch_count: serde_json::Number::from(fetch_count),
+        };
+
+        ProvenanceFields {
+            build_type: "https://attestable-builds.dev/kettle/nix@v1".to_string(),
+            external_build_command: "nix build".to_string(),
+            internal_parameters: InternalParameters {
+                evaluation: Some(evaluation),
+                flake_inputs: if flake_inputs.is_empty() { None } else { Some(flake_inputs) },
+                lockfile_hash: Digest { sha256: self.lockfile_hash },
+                toolchain: Toolchain::NixToolchain {
+                    nix: ToolchainVersion {
+                        version: self.nix_version,
+                        digest: Digest { sha256: self.nix_hash },
+                    },
+                },
+            },
+            resolved_dependencies,
+        }
     }
-}
-
-fn nix_tool_info() -> Result<(String, String)> {
-    let which = Command::new("which")
-        .arg("nix")
-        .output()
-        .context("which nix failed")?;
-    let nix_path = PathBuf::from(String::from_utf8(which.stdout)?.trim().to_string());
-    let nix_hash = hex::encode(Sha256::digest(fs_err::read(&nix_path)?));
-
-    let ver = Command::new("nix")
-        .arg("--version")
-        .output()
-        .context("nix --version failed")?;
-    let nix_version = String::from_utf8(ver.stdout)?.trim().to_string();
-
-    Ok((nix_version, nix_hash))
 }
 
 fn parse_flake_lock(bytes: &[u8]) -> Result<Vec<FlakeDep>> {
@@ -284,60 +346,6 @@ fn extract_fixed_output_hashes(graph: &Value) -> Vec<FetchEntry> {
     fetches
 }
 
-pub(crate) fn build(path: &PathBuf) -> Result<()> {
-    // Clean and re-create build directory
-    let output_dir = path.join("kettle-build");
-    if fs_err::exists(&output_dir)? {
-        fs_err::remove_dir_all(&output_dir)?;
-    }
-    fs_err::create_dir_all(&output_dir)?;
-
-    let build_inputs = BuildInputs::from_dir(path)?;
-    let mut build_metadata = BuildMetadata::start();
-
-    // Run build
-    println!("Running `nix build --no-link --print-out-paths`");
-    let output = Command::new("nix")
-        .args([
-            "build",
-            "--no-link",
-            "--print-out-paths",
-            "--extra-experimental-features",
-            "nix-command",
-            "--extra-experimental-features",
-            "flakes",
-        ])
-        .current_dir(path)
-        .output()
-        .context("failed to spawn nix")?;
-    if !output.status.success() {
-        return Err(anyhow!(
-            "nix build failed (exit {:?})",
-            output.status.code()
-        ));
-    }
-
-    // Mark the build as completed
-    build_metadata.finish();
-
-    // Copy executables from bin/ in each store path into artifacts/
-    let store_paths_str = String::from_utf8(output.stdout)?;
-    let artifacts_dir = output_dir.join("artifacts");
-    fs_err::create_dir_all(&artifacts_dir)?;
-    let artifacts = nix_artifacts_from_store_paths(&store_paths_str, &artifacts_dir)?;
-
-    // Generate the provenance file from the inputs and outputs
-    let provenance = build_provenance(build_inputs, build_metadata, &artifacts);
-    let provenance_path = output_dir.join("provenance.json");
-    fs_err::write(&provenance_path, serde_json::to_string_pretty(&provenance)?)?;
-
-    println!(
-        "Build in {:?} complete, output located in `kettle-build`",
-        &path
-    );
-    Ok(())
-}
-
 fn nix_artifacts_from_store_paths(
     store_paths_str: &str,
     artifacts_dir: &Path,
@@ -387,117 +395,4 @@ fn nix_artifacts_from_store_paths(
     }
 
     Ok(artifacts)
-}
-
-fn build_provenance(
-    inputs: BuildInputs,
-    metadata: BuildMetadata,
-    artifacts: &[Artifact],
-) -> Provenance {
-    let resolved_deps: Vec<ResolvedDependency> = inputs
-        .fetches
-        .iter()
-        .map(|fetch| {
-            let uri = format!(
-                "pkg:nix-fetch/{}?hash={}:{}",
-                fetch.name, fetch.output_hash_algo, fetch.output_hash
-            );
-            ResolvedDependency {
-                annotations: Some(Annotation {
-                    drv_path: fetch.drv_path.clone(),
-                    output_hash_mode: fetch.output_hash_mode.clone(),
-                    url: fetch.url.clone(),
-                    urls: fetch.urls.clone(),
-                }),
-                digest: Digest {
-                    sha256: fetch.output_hash.clone(),
-                },
-                name: fetch.name.clone(),
-                uri,
-            }
-        })
-        .collect();
-
-    // Flake inputs are always included in internalParameters for human context
-    let flake_inputs: Vec<FlakeInput> = inputs
-        .flake_deps
-        .iter()
-        .filter_map(|dep| {
-            dep.nar_hash.as_ref().map(|nar_hash| FlakeInput {
-                name: dep.name.clone(),
-                nar_hash: nar_hash.clone(),
-            })
-        })
-        .collect();
-
-    // Evaluation metadata only present in deep mode
-    let evaluation = Evaluation {
-        derivation_count: serde_json::Number::from(inputs.derivation_count),
-        fetch_count: serde_json::Number::from(inputs.fetches.len()),
-    };
-
-    Provenance {
-        _type: "https://in-toto.io/Statement/v1".to_string(),
-        predicate_type: "https://slsa.dev/provenance/v1".to_string(),
-        subject: artifacts
-            .iter()
-            .map(|artifact| Subject {
-                name: artifact.name.clone(),
-                digest: Digest {
-                    sha256: artifact.checksum.clone(),
-                },
-            })
-            .collect(),
-        predicate: Predicate {
-            build_definition: BuildDefiniton {
-                build_type: "https://attestable-builds.dev/kettle/nix@v1".to_string(),
-                external_parameters: ExternalParameters {
-                    build_command: "nix build".to_string(),
-                    source: Source {
-                        digest: SourceDigest {
-                            git_commit: inputs.git_commit,
-                            git_tree: inputs.git_tree,
-                        },
-                        uri: inputs.source_uri,
-                    },
-                },
-                internal_parameters: InternalParameters {
-                    evaluation: Some(evaluation),
-                    flake_inputs: if flake_inputs.is_empty() {
-                        None
-                    } else {
-                        Some(flake_inputs)
-                    },
-                    lockfile_hash: Digest {
-                        sha256: inputs.lockfile_hash,
-                    },
-                    toolchain: Toolchain::NixToolchain {
-                        nix: ToolchainVersion {
-                            version: inputs.nix_version,
-                            digest: Digest {
-                                sha256: inputs.nix_hash,
-                            },
-                        },
-                    },
-                },
-                resolved_dependencies: resolved_deps,
-            },
-            run_details: RunDetails {
-                builder: Builder {
-                    id: "https://attestable-builds.dev/kettle-tee/v1".to_string(),
-                },
-                metadata: Metadata {
-                    invocation_id: metadata.invocation_id,
-                    started_on: metadata.started_on,
-                    finished_on: metadata.finished_on,
-                },
-                byproducts: vec![Byproduct {
-                    name: "input_merkle_root".to_string(),
-                    digest: Digest {
-                        sha256: inputs.merkle_root,
-                    },
-                }],
-            },
-        },
-    }
 }
