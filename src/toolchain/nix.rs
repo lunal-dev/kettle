@@ -1,5 +1,4 @@
 use anyhow::{Context as _, Result, anyhow};
-use base64::Engine as _;
 use rs_merkle::MerkleTree;
 use serde_json::Value;
 use sha2::{Digest as _, Sha256};
@@ -19,8 +18,6 @@ use crate::{
 struct FlakeDep {
     name: String,
     nar_hash: Option<String>,
-    nar_hash_hex: Option<String>,
-    dep_type: String,
 }
 
 struct FetchEntry {
@@ -41,9 +38,8 @@ struct BuildInputs {
     nix_hash: String,
     lockfile_hash: String,
     flake_deps: Vec<FlakeDep>,
-    fetches: Option<Vec<FetchEntry>>,
-    evaluation_mode: &'static str,
-    derivation_count: Option<usize>,
+    fetches: Vec<FetchEntry>,
+    derivation_count: usize,
     merkle_root: String,
 }
 
@@ -60,39 +56,20 @@ impl BuildInputs {
         let lockfile_hash = hex::encode(Sha256::digest(&lockfile_bytes));
         let flake_deps = parse_flake_lock(&lockfile_bytes)?;
 
-        // Try deep evaluation; fall back to shallow on error
-        let (fetches, evaluation_mode, derivation_count) = match evaluate_derivation_graph(path) {
-            Ok(graph) => {
-                let drv_count = graph.as_object().map(|o| o.len()).unwrap_or(0);
-                let fetches = extract_fixed_output_hashes(&graph);
-                (Some(fetches), "deep", Some(drv_count))
-            }
-            Err(e) => {
-                eprintln!("Deep evaluation failed, using shallow mode: {e}");
-                (None, "shallow", None)
-            }
-        };
+        let graph = evaluate_derivation_graph(path)?;
+        let derivation_count = graph.as_object().map(|o| o.len()).unwrap_or(0);
+        let fetches = extract_fixed_output_hashes(&graph);
 
-        // Merkle entries: git_commit, git_tree, lockfile_hash, then fetches or
-        // narHashes (sorted by name), then nix_hash, nix_version
+        // Merkle entries: git_commit, git_tree, lockfile_hash, then fetches (sorted by name),
+        // then nix_hash, nix_version
         let mut merkle_strings: Vec<String> =
             vec![git_commit.clone(), git_tree.clone(), lockfile_hash.clone()];
 
-        if let Some(ref fods) = fetches {
-            // fetches are already sorted by name from extract_fixed_output_hashes
-            for fod in fods {
-                merkle_strings.push(format!(
-                    "fetch:{}:{}:{}",
-                    fod.name, fod.output_hash_algo, fod.output_hash
-                ));
-            }
-        } else {
-            // flake_deps are already sorted by name from parse_flake_lock
-            for dep in &flake_deps {
-                if let Some(ref nar_hash) = dep.nar_hash {
-                    merkle_strings.push(nar_hash.clone());
-                }
-            }
+        for fod in &fetches {
+            merkle_strings.push(format!(
+                "fetch:{}:{}:{}",
+                fod.name, fod.output_hash_algo, fod.output_hash
+            ));
         }
 
         merkle_strings.push(nix_hash.clone());
@@ -118,7 +95,6 @@ impl BuildInputs {
             lockfile_hash,
             flake_deps,
             fetches,
-            evaluation_mode,
             derivation_count,
             merkle_root,
         })
@@ -170,31 +146,14 @@ fn parse_flake_lock(bytes: &[u8]) -> Result<Vec<FlakeDep>> {
             continue;
         };
 
-        let dep_type = locked
-            .get("type")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string();
         let nar_hash = locked
             .get("narHash")
             .and_then(|v| v.as_str())
             .map(String::from);
 
-        // Decode narHash from nix's sri format (sha256-<base64>) to hex for the digest field
-        let nar_hash_hex = nar_hash.as_ref().and_then(|h| {
-            h.strip_prefix("sha256-").and_then(|b64| {
-                base64::engine::general_purpose::STANDARD
-                    .decode(b64)
-                    .ok()
-                    .map(hex::encode)
-            })
-        });
-
         deps.push(FlakeDep {
             name: input_name.clone(),
             nar_hash,
-            nar_hash_hex,
-            dep_type,
         });
     }
 
@@ -435,56 +394,29 @@ fn build_provenance(
     metadata: BuildMetadata,
     artifacts: &[Artifact],
 ) -> Provenance {
-    // Deep mode: resolved deps come from fixed-output derivations
-    // Shallow mode: resolved deps come from flake.lock inputs
-    let resolved_deps: Vec<ResolvedDependency> = if let Some(ref fetches) = inputs.fetches {
-        fetches
-            .iter()
-            .map(|fetch| {
-                let uri = format!(
-                    "pkg:nix-fetch/{}?hash={}:{}",
-                    fetch.name, fetch.output_hash_algo, fetch.output_hash
-                );
-                ResolvedDependency {
-                    annotations: Some(Annotation {
-                        drv_path: fetch.drv_path.clone(),
-                        output_hash_mode: fetch.output_hash_mode.clone(),
-                        url: fetch.url.clone(),
-                        urls: fetch.urls.clone(),
-                    }),
-                    digest: Digest {
-                        sha256: fetch.output_hash.clone(),
-                    },
-                    name: fetch.name.clone(),
-                    uri,
-                }
-            })
-            .collect()
-    } else {
-        inputs
-            .flake_deps
-            .iter()
-            .filter_map(|dep| {
-                let nar_hash = dep.nar_hash.as_ref()?;
-                let nar_hash_hex = dep.nar_hash_hex.as_ref()?;
-
-                let mut qualifiers = vec![format!("narHash={}", nar_hash)];
-                if !dep.dep_type.is_empty() {
-                    qualifiers.push(format!("type={}", dep.dep_type));
-                }
-                let uri = format!("pkg:nix/{}?{}", dep.name, qualifiers.join("&"));
-
-                Some(ResolvedDependency {
-                    annotations: None,
-                    digest: Digest {
-                        sha256: nar_hash_hex.clone(),
-                    },
-                    name: dep.name.clone(),
-                    uri,
-                })
-            })
-            .collect()
-    };
+    let resolved_deps: Vec<ResolvedDependency> = inputs
+        .fetches
+        .iter()
+        .map(|fetch| {
+            let uri = format!(
+                "pkg:nix-fetch/{}?hash={}:{}",
+                fetch.name, fetch.output_hash_algo, fetch.output_hash
+            );
+            ResolvedDependency {
+                annotations: Some(Annotation {
+                    drv_path: fetch.drv_path.clone(),
+                    output_hash_mode: fetch.output_hash_mode.clone(),
+                    url: fetch.url.clone(),
+                    urls: fetch.urls.clone(),
+                }),
+                digest: Digest {
+                    sha256: fetch.output_hash.clone(),
+                },
+                name: fetch.name.clone(),
+                uri,
+            }
+        })
+        .collect();
 
     // Flake inputs are always included in internalParameters for human context
     let flake_inputs: Vec<FlakeInput> = inputs
@@ -499,11 +431,10 @@ fn build_provenance(
         .collect();
 
     // Evaluation metadata only present in deep mode
-    let evaluation = inputs.fetches.as_ref().map(|fetches| Evaluation {
-        derivation_count: serde_json::Number::from(inputs.derivation_count.unwrap_or(0)),
-        fetch_count: serde_json::Number::from(fetches.len()),
-        mode: inputs.evaluation_mode.to_string(),
-    });
+    let evaluation = Evaluation {
+        derivation_count: serde_json::Number::from(inputs.derivation_count),
+        fetch_count: serde_json::Number::from(inputs.fetches.len()),
+    };
 
     Provenance {
         _type: "https://in-toto.io/Statement/v1".to_string(),
@@ -531,7 +462,7 @@ fn build_provenance(
                     },
                 },
                 internal_parameters: InternalParameters {
-                    evaluation,
+                    evaluation: Some(evaluation),
                     flake_inputs: if flake_inputs.is_empty() {
                         None
                     } else {

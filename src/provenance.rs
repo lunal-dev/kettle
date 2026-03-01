@@ -248,7 +248,6 @@ pub(crate) struct Annotation {
 pub(crate) struct Evaluation {
     pub(crate) derivation_count: Number,
     pub(crate) fetch_count: Number,
-    pub(crate) mode: String,
 }
 
 #[derive(Serialize, Deserialize)]
