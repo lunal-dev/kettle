@@ -72,7 +72,7 @@ impl ToolchainDriver for CargoInputs {
         if !output.status.success() {
             return Err(anyhow!("cargo build failed (exit {:?})", output.status.code()));
         }
-        Ok(BuildOutput { stdout: output.stdout, stderr: output.stderr })
+        Ok(BuildOutput { stdout: output.stdout })
     }
 
     fn collect_artifacts(
