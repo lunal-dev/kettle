@@ -5,7 +5,7 @@
   - [x] set up clap
   - [x] format help output
 
-- [ ] `kettle verify` command
+- [x] `kettle verify` command
   - [x] import verify code from attestation-rs
   - [x] fetch AMD cert chain, check signature
   - [x] parse provenance.json files for cargo and nix
@@ -21,7 +21,7 @@
   - [x] print git commit sha
   - [x] print detailed error message after table with expected and actual checksums
 
-- [ ] `kettle build` command
+- [x] `kettle build` command
   - [x] collect provenance data
     - [x] collect git repo data commit_hash, tree_hash, git_binary_hash, repository_url
   - [x] handle cargo build
@@ -29,9 +29,14 @@
     - [x] collect rustc + cargo binary info (path, hash, version)
     - [x] run `cargo build --locked --release`
     - [x] collect exectutables from target/release/* (path, hash, name)
-  - [ ] handle nix build
-    - [ ] ???
+  - [x] handle nix build
+    - [x] collect lockfile hash
+    - [x] collect nix binary info (path, hash, version)
+    - [x] run `nix build`
+    - [x] collect exectutable info (path, hash, name)
   - [x] generate provenance.json file
+
+- [x] `kettle attest` command
   - [x] generate attestation from provenance and build result
     - [x] hash provenance for checksum
     - [x] call attest with custom data of provenance checksum
