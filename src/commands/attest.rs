@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::path::PathBuf;
 
-#[cfg(feature = "attest")]
+#[cfg(all(feature = "attest", target_os = "linux"))]
 pub async fn attest(path: &PathBuf) -> Result<()> {
     use sha2::Digest as _;
 
@@ -30,10 +30,10 @@ pub async fn attest(path: &PathBuf) -> Result<()> {
     Ok(())
 }
 
-#[cfg(not(feature = "attest"))]
+#[cfg(not(all(feature = "attest", target_os = "linux")))]
 pub async fn attest(_path: &PathBuf) -> Result<()> {
     use anyhow::anyhow;
     Err(anyhow!(
-        "Attestation disabled. Rebuild Kettle with `--features attest` to enable this command."
+        "Attestation is disabled. Rebuild Kettle with `--features attest` to enable this command."
     ))
 }
