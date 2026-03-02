@@ -110,7 +110,7 @@ fn assemble_provenance(
             },
             run_details: RunDetails {
                 builder: Builder {
-                    id: "https://attestable-builds.dev/kettle-tee/v1".to_string(),
+                    id: "https://lunal.dev/kettle-tee/v1".to_string(),
                 },
                 metadata: Metadata {
                     invocation_id: metadata.invocation_id.clone(),

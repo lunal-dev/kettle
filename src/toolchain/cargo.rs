@@ -4,7 +4,9 @@ use std::process::Command;
 
 use crate::{
     provenance::{Digest, InternalParameters, ResolvedDependency, Toolchain, ToolchainVersion},
-    toolchain::{Artifact, BuildOutput, GitContext, ProvenanceFields, ToolBinaryInfo, ToolchainDriver},
+    toolchain::{
+        Artifact, BuildOutput, GitContext, ProvenanceFields, ToolBinaryInfo, ToolchainDriver,
+    },
 };
 
 pub(crate) fn build(path: &PathBuf) -> Result<()> {
@@ -70,9 +72,14 @@ impl ToolchainDriver for CargoInputs {
             .output()
             .context("failed to spawn cargo")?;
         if !output.status.success() {
-            return Err(anyhow!("cargo build failed (exit {:?})", output.status.code()));
+            return Err(anyhow!(
+                "cargo build failed (exit {:?})",
+                output.status.code()
+            ));
         }
-        Ok(BuildOutput { stdout: output.stdout })
+        Ok(BuildOutput {
+            stdout: output.stdout,
+        })
     }
 
     fn collect_artifacts(
@@ -86,27 +93,37 @@ impl ToolchainDriver for CargoInputs {
             .map(|a| {
                 let dest = artifacts_dir.join(&a.name);
                 fs_err::copy(&a.path, &dest)?;
-                Ok(Artifact { name: a.name, path: dest, checksum: a.checksum })
+                Ok(Artifact {
+                    name: a.name,
+                    path: dest,
+                    checksum: a.checksum,
+                })
             })
             .collect()
     }
 
     fn provenance_fields(self, _git: &GitContext, _merkle_root: &str) -> ProvenanceFields {
         ProvenanceFields {
-            build_type: "https://attestable-builds.dev/kettle/cargo@v1".to_string(),
+            build_type: "https://lunal.dev/kettle/cargo@v1".to_string(),
             external_build_command: "cargo build".to_string(),
             internal_parameters: InternalParameters {
                 evaluation: None,
                 flake_inputs: None,
-                lockfile_hash: Digest { sha256: self.lockfile_hash },
+                lockfile_hash: Digest {
+                    sha256: self.lockfile_hash,
+                },
                 toolchain: Toolchain::RustToolchain {
                     rustc: ToolchainVersion {
                         version: self.rustc_version,
-                        digest: Digest { sha256: self.rustc_hash },
+                        digest: Digest {
+                            sha256: self.rustc_hash,
+                        },
                     },
                     cargo: ToolchainVersion {
                         version: self.cargo_version,
-                        digest: Digest { sha256: self.cargo_hash },
+                        digest: Digest {
+                            sha256: self.cargo_hash,
+                        },
                     },
                 },
             },
@@ -132,7 +149,9 @@ fn parse_cargo_lock(bytes: &[u8]) -> Result<Vec<ResolvedDependency>> {
         if let Some(checksum) = pkg.get("checksum").and_then(|v| v.as_str()) {
             deps.push(ResolvedDependency {
                 annotations: None,
-                digest: Digest { sha256: checksum.to_string() },
+                digest: Digest {
+                    sha256: checksum.to_string(),
+                },
                 name: name.to_string(),
                 uri: format!("pkg:cargo/{name}@{version}?checksum=sha256:{checksum}"),
             });

@@ -1,16 +1,18 @@
 use anyhow::{Context as _, Result, anyhow};
 use serde_json::Value;
 use sha2::{Digest as _, Sha256};
+use std::os::unix::fs::PermissionsExt as _;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::os::unix::fs::PermissionsExt as _;
 
 use crate::{
     provenance::{
         Annotation, Digest, Evaluation, FlakeInput, InternalParameters, ResolvedDependency,
         Toolchain, ToolchainVersion,
     },
-    toolchain::{Artifact, BuildOutput, GitContext, ProvenanceFields, ToolBinaryInfo, ToolchainDriver},
+    toolchain::{
+        Artifact, BuildOutput, GitContext, ProvenanceFields, ToolBinaryInfo, ToolchainDriver,
+    },
 };
 
 struct FlakeDep {
@@ -104,9 +106,14 @@ impl ToolchainDriver for NixInputs {
             .output()
             .context("failed to spawn nix")?;
         if !output.status.success() {
-            return Err(anyhow!("nix build failed (exit {:?})", output.status.code()));
+            return Err(anyhow!(
+                "nix build failed (exit {:?})",
+                output.status.code()
+            ));
         }
-        Ok(BuildOutput { stdout: output.stdout })
+        Ok(BuildOutput {
+            stdout: output.stdout,
+        })
     }
 
     fn collect_artifacts(
@@ -136,7 +143,9 @@ impl ToolchainDriver for NixInputs {
                         url: fetch.url,
                         urls: fetch.urls,
                     }),
-                    digest: Digest { sha256: fetch.output_hash },
+                    digest: Digest {
+                        sha256: fetch.output_hash,
+                    },
                     name: fetch.name,
                     uri,
                 }
@@ -162,16 +171,24 @@ impl ToolchainDriver for NixInputs {
         };
 
         ProvenanceFields {
-            build_type: "https://attestable-builds.dev/kettle/nix@v1".to_string(),
+            build_type: "https://lunal.dev/kettle/nix@v1".to_string(),
             external_build_command: "nix build".to_string(),
             internal_parameters: InternalParameters {
                 evaluation: Some(evaluation),
-                flake_inputs: if flake_inputs.is_empty() { None } else { Some(flake_inputs) },
-                lockfile_hash: Digest { sha256: self.lockfile_hash },
+                flake_inputs: if flake_inputs.is_empty() {
+                    None
+                } else {
+                    Some(flake_inputs)
+                },
+                lockfile_hash: Digest {
+                    sha256: self.lockfile_hash,
+                },
                 toolchain: Toolchain::NixToolchain {
                     nix: ToolchainVersion {
                         version: self.nix_version,
-                        digest: Digest { sha256: self.nix_hash },
+                        digest: Digest {
+                            sha256: self.nix_hash,
+                        },
                     },
                 },
             },
