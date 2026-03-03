@@ -100,9 +100,12 @@ impl GitContext {
     pub(crate) fn from_dir(path: &PathBuf) -> Result<Self> {
         let commit = git_cmd(path, &["rev-parse", "HEAD"])?;
         let tree = git_cmd(path, &["rev-parse", "HEAD^{tree}"])?;
-        let source_uri =
-            git_cmd(path, &["remote", "get-url", "origin"]).unwrap_or_default();
-        Ok(Self { commit, tree, source_uri })
+        let source_uri = git_cmd(path, &["remote", "get-url", "origin"]).unwrap_or_default();
+        Ok(Self {
+            commit,
+            tree,
+            source_uri,
+        })
     }
 }
 
@@ -117,8 +120,6 @@ pub(crate) struct ProvenanceFields {
     pub(crate) resolved_dependencies: Vec<ResolvedDependency>,
 }
 
-/// Locates a tool binary and captures its version + SHA-256 hash.
-/// Replaces `tool_info()` (rustup-specific) and `nix_tool_info()` with a unified API.
 pub(crate) struct ToolBinaryInfo {
     pub(crate) version: String,
     pub(crate) sha256: String,
@@ -206,4 +207,252 @@ pub(crate) trait ToolchainDriver: Sized {
     /// Takes `self` by value so impls can move owned fields (e.g. Vec<ResolvedDependency>)
     /// without requiring Clone on provenance types.
     fn provenance_fields(self, git: &GitContext, merkle_root: &str) -> ProvenanceFields;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    // --- BuildMetadata::start ---
+
+    #[test]
+    fn build_metadata_invocation_id_format() {
+        let m = BuildMetadata::start();
+        let re = regex_lite::Regex::new(r"^build-\d{8}-\d{6}-[0-9a-f]{8}$").unwrap();
+        assert!(
+            re.is_match(&m.invocation_id),
+            "invocation_id should match pattern: {}",
+            m.invocation_id
+        );
+    }
+
+    #[test]
+    fn build_metadata_started_on_rfc3339() {
+        let m = BuildMetadata::start();
+        // Should parse as valid RFC3339 with microseconds and +00:00
+        assert!(
+            chrono::DateTime::parse_from_rfc3339(&m.started_on).is_ok(),
+            "started_on should be valid RFC 3339: {}",
+            m.started_on
+        );
+        assert!(
+            m.started_on.ends_with("+00:00"),
+            "should end with +00:00: {}",
+            m.started_on
+        );
+        assert!(
+            m.started_on.contains('.'),
+            "should contain microsecond precision: {}",
+            m.started_on
+        );
+    }
+
+    #[test]
+    fn build_metadata_finished_on_none_initially() {
+        let m = BuildMetadata::start();
+        assert!(m.finished_on.is_none());
+    }
+
+    // --- BuildMetadata::finish ---
+
+    #[test]
+    fn build_metadata_finish_sets_timestamp() {
+        let mut m = BuildMetadata::start();
+        m.finish();
+        assert!(m.finished_on.is_some());
+        let finished = m.finished_on.as_ref().unwrap();
+        assert!(chrono::DateTime::parse_from_rfc3339(finished).is_ok());
+    }
+
+    #[test]
+    fn build_metadata_finish_after_start() {
+        let mut m = BuildMetadata::start();
+        m.finish();
+        let started = chrono::DateTime::parse_from_rfc3339(&m.started_on).unwrap();
+        let finished =
+            chrono::DateTime::parse_from_rfc3339(m.finished_on.as_ref().unwrap()).unwrap();
+        assert!(finished >= started);
+    }
+
+    // --- Artifact::in_dir ---
+
+    #[test]
+    fn artifact_in_dir_no_extension() {
+        let tmp = TempDir::new().unwrap();
+        fs_err::write(tmp.path().join("rg"), b"binary data").unwrap();
+        let artifacts = Artifact::in_dir(&tmp.path().to_path_buf()).unwrap();
+        assert_eq!(artifacts.len(), 1);
+        assert_eq!(artifacts[0].name, "rg");
+    }
+
+    #[test]
+    fn artifact_in_dir_exe_extension() {
+        let tmp = TempDir::new().unwrap();
+        fs_err::write(tmp.path().join("rg.exe"), b"binary data").unwrap();
+        let artifacts = Artifact::in_dir(&tmp.path().to_path_buf()).unwrap();
+        assert_eq!(artifacts.len(), 1);
+        assert_eq!(artifacts[0].name, "rg.exe");
+    }
+
+    #[test]
+    fn artifact_in_dir_other_extensions_excluded() {
+        let tmp = TempDir::new().unwrap();
+        fs_err::write(tmp.path().join("lib.d"), b"data").unwrap();
+        fs_err::write(tmp.path().join("lib.rlib"), b"data").unwrap();
+        fs_err::write(tmp.path().join("lib.pdb"), b"data").unwrap();
+        fs_err::write(tmp.path().join("lib.so"), b"data").unwrap();
+        fs_err::write(tmp.path().join("lib.dylib"), b"data").unwrap();
+        let artifacts = Artifact::in_dir(&tmp.path().to_path_buf()).unwrap();
+        assert!(
+            artifacts.is_empty(),
+            "files with extensions .d, .rlib, .pdb, .so, .dylib should be excluded"
+        );
+    }
+
+    #[test]
+    fn artifact_in_dir_dotfile_excluded() {
+        let tmp = TempDir::new().unwrap();
+        fs_err::write(tmp.path().join(".gitkeep"), b"").unwrap();
+        let artifacts = Artifact::in_dir(&tmp.path().to_path_buf()).unwrap();
+        assert!(artifacts.is_empty(), "dotfiles should be excluded");
+    }
+
+    #[test]
+    fn artifact_in_dir_directory_excluded() {
+        let tmp = TempDir::new().unwrap();
+        fs_err::create_dir(tmp.path().join("subdir")).unwrap();
+        let artifacts = Artifact::in_dir(&tmp.path().to_path_buf()).unwrap();
+        assert!(artifacts.is_empty(), "directories should be excluded");
+    }
+
+    #[test]
+    fn artifact_in_dir_empty() {
+        let tmp = TempDir::new().unwrap();
+        let artifacts = Artifact::in_dir(&tmp.path().to_path_buf()).unwrap();
+        assert!(artifacts.is_empty());
+    }
+
+    #[test]
+    fn artifact_in_dir_checksum_correct() {
+        let tmp = TempDir::new().unwrap();
+        let content = b"known content for checksum test";
+        fs_err::write(tmp.path().join("mybin"), content).unwrap();
+        let artifacts = Artifact::in_dir(&tmp.path().to_path_buf()).unwrap();
+        assert_eq!(artifacts.len(), 1);
+        let expected = hex::encode(sha2::Sha256::digest(content));
+        assert_eq!(artifacts[0].checksum, expected);
+    }
+
+    // --- git_cmd ---
+
+    #[test]
+    fn git_cmd_success() {
+        // Use the kettle repo itself
+        let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let sha = git_cmd(&repo, &["rev-parse", "HEAD"]).unwrap();
+        assert_eq!(sha.len(), 40, "should be 40-char hex SHA");
+        assert!(
+            sha.chars().all(|c| c.is_ascii_hexdigit()),
+            "should be hex: {sha}"
+        );
+    }
+
+    #[test]
+    fn git_cmd_failure() {
+        let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let result = git_cmd(&repo, &["rev-parse", "NOREF"]);
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(
+            err.contains("git rev-parse NOREF failed:"),
+            "error should contain the command: {err}"
+        );
+    }
+
+    #[test]
+    fn git_cmd_not_a_repo() {
+        let tmp = TempDir::new().unwrap();
+        let result = git_cmd(&tmp.path().to_path_buf(), &["rev-parse", "HEAD"]);
+        assert!(result.is_err());
+    }
+
+    // --- GitContext::from_dir ---
+
+    #[test]
+    fn git_context_happy_path() {
+        let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let ctx = GitContext::from_dir(&repo).unwrap();
+        assert_eq!(ctx.commit.len(), 40);
+        assert!(ctx.commit.chars().all(|c| c.is_ascii_hexdigit()));
+        assert_eq!(ctx.tree.len(), 40);
+        assert!(ctx.tree.chars().all(|c| c.is_ascii_hexdigit()));
+        assert!(!ctx.source_uri.is_empty());
+    }
+
+    #[test]
+    fn git_context_no_remote() {
+        let tmp = TempDir::new().unwrap();
+        // Initialize a git repo with no remote
+        std::process::Command::new("git")
+            .args(["init"])
+            .current_dir(tmp.path())
+            .output()
+            .unwrap();
+        std::process::Command::new("git")
+            .args(["commit", "--allow-empty", "-m", "init"])
+            .current_dir(tmp.path())
+            .output()
+            .unwrap();
+
+        let ctx = GitContext::from_dir(&tmp.path().to_path_buf()).unwrap();
+        assert!(
+            ctx.source_uri.is_empty(),
+            "no remote → source_uri should be empty"
+        );
+    }
+
+    #[test]
+    fn git_context_not_a_repo() {
+        let tmp = TempDir::new().unwrap();
+        let result = GitContext::from_dir(&tmp.path().to_path_buf());
+        assert!(result.is_err());
+    }
+
+    // --- ToolBinaryInfo ---
+
+    #[test]
+    fn tool_binary_info_via_rustup_rustc() {
+        let info = ToolBinaryInfo::via_rustup("rustc").unwrap();
+        assert!(
+            info.version.starts_with("rustc"),
+            "version should start with rustc: {}",
+            info.version
+        );
+        assert_eq!(info.sha256.len(), 64, "sha256 should be 64 hex chars");
+        assert!(info.sha256.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    #[test]
+    fn tool_binary_info_via_rustup_cargo() {
+        let info = ToolBinaryInfo::via_rustup("cargo").unwrap();
+        assert!(
+            info.version.starts_with("cargo"),
+            "version should start with cargo: {}",
+            info.version
+        );
+        assert_eq!(info.sha256.len(), 64);
+    }
+
+    #[test]
+    fn tool_binary_info_nonexistent_via_rustup() {
+        let result = ToolBinaryInfo::via_rustup("no-such-tool-xyz");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn tool_binary_info_nonexistent_via_which() {
+        let result = ToolBinaryInfo::via_which("no-such-tool-xyz");
+        assert!(result.is_err());
+    }
 }
