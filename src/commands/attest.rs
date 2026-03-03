@@ -3,8 +3,6 @@ use std::path::PathBuf;
 
 #[cfg(all(feature = "attest", target_os = "linux"))]
 pub async fn attest(path: &PathBuf) -> Result<()> {
-    use sha2::Digest as _;
-
     use crate::provenance::Provenance;
 
     // Build the thing from scratch before we attest it
@@ -18,7 +16,7 @@ pub async fn attest(path: &PathBuf) -> Result<()> {
     let provenance_checksum = provenance.checksum();
     println!(
         "Attesting build provenance.json with checksum {}",
-        hex::encode(provenance_checksum)
+        hex::encode(&provenance_checksum)
     );
 
     let evidence_json = attestation::attest(platform, provenance_checksum.as_slice())
