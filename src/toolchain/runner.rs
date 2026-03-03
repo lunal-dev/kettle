@@ -127,3 +127,166 @@ fn assemble_provenance(
         },
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::provenance::{Digest, InternalParameters, Toolchain, ToolchainVersion};
+    use std::path::PathBuf;
+
+    fn make_git_context() -> GitContext {
+        GitContext {
+            commit: "a".repeat(40),
+            tree: "b".repeat(40),
+            source_uri: "https://github.com/test/repo".to_string(),
+        }
+    }
+
+    fn make_build_metadata() -> BuildMetadata {
+        let mut m = BuildMetadata::start();
+        m.finish();
+        m
+    }
+
+    fn make_provenance_fields() -> ProvenanceFields {
+        ProvenanceFields {
+            build_type: "https://lunal.dev/kettle/cargo@v1".to_string(),
+            external_build_command: "cargo build".to_string(),
+            internal_parameters: InternalParameters {
+                evaluation: None,
+                flake_inputs: None,
+                lockfile_hash: Digest {
+                    sha256: "c".repeat(64),
+                },
+                toolchain: Toolchain::RustToolchain {
+                    rustc: ToolchainVersion {
+                        version: "rustc 1.78.0".to_string(),
+                        digest: Digest {
+                            sha256: "d".repeat(64),
+                        },
+                    },
+                    cargo: ToolchainVersion {
+                        version: "cargo 1.78.0".to_string(),
+                        digest: Digest {
+                            sha256: "e".repeat(64),
+                        },
+                    },
+                },
+            },
+            resolved_dependencies: vec![],
+        }
+    }
+
+    // --- compute_merkle_root ---
+
+    #[test]
+    fn merkle_root_happy_path() {
+        let entries = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+        let root = compute_merkle_root(entries).unwrap();
+        assert_eq!(root.len(), 64, "should be 64-char hex string");
+        assert!(root.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    #[test]
+    fn merkle_root_single_leaf() {
+        let entries = vec!["single".to_string()];
+        let root = compute_merkle_root(entries).unwrap();
+        assert_eq!(root.len(), 64);
+        assert!(root.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    #[test]
+    fn merkle_root_empty_entries() {
+        let result = compute_merkle_root(vec![]);
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(
+            err.contains("Merkle tree root calculation failed"),
+            "error: {err}"
+        );
+    }
+
+    #[test]
+    fn merkle_root_deterministic() {
+        let entries = vec!["a".to_string(), "b".to_string()];
+        let r1 = compute_merkle_root(entries.clone()).unwrap();
+        let r2 = compute_merkle_root(entries).unwrap();
+        assert_eq!(r1, r2);
+    }
+
+    #[test]
+    fn merkle_root_order_sensitive() {
+        let r1 = compute_merkle_root(vec!["a".to_string(), "b".to_string()]).unwrap();
+        let r2 = compute_merkle_root(vec!["b".to_string(), "a".to_string()]).unwrap();
+        assert_ne!(r1, r2, "different ordering should produce different roots");
+    }
+
+    // --- assemble_provenance ---
+
+    #[test]
+    fn assemble_provenance_structure() {
+        let git = make_git_context();
+        let metadata = make_build_metadata();
+        let artifacts = vec![Artifact {
+            name: "mybin".to_string(),
+            path: PathBuf::from("/tmp/mybin"),
+            checksum: "f".repeat(64),
+        }];
+        let pf = make_provenance_fields();
+
+        let p = assemble_provenance(&git, &metadata, &artifacts, &"0".repeat(64), pf);
+
+        assert_eq!(p._type, "https://in-toto.io/Statement/v1");
+        assert_eq!(p.predicate_type, "https://slsa.dev/provenance/v1");
+        assert_eq!(
+            p.predicate.run_details.builder.id,
+            "https://lunal.dev/kettle-tee/v1"
+        );
+        // Subject corresponds to artifacts
+        assert_eq!(p.subject.len(), 1);
+        assert_eq!(p.subject[0].name, "mybin");
+        assert_eq!(p.subject[0].digest.sha256, "f".repeat(64));
+        // Byproducts
+        assert_eq!(p.predicate.run_details.byproducts.len(), 1);
+        assert_eq!(
+            p.predicate.run_details.byproducts[0].name,
+            "input_merkle_root"
+        );
+    }
+
+    #[test]
+    fn assemble_provenance_preserves_resolved_deps_order() {
+        let git = make_git_context();
+        let metadata = make_build_metadata();
+        let mut pf = make_provenance_fields();
+        pf.resolved_dependencies = vec![
+            crate::provenance::ResolvedDependency {
+                annotations: None,
+                digest: Digest {
+                    sha256: "1".repeat(64),
+                },
+                name: "zzz".to_string(),
+                uri: "pkg:cargo/zzz@1.0".to_string(),
+            },
+            crate::provenance::ResolvedDependency {
+                annotations: None,
+                digest: Digest {
+                    sha256: "2".repeat(64),
+                },
+                name: "aaa".to_string(),
+                uri: "pkg:cargo/aaa@1.0".to_string(),
+            },
+        ];
+
+        let p = assemble_provenance(&git, &metadata, &[], &"0".repeat(64), pf);
+        // Order should be preserved: zzz first, aaa second (not re-sorted)
+        assert_eq!(
+            p.predicate.build_definition.resolved_dependencies[0].name,
+            "zzz"
+        );
+        assert_eq!(
+            p.predicate.build_definition.resolved_dependencies[1].name,
+            "aaa"
+        );
+    }
+}
