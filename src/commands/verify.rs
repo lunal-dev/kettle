@@ -198,3 +198,205 @@ fn print_table(headers: Vec<String>, rows: Vec<Vec<String>>, footers: Vec<String
     table.with(BorderCorrection::span());
     println!("{}\n", table);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use attestation::{Claims, PlatformType, TcbInfo, VerificationResult};
+    use tempfile::TempDir;
+
+    const CARGO_FIXTURE: &[u8] = include_bytes!("../../tests/fixtures/provenance-cargo.json");
+
+    fn make_verification_result(
+        signature_valid: bool,
+        platform_data: serde_json::Value,
+    ) -> VerificationResult {
+        VerificationResult {
+            signature_valid,
+            platform: PlatformType::Snp,
+            claims: Claims {
+                launch_digest: String::new(),
+                report_data: vec![],
+                init_data: vec![],
+                tcb: TcbInfo::Snp {
+                    bootloader: 0,
+                    tee: 0,
+                    snp: 0,
+                    microcode: 0,
+                },
+                platform_data,
+            },
+            report_data_match: None,
+            init_data_match: None,
+        }
+    }
+
+    // --- Verification constructors ---
+
+    #[test]
+    fn verification_success_constructor() {
+        match Verification::success("msg") {
+            Verification::Success { message } => assert_eq!(message, "msg"),
+            _ => panic!("expected Success"),
+        }
+    }
+
+    #[test]
+    fn verification_failure_constructor() {
+        match Verification::failure("msg", "details") {
+            Verification::Failure { message, details } => {
+                assert_eq!(message, "msg");
+                assert_eq!(details, "details");
+            }
+            _ => panic!("expected Failure"),
+        }
+    }
+
+    // --- verify_signature ---
+
+    #[test]
+    fn verify_signature_valid() {
+        let vr = make_verification_result(true, serde_json::json!({}));
+        match verify_signature(&vr) {
+            Verification::Success { .. } => {}
+            Verification::Failure { message, .. } => panic!("expected success: {message}"),
+        }
+    }
+
+    #[test]
+    fn verify_signature_invalid() {
+        let vr = make_verification_result(false, serde_json::json!({}));
+        match verify_signature(&vr) {
+            Verification::Failure { message, .. } => {
+                assert!(message.contains("invalid"), "message: {message}");
+            }
+            Verification::Success { .. } => panic!("expected failure"),
+        }
+    }
+
+    // --- verify_report_data ---
+
+    #[test]
+    fn verify_report_data_match() {
+        let provenance = Provenance::from_json(CARGO_FIXTURE).unwrap();
+        let checksum_hex = hex::encode(provenance.checksum());
+        let platform_data = serde_json::json!({
+            "tpm": {
+                "nonce": checksum_hex
+            }
+        });
+        let vr = make_verification_result(true, platform_data);
+        match verify_report_data(&vr, &provenance) {
+            Verification::Success { message } => {
+                assert!(message.contains("match"), "message: {message}");
+            }
+            Verification::Failure { message, .. } => panic!("expected success: {message}"),
+        }
+    }
+
+    #[test]
+    fn verify_report_data_mismatch() {
+        let provenance = Provenance::from_json(CARGO_FIXTURE).unwrap();
+        let platform_data = serde_json::json!({
+            "tpm": {
+                "nonce": "0000000000000000000000000000000000000000000000000000000000000000"
+            }
+        });
+        let vr = make_verification_result(true, platform_data);
+        match verify_report_data(&vr, &provenance) {
+            Verification::Failure { message, .. } => {
+                assert!(message.contains("mismatch"), "message: {message}");
+            }
+            Verification::Success { .. } => panic!("expected failure"),
+        }
+    }
+
+    #[test]
+    fn verify_report_data_tpm_key_absent() {
+        let provenance = Provenance::from_json(CARGO_FIXTURE).unwrap();
+        let platform_data = serde_json::json!({});
+        let vr = make_verification_result(true, platform_data);
+        match verify_report_data(&vr, &provenance) {
+            Verification::Failure { message, .. } => {
+                assert!(message.contains("missing"), "message: {message}");
+            }
+            Verification::Success { .. } => panic!("expected failure"),
+        }
+    }
+
+    #[test]
+    fn verify_report_data_nonce_key_absent() {
+        let provenance = Provenance::from_json(CARGO_FIXTURE).unwrap();
+        let platform_data = serde_json::json!({"tpm": {}});
+        let vr = make_verification_result(true, platform_data);
+        match verify_report_data(&vr, &provenance) {
+            Verification::Failure { message, .. } => {
+                assert!(message.contains("missing"), "message: {message}");
+            }
+            Verification::Success { .. } => panic!("expected failure"),
+        }
+    }
+
+    #[test]
+    fn verify_report_data_null_platform_data() {
+        let provenance = Provenance::from_json(CARGO_FIXTURE).unwrap();
+        let vr = make_verification_result(true, serde_json::Value::Null);
+        match verify_report_data(&vr, &provenance) {
+            Verification::Failure { message, .. } => {
+                assert!(message.contains("missing"), "message: {message}");
+            }
+            Verification::Success { .. } => panic!("expected failure"),
+        }
+    }
+
+    // --- Build::from_dir ---
+
+    #[test]
+    fn build_from_dir_happy_path() {
+        let tmp = TempDir::new().unwrap();
+        fs_err::write(tmp.path().join("evidence.json"), b"{}").unwrap();
+        fs_err::write(tmp.path().join("provenance.json"), CARGO_FIXTURE).unwrap();
+        fs_err::create_dir(tmp.path().join("artifacts")).unwrap();
+        fs_err::write(tmp.path().join("artifacts/rg"), b"binary").unwrap();
+
+        let build = Build::from_dir(&tmp.path().to_path_buf()).unwrap();
+        assert!(!build.provenance_bytes.is_empty());
+        assert!(!build.evidence_bytes.is_empty());
+        assert_eq!(build.artifacts.len(), 1);
+    }
+
+    #[test]
+    fn build_from_dir_missing_evidence() {
+        let tmp = TempDir::new().unwrap();
+        fs_err::write(tmp.path().join("provenance.json"), CARGO_FIXTURE).unwrap();
+        fs_err::create_dir(tmp.path().join("artifacts")).unwrap();
+        assert!(Build::from_dir(&tmp.path().to_path_buf()).is_err());
+    }
+
+    #[test]
+    fn build_from_dir_missing_provenance() {
+        let tmp = TempDir::new().unwrap();
+        fs_err::write(tmp.path().join("evidence.json"), b"{}").unwrap();
+        fs_err::create_dir(tmp.path().join("artifacts")).unwrap();
+        assert!(Build::from_dir(&tmp.path().to_path_buf()).is_err());
+    }
+
+    #[test]
+    fn build_from_dir_missing_artifacts() {
+        let tmp = TempDir::new().unwrap();
+        fs_err::write(tmp.path().join("evidence.json"), b"{}").unwrap();
+        fs_err::write(tmp.path().join("provenance.json"), CARGO_FIXTURE).unwrap();
+        assert!(Build::from_dir(&tmp.path().to_path_buf()).is_err());
+    }
+
+    #[test]
+    fn build_from_dir_empty_artifacts() {
+        let tmp = TempDir::new().unwrap();
+        fs_err::write(tmp.path().join("evidence.json"), b"{}").unwrap();
+        fs_err::write(tmp.path().join("provenance.json"), CARGO_FIXTURE).unwrap();
+        fs_err::create_dir(tmp.path().join("artifacts")).unwrap();
+
+        let build = Build::from_dir(&tmp.path().to_path_buf()).unwrap();
+        assert!(build.artifacts.is_empty());
+    }
+}
