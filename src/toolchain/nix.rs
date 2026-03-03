@@ -413,3 +413,250 @@ fn nix_artifacts_from_store_paths(
 
     Ok(artifacts)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    const FLAKE_LOCK_FIXTURE: &[u8] = include_bytes!("../../tests/fixtures/flake.lock");
+    const NIX_DRV_NEW: &[u8] = include_bytes!("../../tests/fixtures/nix-derivation-new.json");
+    const NIX_DRV_OLD: &[u8] = include_bytes!("../../tests/fixtures/nix-derivation-old.json");
+
+    // --- parse_flake_lock ---
+
+    #[test]
+    fn parse_flake_lock_happy_path() {
+        let deps = parse_flake_lock(FLAKE_LOCK_FIXTURE).unwrap();
+        // Fixture has root inputs: fenix, nixpkgs
+        assert_eq!(deps.len(), 2);
+        // Sorted by name
+        assert_eq!(deps[0].name, "fenix");
+        assert_eq!(deps[1].name, "nixpkgs");
+        // Both should have nar_hash
+        assert!(deps[0].nar_hash.is_some());
+        assert!(deps[1].nar_hash.is_some());
+    }
+
+    #[test]
+    fn parse_flake_lock_empty_nodes() {
+        let json = br#"{"nodes": {}}"#;
+        let deps = parse_flake_lock(json).unwrap();
+        assert!(deps.is_empty());
+    }
+
+    #[test]
+    fn parse_flake_lock_missing_nodes_key() {
+        let json = br#"{"version": 7}"#;
+        let deps = parse_flake_lock(json).unwrap();
+        assert!(deps.is_empty());
+    }
+
+    #[test]
+    fn parse_flake_lock_root_no_inputs() {
+        let json = br#"{"nodes": {"root": {}}, "root": "root", "version": 7}"#;
+        let deps = parse_flake_lock(json).unwrap();
+        assert!(deps.is_empty());
+    }
+
+    #[test]
+    fn parse_flake_lock_invalid_json() {
+        assert!(parse_flake_lock(b"not json").is_err());
+    }
+
+    #[test]
+    fn parse_flake_lock_sorted_by_name() {
+        let deps = parse_flake_lock(FLAKE_LOCK_FIXTURE).unwrap();
+        let names: Vec<&str> = deps.iter().map(|d| d.name.as_str()).collect();
+        let mut sorted = names.clone();
+        sorted.sort();
+        assert_eq!(names, sorted);
+    }
+
+    // --- extract_fixed_output_hashes ---
+
+    #[test]
+    fn extract_fod_new_format() {
+        let graph: Value = serde_json::from_slice(NIX_DRV_NEW).unwrap();
+        let fetches = extract_fixed_output_hashes(&graph);
+        // Fixture has 2 fixed-output derivations (source, other-fetch) and 1 non-fixed
+        assert_eq!(fetches.len(), 2);
+        // Sorted by name
+        assert_eq!(fetches[0].name, "other-fetch");
+        assert_eq!(fetches[1].name, "source");
+        // Check hash algo split
+        assert_eq!(fetches[1].output_hash_algo, "sha256");
+        assert_eq!(fetches[1].output_hash, "dGVzdGhhc2gxMjM0NTY3ODkwYWJjZGVm");
+        // Check method comes from outputs
+        assert_eq!(fetches[1].output_hash_mode.as_deref(), Some("flat"));
+        assert_eq!(fetches[0].output_hash_mode.as_deref(), Some("recursive"));
+        // URL extraction
+        assert!(fetches[1].url.is_some());
+        // URLs extraction (array form)
+        assert!(fetches[0].urls.is_some());
+        let urls = fetches[0].urls.as_ref().unwrap();
+        assert!(urls.contains("example.com"));
+    }
+
+    #[test]
+    fn extract_fod_old_format() {
+        let graph: Value = serde_json::from_slice(NIX_DRV_OLD).unwrap();
+        let fetches = extract_fixed_output_hashes(&graph);
+        // Fixture has 2 fixed-output (old-source, old-multi) and 1 non-fixed
+        assert_eq!(fetches.len(), 2);
+        // Sorted by name
+        assert_eq!(fetches[0].name, "old-multi");
+        assert_eq!(fetches[1].name, "old-source");
+        // Old format fields
+        assert_eq!(fetches[1].output_hash_algo, "sha256");
+        assert_eq!(fetches[1].output_hash, "sha256:0abc123def456789");
+        assert_eq!(fetches[1].output_hash_mode.as_deref(), Some("flat"));
+        // URL
+        assert!(fetches[1].url.is_some());
+        // URLs as plain string
+        assert!(fetches[0].urls.is_some());
+    }
+
+    #[test]
+    fn extract_fod_non_fixed_excluded() {
+        let graph: Value = serde_json::from_slice(NIX_DRV_NEW).unwrap();
+        let fetches = extract_fixed_output_hashes(&graph);
+        assert!(
+            fetches.iter().all(|f| f.name != "non-fixed-output"),
+            "non-fixed-output derivations should be excluded"
+        );
+    }
+
+    #[test]
+    fn extract_fod_sorted_by_name() {
+        let graph: Value = serde_json::from_slice(NIX_DRV_NEW).unwrap();
+        let fetches = extract_fixed_output_hashes(&graph);
+        let names: Vec<&str> = fetches.iter().map(|f| f.name.as_str()).collect();
+        let mut sorted = names.clone();
+        sorted.sort();
+        assert_eq!(names, sorted);
+    }
+
+    // --- nix_artifacts_from_store_paths ---
+
+    fn make_executable(path: &std::path::Path) {
+        let mut perms = fs_err::metadata(path).unwrap().permissions();
+        perms.set_mode(0o755);
+        fs_err::set_permissions(path, perms).unwrap();
+    }
+
+    #[test]
+    fn nix_artifacts_happy_path() {
+        let tmp = TempDir::new().unwrap();
+        let store_path = tmp.path().join("store-abc");
+        let bin_dir = store_path.join("bin");
+        fs_err::create_dir_all(&bin_dir).unwrap();
+        fs_err::write(bin_dir.join("mybin"), b"binary content").unwrap();
+        make_executable(&bin_dir.join("mybin"));
+
+        let artifacts_dir = tmp.path().join("artifacts");
+        fs_err::create_dir_all(&artifacts_dir).unwrap();
+
+        let artifacts =
+            nix_artifacts_from_store_paths(store_path.to_str().unwrap(), &artifacts_dir).unwrap();
+
+        assert_eq!(artifacts.len(), 1);
+        assert_eq!(artifacts[0].name, "mybin");
+        assert!(artifacts_dir.join("mybin").exists());
+        // Verify checksum
+        let expected = hex::encode(sha2::Sha256::digest(b"binary content"));
+        assert_eq!(artifacts[0].checksum, expected);
+    }
+
+    #[test]
+    fn nix_artifacts_non_executable_skipped() {
+        let tmp = TempDir::new().unwrap();
+        let store_path = tmp.path().join("store-abc");
+        let bin_dir = store_path.join("bin");
+        fs_err::create_dir_all(&bin_dir).unwrap();
+        fs_err::write(bin_dir.join("noexec"), b"data").unwrap();
+        // Don't make it executable
+
+        let artifacts_dir = tmp.path().join("artifacts");
+        fs_err::create_dir_all(&artifacts_dir).unwrap();
+
+        let artifacts =
+            nix_artifacts_from_store_paths(store_path.to_str().unwrap(), &artifacts_dir).unwrap();
+        assert!(artifacts.is_empty());
+    }
+
+    #[test]
+    fn nix_artifacts_no_bin_dir() {
+        let tmp = TempDir::new().unwrap();
+        let store_path = tmp.path().join("store-abc");
+        fs_err::create_dir_all(&store_path).unwrap();
+        // No bin/ directory
+
+        let artifacts_dir = tmp.path().join("artifacts");
+        fs_err::create_dir_all(&artifacts_dir).unwrap();
+
+        let artifacts =
+            nix_artifacts_from_store_paths(store_path.to_str().unwrap(), &artifacts_dir).unwrap();
+        assert!(artifacts.is_empty());
+    }
+
+    #[test]
+    fn nix_artifacts_multiple_store_paths() {
+        let tmp = TempDir::new().unwrap();
+
+        let store1 = tmp.path().join("store-1");
+        let bin1 = store1.join("bin");
+        fs_err::create_dir_all(&bin1).unwrap();
+        fs_err::write(bin1.join("bin1"), b"content1").unwrap();
+        make_executable(&bin1.join("bin1"));
+
+        let store2 = tmp.path().join("store-2");
+        let bin2 = store2.join("bin");
+        fs_err::create_dir_all(&bin2).unwrap();
+        fs_err::write(bin2.join("bin2"), b"content2").unwrap();
+        make_executable(&bin2.join("bin2"));
+
+        let artifacts_dir = tmp.path().join("artifacts");
+        fs_err::create_dir_all(&artifacts_dir).unwrap();
+
+        let input = format!("{}\n{}", store1.display(), store2.display());
+        let artifacts = nix_artifacts_from_store_paths(&input, &artifacts_dir).unwrap();
+        assert_eq!(artifacts.len(), 2);
+    }
+
+    #[test]
+    fn nix_artifacts_empty_input() {
+        let tmp = TempDir::new().unwrap();
+        let artifacts_dir = tmp.path().join("artifacts");
+        fs_err::create_dir_all(&artifacts_dir).unwrap();
+
+        let artifacts = nix_artifacts_from_store_paths("", &artifacts_dir).unwrap();
+        assert!(artifacts.is_empty());
+    }
+
+    #[test]
+    fn nix_artifacts_overwrite_readonly_existing() {
+        let tmp = TempDir::new().unwrap();
+        let store_path = tmp.path().join("store-abc");
+        let bin_dir = store_path.join("bin");
+        fs_err::create_dir_all(&bin_dir).unwrap();
+        fs_err::write(bin_dir.join("mybin"), b"new content").unwrap();
+        make_executable(&bin_dir.join("mybin"));
+
+        let artifacts_dir = tmp.path().join("artifacts");
+        fs_err::create_dir_all(&artifacts_dir).unwrap();
+        // Pre-create a read-only file at the destination
+        let dest = artifacts_dir.join("mybin");
+        fs_err::write(&dest, b"old content").unwrap();
+        let mut perms = fs_err::metadata(&dest).unwrap().permissions();
+        perms.set_mode(0o444);
+        fs_err::set_permissions(&dest, perms).unwrap();
+
+        let artifacts =
+            nix_artifacts_from_store_paths(store_path.to_str().unwrap(), &artifacts_dir).unwrap();
+        assert_eq!(artifacts.len(), 1);
+        // Checksum should be of new content
+        let expected = hex::encode(sha2::Sha256::digest(b"new content"));
+        assert_eq!(artifacts[0].checksum, expected);
+    }
+}
