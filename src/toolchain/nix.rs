@@ -53,7 +53,7 @@ impl ToolchainDriver for NixInputs {
     }
 
     fn collect_inputs(
-        path: &PathBuf,
+        path: &Path,
         _git: &GitContext,
         lockfile_hash: &str,
         lockfile_bytes: &[u8],
@@ -91,7 +91,7 @@ impl ToolchainDriver for NixInputs {
         entries
     }
 
-    fn run_build(path: &PathBuf) -> Result<BuildOutput> {
+    fn run_build(path: &Path) -> Result<BuildOutput> {
         let output = Command::new("nix")
             .args([
                 "build",
@@ -118,7 +118,7 @@ impl ToolchainDriver for NixInputs {
 
     fn collect_artifacts(
         output: &BuildOutput,
-        _path: &PathBuf,
+        _path: &Path,
         artifacts_dir: &Path,
     ) -> Result<Vec<Artifact>> {
         let store_paths_str = std::str::from_utf8(&output.stdout)?;
@@ -240,7 +240,7 @@ fn parse_flake_lock(bytes: &[u8]) -> Result<Vec<FlakeDep>> {
     Ok(deps)
 }
 
-fn evaluate_derivation_graph(path: &PathBuf) -> Result<Value> {
+fn evaluate_derivation_graph(path: &Path) -> Result<Value> {
     let output = Command::new("nix")
         .args([
             "derivation",

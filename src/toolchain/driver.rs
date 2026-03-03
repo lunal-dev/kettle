@@ -176,7 +176,7 @@ pub(crate) trait ToolchainDriver: Sized {
     /// Collect toolchain-specific inputs.
     /// Receives pre-computed git context, lockfile hash, and raw lockfile bytes.
     fn collect_inputs(
-        path: &PathBuf,
+        path: &Path,
         git: &GitContext,
         lockfile_hash: &str,
         lockfile_bytes: &[u8],
@@ -190,7 +190,7 @@ pub(crate) trait ToolchainDriver: Sized {
     fn merkle_entries(&self, git: &GitContext, lockfile_hash: &str) -> Vec<String>;
 
     /// Run the build subprocess.
-    fn run_build(path: &PathBuf) -> Result<BuildOutput>;
+    fn run_build(path: &Path) -> Result<BuildOutput>;
 
     /// Collect and stage artifacts into `artifacts_dir`.
     /// Returns Vec<Artifact> with `path` fields pointing into `artifacts_dir`.
@@ -198,7 +198,7 @@ pub(crate) trait ToolchainDriver: Sized {
     /// permission handling for read-only store paths).
     fn collect_artifacts(
         output: &BuildOutput,
-        path: &PathBuf,
+        path: &Path,
         artifacts_dir: &Path,
     ) -> Result<Vec<Artifact>>;
 

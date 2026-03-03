@@ -32,7 +32,7 @@ impl ToolchainDriver for CargoInputs {
     }
 
     fn collect_inputs(
-        _path: &PathBuf,
+        _path: &Path,
         _git: &GitContext,
         lockfile_hash: &str,
         lockfile_bytes: &[u8],
@@ -65,7 +65,7 @@ impl ToolchainDriver for CargoInputs {
         entries
     }
 
-    fn run_build(path: &PathBuf) -> Result<BuildOutput> {
+    fn run_build(path: &Path) -> Result<BuildOutput> {
         let output = Command::new("cargo")
             .args(["build", "--locked", "--release"])
             .current_dir(path)
@@ -84,7 +84,7 @@ impl ToolchainDriver for CargoInputs {
 
     fn collect_artifacts(
         _output: &BuildOutput,
-        path: &PathBuf,
+        path: &Path,
         artifacts_dir: &Path,
     ) -> Result<Vec<Artifact>> {
         let release_dir = path.join("target").join("release");
