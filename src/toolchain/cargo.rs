@@ -161,3 +161,71 @@ fn parse_cargo_lock(bytes: &[u8]) -> Result<Vec<ResolvedDependency>> {
     deps.sort_by_cached_key(|e| e.uri.clone());
     Ok(deps)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const CARGO_LOCK_FIXTURE: &[u8] = include_bytes!("../../tests/fixtures/cargo.lock");
+
+    #[test]
+    fn happy_path() {
+        let deps = parse_cargo_lock(CARGO_LOCK_FIXTURE).unwrap();
+        // Fixture has 5 registry packages (my-project has no checksum)
+        assert_eq!(deps.len(), 5);
+        // Each entry has proper URI format
+        for dep in &deps {
+            assert!(
+                dep.uri.starts_with("pkg:cargo/"),
+                "URI should start with pkg:cargo/: {}",
+                dep.uri
+            );
+            assert!(
+                dep.uri.contains("?checksum=sha256:"),
+                "URI should contain checksum: {}",
+                dep.uri
+            );
+        }
+        // Should be sorted by uri
+        let uris: Vec<&str> = deps.iter().map(|d| d.uri.as_str()).collect();
+        let mut sorted = uris.clone();
+        sorted.sort();
+        assert_eq!(uris, sorted, "dependencies should be sorted by URI");
+        // Workspace member (my-project) should be excluded
+        assert!(
+            deps.iter().all(|d| d.name != "my-project"),
+            "workspace member should be excluded"
+        );
+    }
+
+    #[test]
+    fn empty_package_list() {
+        let toml = b"[metadata]\nkey = \"value\"";
+        let deps = parse_cargo_lock(toml).unwrap();
+        assert!(deps.is_empty());
+    }
+
+    #[test]
+    fn invalid_toml() {
+        assert!(parse_cargo_lock(b"{{{{not valid toml}}}}").is_err());
+    }
+
+    #[test]
+    fn utf8_error() {
+        // Invalid UTF-8 sequence
+        let bytes: &[u8] = &[0xff, 0xfe, 0xfd];
+        assert!(parse_cargo_lock(bytes).is_err());
+    }
+
+    #[test]
+    fn deterministic_ordering() {
+        let r1 = parse_cargo_lock(CARGO_LOCK_FIXTURE).unwrap();
+        let r2 = parse_cargo_lock(CARGO_LOCK_FIXTURE).unwrap();
+        assert_eq!(r1.len(), r2.len());
+        for (a, b) in r1.iter().zip(r2.iter()) {
+            assert_eq!(a.uri, b.uri);
+            assert_eq!(a.name, b.name);
+            assert_eq!(a.digest.sha256, b.digest.sha256);
+        }
+    }
+}
