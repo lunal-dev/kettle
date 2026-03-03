@@ -34,3 +34,90 @@ pub fn build(path: &PathBuf) -> Result<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    #[test]
+    fn from_dir_flake_nix() {
+        let tmp = TempDir::new().unwrap();
+        fs_err::write(tmp.path().join("flake.nix"), b"{}").unwrap();
+        match ProjectToolchain::from_dir(&tmp.path().to_path_buf()).unwrap() {
+            ProjectToolchain::Nix => {}
+            other => panic!("expected Nix, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn from_dir_cargo_lock() {
+        let tmp = TempDir::new().unwrap();
+        fs_err::write(tmp.path().join("Cargo.lock"), b"version = 4").unwrap();
+        match ProjectToolchain::from_dir(&tmp.path().to_path_buf()).unwrap() {
+            ProjectToolchain::Cargo => {}
+            other => panic!("expected Cargo, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn from_dir_both_flake_wins() {
+        let tmp = TempDir::new().unwrap();
+        fs_err::write(tmp.path().join("flake.nix"), b"{}").unwrap();
+        fs_err::write(tmp.path().join("Cargo.lock"), b"version = 4").unwrap();
+        match ProjectToolchain::from_dir(&tmp.path().to_path_buf()).unwrap() {
+            ProjectToolchain::Nix => {}
+            other => panic!("expected Nix when both present, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn from_dir_neither_present() {
+        let tmp = TempDir::new().unwrap();
+        let result = ProjectToolchain::from_dir(&tmp.path().to_path_buf());
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(
+            err.contains("Could not determine toolchain"),
+            "error: {err}"
+        );
+    }
+
+    #[test]
+    fn from_dir_symlink_flake_nix() {
+        let tmp = TempDir::new().unwrap();
+        let real = tmp.path().join("real_flake.nix");
+        fs_err::write(&real, b"{}").unwrap();
+        std::os::unix::fs::symlink(&real, tmp.path().join("flake.nix")).unwrap();
+        match ProjectToolchain::from_dir(&tmp.path().to_path_buf()).unwrap() {
+            ProjectToolchain::Nix => {}
+            other => panic!("expected Nix via symlink, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn from_dir_symlink_cargo_lock() {
+        let tmp = TempDir::new().unwrap();
+        let real = tmp.path().join("real_cargo.lock");
+        fs_err::write(&real, b"version = 4").unwrap();
+        std::os::unix::fs::symlink(&real, tmp.path().join("Cargo.lock")).unwrap();
+        match ProjectToolchain::from_dir(&tmp.path().to_path_buf()).unwrap() {
+            ProjectToolchain::Cargo => {}
+            other => panic!("expected Cargo via symlink, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn from_dir_broken_symlink() {
+        let tmp = TempDir::new().unwrap();
+        // Broken symlink: points to non-existent target
+        std::os::unix::fs::symlink("/nonexistent/flake.nix", tmp.path().join("flake.nix"))
+            .unwrap();
+        // Broken symlink should not count as presence
+        let result = ProjectToolchain::from_dir(&tmp.path().to_path_buf());
+        assert!(
+            result.is_err(),
+            "broken symlink should not satisfy exists()"
+        );
+    }
+}
