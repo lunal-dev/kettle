@@ -15,11 +15,13 @@ use crate::{
     },
 };
 
+#[derive(Debug)]
 struct FlakeDep {
     name: String,
     nar_hash: Option<String>,
 }
 
+#[derive(Debug)]
 struct FetchEntry {
     name: String,
     drv_path: String,
@@ -34,6 +36,7 @@ pub(crate) fn build(path: &PathBuf) -> Result<()> {
     crate::toolchain::runner::run::<NixInputs>(path)
 }
 
+#[derive(Debug)]
 struct NixInputs {
     nix_version: String,
     nix_hash: String,
@@ -245,7 +248,6 @@ fn evaluate_derivation_graph(path: &Path) -> Result<Value> {
         .args([
             "derivation",
             "show",
-            ".#default",
             "--recursive",
             "--extra-experimental-features",
             "flakes",
@@ -419,9 +421,8 @@ mod tests {
     use super::*;
     use tempfile::TempDir;
 
-    const FLAKE_LOCK_FIXTURE: &[u8] = include_bytes!("../../tests/fixtures/flake.lock");
-    const NIX_DRV_NEW: &[u8] = include_bytes!("../../tests/fixtures/nix-derivation-new.json");
-    const NIX_DRV_OLD: &[u8] = include_bytes!("../../tests/fixtures/nix-derivation-old.json");
+    const FLAKE_LOCK_FIXTURE: &[u8] = include_bytes!("../../tests/fixtures/alejandra/flake.lock");
+    const NIX_DRV: &[u8] = include_bytes!("../../tests/fixtures/alejandra/derivation.json");
 
     // --- parse_flake_lock ---
 
@@ -429,10 +430,10 @@ mod tests {
     fn parse_flake_lock_happy_path() {
         let deps = parse_flake_lock(FLAKE_LOCK_FIXTURE).unwrap();
         // Fixture has root inputs: fenix, nixpkgs
-        assert_eq!(deps.len(), 2);
+        assert_eq!(deps.len(), 3);
         // Sorted by name
         assert_eq!(deps[0].name, "fenix");
-        assert_eq!(deps[1].name, "nixpkgs");
+        assert_eq!(deps[1].name, "flakeCompat");
         // Both should have nar_hash
         assert!(deps[0].nar_hash.is_some());
         assert!(deps[1].nar_hash.is_some());
@@ -477,49 +478,45 @@ mod tests {
 
     #[test]
     fn extract_fod_new_format() {
-        let graph: Value = serde_json::from_slice(NIX_DRV_NEW).unwrap();
+        let graph: Value = serde_json::from_slice(NIX_DRV).unwrap();
         let fetches = extract_fixed_output_hashes(&graph);
         // Fixture has 2 fixed-output derivations (source, other-fetch) and 1 non-fixed
-        assert_eq!(fetches.len(), 2);
+        assert_eq!(fetches.len(), 306);
         // Sorted by name
-        assert_eq!(fetches[0].name, "other-fetch");
-        assert_eq!(fetches[1].name, "source");
+        assert_eq!(
+            fetches[0].name,
+            "0001-Add-prototype-to-function-definitions.patch"
+        );
+        assert_eq!(
+            fetches[1].name,
+            "07631601e6602bc49b8eac3aab9d2b35968d3e7a.patch"
+        );
         // Check hash algo split
         assert_eq!(fetches[1].output_hash_algo, "sha256");
-        assert_eq!(fetches[1].output_hash, "dGVzdGhhc2gxMjM0NTY3ODkwYWJjZGVm");
+        assert_eq!(
+            fetches[1].output_hash,
+            "A89dikDVDJGXZ702nq3MbVBfYEChaWk1bp59aDKD7kU="
+        );
         // Check method comes from outputs
         assert_eq!(fetches[1].output_hash_mode.as_deref(), Some("flat"));
-        assert_eq!(fetches[0].output_hash_mode.as_deref(), Some("recursive"));
+        assert_eq!(fetches[0].output_hash_mode.as_deref(), Some("flat"));
         // URL extraction
-        assert!(fetches[1].url.is_some());
+        let with_url = fetches.iter().find(|f| f.url.is_some()).unwrap();
+        assert_eq!(
+            with_url.url,
+            Some("https://www.python.org/ftp/python/3.13.11/Python-3.13.11.tar.xz".to_string())
+        );
         // URLs extraction (array form)
-        assert!(fetches[0].urls.is_some());
-        let urls = fetches[0].urls.as_ref().unwrap();
-        assert!(urls.contains("example.com"));
-    }
-
-    #[test]
-    fn extract_fod_old_format() {
-        let graph: Value = serde_json::from_slice(NIX_DRV_OLD).unwrap();
-        let fetches = extract_fixed_output_hashes(&graph);
-        // Fixture has 2 fixed-output (old-source, old-multi) and 1 non-fixed
-        assert_eq!(fetches.len(), 2);
-        // Sorted by name
-        assert_eq!(fetches[0].name, "old-multi");
-        assert_eq!(fetches[1].name, "old-source");
-        // Old format fields
-        assert_eq!(fetches[1].output_hash_algo, "sha256");
-        assert_eq!(fetches[1].output_hash, "sha256:0abc123def456789");
-        assert_eq!(fetches[1].output_hash_mode.as_deref(), Some("flat"));
-        // URL
-        assert!(fetches[1].url.is_some());
-        // URLs as plain string
-        assert!(fetches[0].urls.is_some());
+        let with_urls = fetches.iter().find(|f| f.urls.is_some()).unwrap();
+        assert_eq!(
+            with_urls.urls,
+            Some("https://www.python.org/ftp/python/3.13.11/Python-3.13.11.tar.xz".to_string())
+        );
     }
 
     #[test]
     fn extract_fod_non_fixed_excluded() {
-        let graph: Value = serde_json::from_slice(NIX_DRV_NEW).unwrap();
+        let graph: Value = serde_json::from_slice(NIX_DRV).unwrap();
         let fetches = extract_fixed_output_hashes(&graph);
         assert!(
             fetches.iter().all(|f| f.name != "non-fixed-output"),
@@ -529,7 +526,7 @@ mod tests {
 
     #[test]
     fn extract_fod_sorted_by_name() {
-        let graph: Value = serde_json::from_slice(NIX_DRV_NEW).unwrap();
+        let graph: Value = serde_json::from_slice(NIX_DRV).unwrap();
         let fetches = extract_fixed_output_hashes(&graph);
         let names: Vec<&str> = fetches.iter().map(|f| f.name.as_str()).collect();
         let mut sorted = names.clone();

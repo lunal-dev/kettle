@@ -166,13 +166,13 @@ fn parse_cargo_lock(bytes: &[u8]) -> Result<Vec<ResolvedDependency>> {
 mod tests {
     use super::*;
 
-    const CARGO_LOCK_FIXTURE: &[u8] = include_bytes!("../../tests/fixtures/cargo.lock");
+    const CARGO_LOCK_FIXTURE: &[u8] = include_bytes!("../../tests/fixtures/ripgrep/Cargo.lock");
 
     #[test]
     fn happy_path() {
         let deps = parse_cargo_lock(CARGO_LOCK_FIXTURE).unwrap();
         // Fixture has 5 registry packages (my-project has no checksum)
-        assert_eq!(deps.len(), 5);
+        assert_eq!(deps.len(), 51);
         // Each entry has proper URI format
         for dep in &deps {
             assert!(

@@ -205,7 +205,7 @@ mod tests {
     use attestation::{Claims, PlatformType, TcbInfo, VerificationResult};
     use tempfile::TempDir;
 
-    const CARGO_FIXTURE: &[u8] = include_bytes!("../../tests/fixtures/provenance-cargo.json");
+    const CARGO_FIXTURE: &[u8] = include_bytes!("../../tests/fixtures/ripgrep/provenance.json");
 
     fn make_verification_result(
         signature_valid: bool,
