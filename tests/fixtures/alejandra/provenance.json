@@ -1,0 +1,3564 @@
+{
+  "_type": "https://in-toto.io/Statement/v1",
+  "predicate": {
+    "buildDefinition": {
+      "buildType": "https://lunal.dev/kettle/nix@v1",
+      "externalParameters": {
+        "buildCommand": "nix build",
+        "source": {
+          "digest": {
+            "gitCommit": "8f47c5e82ee8e6e8adcc1748be0056a1e349f7e8",
+            "gitTree": "647d41dde6e70cd2557dcf27a1612361a722b9ae"
+          },
+          "uri": "https://github.com/kamadorueda/alejandra"
+        }
+      },
+      "internalParameters": {
+        "evaluation": {
+          "derivationCount": 2,
+          "fetchCount": 306
+        },
+        "flakeInputs": [
+          {
+            "name": "fenix",
+            "narHash": "sha256-f09fAifGPEuRrz1DFY910jexq0DaBuQBbq7WcxQIUgs="
+          },
+          {
+            "name": "flakeCompat",
+            "narHash": "sha256-vNpUSpF5Nuw8xvDLj2KCwwksIbjua2LZCqhV1LNRDns="
+          },
+          {
+            "name": "nixpkgs",
+            "narHash": "sha256-izB67Et12Th6/dwE7FaOuRbk1Rw/aOTYbACw1CANkkY="
+          }
+        ],
+        "lockfileHash": {
+          "sha256": "b37896ec4c460821d5e56e18d1652b163250b926e19449b7a73944eb42c5d845"
+        },
+        "toolchain": {
+          "nix": {
+            "digest": {
+              "sha256": "871f395cc1a0f753dfb5ae0d3e4ba27cb214b09536d918daf50949f5bcd1720c"
+            },
+            "version": "nix (Nix) 2.33.3"
+          }
+        }
+      },
+      "resolvedDependencies": [
+        {
+          "annotations": {
+            "drvPath": "wjsx1al69h2n4jnklbn252m6xxv0h8bi-0001-Add-prototype-to-function-definitions.patch.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "X2Vv6VVM3KjmBHo2ukVWe5YTVXRmqe//Kw2kr73OpZs="
+          },
+          "name": "0001-Add-prototype-to-function-definitions.patch",
+          "uri": "pkg:nix-fetch/0001-Add-prototype-to-function-definitions.patch?hash=sha256:X2Vv6VVM3KjmBHo2ukVWe5YTVXRmqe//Kw2kr73OpZs="
+        },
+        {
+          "annotations": {
+            "drvPath": "32z5xaggpns7h7lfcvhc87qgcnvk3491-07631601e6602bc49b8eac3aab9d2b35968d3e7a.patch.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "A89dikDVDJGXZ702nq3MbVBfYEChaWk1bp59aDKD7kU="
+          },
+          "name": "07631601e6602bc49b8eac3aab9d2b35968d3e7a.patch",
+          "uri": "pkg:nix-fetch/07631601e6602bc49b8eac3aab9d2b35968d3e7a.patch?hash=sha256:A89dikDVDJGXZ702nq3MbVBfYEChaWk1bp59aDKD7kU="
+        },
+        {
+          "annotations": {
+            "drvPath": "jf1w8alwcz1ck0wyhxjgwm17h5jlrm48-40c1ccf3432a6787be1801ced721540e34c6cd87.patch.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "IemngBqBq3QRCmVscWtsuXHiFgvTOJIIB9SyAvsqHd0="
+          },
+          "name": "40c1ccf3432a6787be1801ced721540e34c6cd87.patch",
+          "uri": "pkg:nix-fetch/40c1ccf3432a6787be1801ced721540e34c6cd87.patch?hash=sha256:IemngBqBq3QRCmVscWtsuXHiFgvTOJIIB9SyAvsqHd0="
+        },
+        {
+          "annotations": {
+            "drvPath": "48zfhs67bmjgmdifpfcs2qj26yi99c72-7534898319cb7f16738c11e4bc1bdcef0eb13c38.patch.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "5jD0JBRnirmoMlUz9+n8G4AqHqCi8BaUX5rEl9NnLts="
+          },
+          "name": "7534898319cb7f16738c11e4bc1bdcef0eb13c38.patch",
+          "uri": "pkg:nix-fetch/7534898319cb7f16738c11e4bc1bdcef0eb13c38.patch?hash=sha256:5jD0JBRnirmoMlUz9+n8G4AqHqCi8BaUX5rEl9NnLts="
+        },
+        {
+          "annotations": {
+            "drvPath": "ywazjapg45szlv3y9vy1ncpr5sqqal1g-CUnit-2.1-3.tar.bz2.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "9bKRN/hFuwi3fsYFhP23KLTljxAj5vJJpGTvpJpA8hQ="
+          },
+          "name": "CUnit-2.1-3.tar.bz2",
+          "uri": "pkg:nix-fetch/CUnit-2.1-3.tar.bz2?hash=sha256:9bKRN/hFuwi3fsYFhP23KLTljxAj5vJJpGTvpJpA8hQ="
+        },
+        {
+          "annotations": {
+            "drvPath": "158509sgwzwsx197kcpm4h7ka91rgw18-CVE-2019-13232-1.patch.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "JFgv89zZJtGkbK+FBvdpmdJSXdZuNvULJdylB5lpXxI="
+          },
+          "name": "CVE-2019-13232-1.patch",
+          "uri": "pkg:nix-fetch/CVE-2019-13232-1.patch?hash=sha256:JFgv89zZJtGkbK+FBvdpmdJSXdZuNvULJdylB5lpXxI="
+        },
+        {
+          "annotations": {
+            "drvPath": "n0d1gaiasvqhn27sv7lzsak0019p2kmx-CVE-2019-13232-2.patch.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "YmjpyVZfcx/b1jGtvYLucrqC3mX86yjAlJn/7SXjwkc="
+          },
+          "name": "CVE-2019-13232-2.patch",
+          "uri": "pkg:nix-fetch/CVE-2019-13232-2.patch?hash=sha256:YmjpyVZfcx/b1jGtvYLucrqC3mX86yjAlJn/7SXjwkc="
+        },
+        {
+          "annotations": {
+            "drvPath": "i7xqbrwlk93ncqzimbb6yxzpkmyldl3c-CVE-2019-13232-3.patch.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "7p4mAYGQpRVXK2aiYRiRaEOqEAITGoa1xSdp3GY7ess="
+          },
+          "name": "CVE-2019-13232-3.patch",
+          "uri": "pkg:nix-fetch/CVE-2019-13232-3.patch?hash=sha256:7p4mAYGQpRVXK2aiYRiRaEOqEAITGoa1xSdp3GY7ess="
+        },
+        {
+          "annotations": {
+            "drvPath": "25wf4b81maqa83vh2wp8hb5jiyv3nn9q-CVE-2021-4217.patch.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "YKE4jVNSlrHLbszXNYYRtAQs0ly4AsodEz6tadMIVqE="
+          },
+          "name": "CVE-2021-4217.patch",
+          "uri": "pkg:nix-fetch/CVE-2021-4217.patch?hash=sha256:YKE4jVNSlrHLbszXNYYRtAQs0ly4AsodEz6tadMIVqE="
+        },
+        {
+          "annotations": {
+            "drvPath": "0gv7d53gqy8kc9i67fqr4v6257h6vdkb-PySocks-1.7.1.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "P4gEVx6+FZw4CsbeN2Q7tGhZcGVdO7okNTDWVYt5mqA="
+          },
+          "name": "PySocks-1.7.1.tar.gz",
+          "uri": "pkg:nix-fetch/PySocks-1.7.1.tar.gz?hash=sha256:P4gEVx6+FZw4CsbeN2Q7tGhZcGVdO7okNTDWVYt5mqA="
+        },
+        {
+          "annotations": {
+            "drvPath": "a6nhvi0kvins6r0kjnwfmlx7nvvjcyg6-Python-3.13.11.tar.xz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "Fu3nu3zb+oldEbBkL6DlI/KR5khxlNU89tOzOMOhfqI="
+          },
+          "name": "Python-3.13.11.tar.xz",
+          "uri": "pkg:nix-fetch/Python-3.13.11.tar.xz?hash=sha256:Fu3nu3zb+oldEbBkL6DlI/KR5khxlNU89tOzOMOhfqI="
+        },
+        {
+          "annotations": {
+            "drvPath": "gc5bvb3x6p66rbl9cc6x27mw602mhya9-Python-3.13.11.tar.xz.drv",
+            "outputHashMode": "flat",
+            "url": "https://www.python.org/ftp/python/3.13.11/Python-3.13.11.tar.xz",
+            "urls": "https://www.python.org/ftp/python/3.13.11/Python-3.13.11.tar.xz"
+          },
+          "digest": {
+            "sha256": "Fu3nu3zb+oldEbBkL6DlI/KR5khxlNU89tOzOMOhfqI="
+          },
+          "name": "Python-3.13.11.tar.xz",
+          "uri": "pkg:nix-fetch/Python-3.13.11.tar.xz?hash=sha256:Fu3nu3zb+oldEbBkL6DlI/KR5khxlNU89tOzOMOhfqI="
+        },
+        {
+          "annotations": {
+            "drvPath": "4c0r5jzl8jx1ayrzjkaxrq8kp0krxq9g-a44312974bd9084aa568d2e18ce5b2a7e0e45983.patch.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "DEO4FbzKNAXADYocSQhhwjQTGGu9V5pqd38u1sWhpOI="
+          },
+          "name": "a44312974bd9084aa568d2e18ce5b2a7e0e45983.patch",
+          "uri": "pkg:nix-fetch/a44312974bd9084aa568d2e18ce5b2a7e0e45983.patch?hash=sha256:DEO4FbzKNAXADYocSQhhwjQTGGu9V5pqd38u1sWhpOI="
+        },
+        {
+          "annotations": {
+            "drvPath": "0442lf73plz43gym6ahgydmp752dxczk-acl-2.3.2.tar.gz.drv",
+            "outputHashMode": "flat",
+            "url": "https://download.savannah.gnu.org/releases/acl/acl-2.3.2.tar.gz",
+            "urls": "https://download.savannah.gnu.org/releases/acl/acl-2.3.2.tar.gz"
+          },
+          "digest": {
+            "sha256": "XyvbrWKXB6p9hcYj+ZSqih0t7FWnPeUgW6wL9gWKL3w="
+          },
+          "name": "acl-2.3.2.tar.gz",
+          "uri": "pkg:nix-fetch/acl-2.3.2.tar.gz?hash=sha256:XyvbrWKXB6p9hcYj+ZSqih0t7FWnPeUgW6wL9gWKL3w="
+        },
+        {
+          "annotations": {
+            "drvPath": "7byvrfyi1f00i8jxsc1q8z997j9r10y5-attr-2.5.2.tar.gz.drv",
+            "outputHashMode": "flat",
+            "url": "https://download.savannah.gnu.org/releases/attr/attr-2.5.2.tar.gz",
+            "urls": "https://download.savannah.gnu.org/releases/attr/attr-2.5.2.tar.gz"
+          },
+          "digest": {
+            "sha256": "Ob9nRS+kHQlIwhl2AQU/SLPXigKTiXNDMqYwmmgMbIc="
+          },
+          "name": "attr-2.5.2.tar.gz",
+          "uri": "pkg:nix-fetch/attr-2.5.2.tar.gz?hash=sha256:Ob9nRS+kHQlIwhl2AQU/SLPXigKTiXNDMqYwmmgMbIc="
+        },
+        {
+          "annotations": {
+            "drvPath": "7v04jdlv7s7brrz83iibsa44pggi7f7b-attrs-25.4.0.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "FtWWm4fwhZ7zOkizXVWsG+bkKuSdXoU7WX23DDXFfhE="
+          },
+          "name": "attrs-25.4.0.tar.gz",
+          "uri": "pkg:nix-fetch/attrs-25.4.0.tar.gz?hash=sha256:FtWWm4fwhZ7zOkizXVWsG+bkKuSdXoU7WX23DDXFfhE="
+        },
+        {
+          "annotations": {
+            "drvPath": "i2pfgljh1az3v0xga8s4kvn7l1kb1nj4-autoconf-2.72.tar.xz.drv",
+            "outputHashMode": "flat",
+            "url": "https://ftpmirror.gnu.org/autoconf/autoconf-2.72.tar.xz",
+            "urls": "https://ftpmirror.gnu.org/autoconf/autoconf-2.72.tar.xz"
+          },
+          "digest": {
+            "sha256": "uohcExlXjWyU1G6bDc60AUyq/iSQ5Deg28o/JwoiP1o="
+          },
+          "name": "autoconf-2.72.tar.xz",
+          "uri": "pkg:nix-fetch/autoconf-2.72.tar.xz?hash=sha256:uohcExlXjWyU1G6bDc60AUyq/iSQ5Deg28o/JwoiP1o="
+        },
+        {
+          "annotations": {
+            "drvPath": "nb6am9fb2wgcwsqcjq7bxwil3nqjqzha-autoconf-2.72.tar.xz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "uohcExlXjWyU1G6bDc60AUyq/iSQ5Deg28o/JwoiP1o="
+          },
+          "name": "autoconf-2.72.tar.xz",
+          "uri": "pkg:nix-fetch/autoconf-2.72.tar.xz?hash=sha256:uohcExlXjWyU1G6bDc60AUyq/iSQ5Deg28o/JwoiP1o="
+        },
+        {
+          "annotations": {
+            "drvPath": "sm2ln10p0r2x3kknf9r18zk1rxzfkbz5-autoconf-archive-2024.10.16.tar.xz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "e81dABkW86UO10NvT3AOPSsbrePtgDIZxZLWJQKlc2M="
+          },
+          "name": "autoconf-archive-2024.10.16.tar.xz",
+          "uri": "pkg:nix-fetch/autoconf-archive-2024.10.16.tar.xz?hash=sha256:e81dABkW86UO10NvT3AOPSsbrePtgDIZxZLWJQKlc2M="
+        },
+        {
+          "annotations": {
+            "drvPath": "w8cjkklfchip8vrghyr2dql46v26ipfr-automake-1.16.5.tar.xz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "8B1YzW2dd/vcqetLvV6tGYgij9tz1veiAfX41rEYtGk="
+          },
+          "name": "automake-1.16.5.tar.xz",
+          "uri": "pkg:nix-fetch/automake-1.16.5.tar.xz?hash=sha256:8B1YzW2dd/vcqetLvV6tGYgij9tz1veiAfX41rEYtGk="
+        },
+        {
+          "annotations": {
+            "drvPath": "2rmk35vbqb6q9r4aqmsz7iicmi44jx6d-automake-1.18.1.tar.xz.drv",
+            "outputHashMode": "flat",
+            "url": "https://ftpmirror.gnu.org/automake/automake-1.18.1.tar.xz",
+            "urls": "https://ftpmirror.gnu.org/automake/automake-1.18.1.tar.xz"
+          },
+          "digest": {
+            "sha256": "FoqjYyeDUbia9WaERI9SWlvOUHnQtoQr2RD90/FkaIc="
+          },
+          "name": "automake-1.18.1.tar.xz",
+          "uri": "pkg:nix-fetch/automake-1.18.1.tar.xz?hash=sha256:FoqjYyeDUbia9WaERI9SWlvOUHnQtoQr2RD90/FkaIc="
+        },
+        {
+          "annotations": {
+            "drvPath": "x7i7p91r8bw6gb9zxh72jzqx7pcn1ybw-automake-1.18.1.tar.xz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "FoqjYyeDUbia9WaERI9SWlvOUHnQtoQr2RD90/FkaIc="
+          },
+          "name": "automake-1.18.1.tar.xz",
+          "uri": "pkg:nix-fetch/automake-1.18.1.tar.xz?hash=sha256:FoqjYyeDUbia9WaERI9SWlvOUHnQtoQr2RD90/FkaIc="
+        },
+        {
+          "annotations": {
+            "drvPath": "9l27q7hz2ki8i9wq4nch0g82dzj2ab9x-bash-5.3.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "DVzYaWX4aaJs9k9Lcb57lvkKO6iz104n6OnZ1VUPMbo="
+          },
+          "name": "bash-5.3.tar.gz",
+          "uri": "pkg:nix-fetch/bash-5.3.tar.gz?hash=sha256:DVzYaWX4aaJs9k9Lcb57lvkKO6iz104n6OnZ1VUPMbo="
+        },
+        {
+          "annotations": {
+            "drvPath": "y84saga4qsmk7xrprd0qv8rgdqjk67g1-bash-5.3.tar.gz.drv",
+            "outputHashMode": "flat",
+            "url": "https://ftpmirror.gnu.org/bash/bash-5.3.tar.gz",
+            "urls": "https://ftpmirror.gnu.org/bash/bash-5.3.tar.gz"
+          },
+          "digest": {
+            "sha256": "DVzYaWX4aaJs9k9Lcb57lvkKO6iz104n6OnZ1VUPMbo="
+          },
+          "name": "bash-5.3.tar.gz",
+          "uri": "pkg:nix-fetch/bash-5.3.tar.gz?hash=sha256:DVzYaWX4aaJs9k9Lcb57lvkKO6iz104n6OnZ1VUPMbo="
+        },
+        {
+          "annotations": {
+            "drvPath": "4451wz1ivalkwjqwssg3k5frz87s2850-bash53-001.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "H2CENDZK+GubRciw6j+zsWX7gw0naX5s38esF97jKH8="
+          },
+          "name": "bash53-001",
+          "uri": "pkg:nix-fetch/bash53-001?hash=sha256:H2CENDZK+GubRciw6j+zsWX7gw0naX5s38esF97jKH8="
+        },
+        {
+          "annotations": {
+            "drvPath": "avf6vbj4jmpnn5cdsjyj2693samnvqsa-bash53-001.drv",
+            "outputHashMode": "flat",
+            "url": "https://ftpmirror.gnu.org/bash/bash-5.3-patches/bash53-001",
+            "urls": "https://ftpmirror.gnu.org/bash/bash-5.3-patches/bash53-001"
+          },
+          "digest": {
+            "sha256": "H2CENDZK+GubRciw6j+zsWX7gw0naX5s38esF97jKH8="
+          },
+          "name": "bash53-001",
+          "uri": "pkg:nix-fetch/bash53-001?hash=sha256:H2CENDZK+GubRciw6j+zsWX7gw0naX5s38esF97jKH8="
+        },
+        {
+          "annotations": {
+            "drvPath": "ii3jsqp9rrwv0g21lwbvb94ddg8c5m7n-bash53-002.drv",
+            "outputHashMode": "flat",
+            "url": "https://ftpmirror.gnu.org/bash/bash-5.3-patches/bash53-002",
+            "urls": "https://ftpmirror.gnu.org/bash/bash-5.3-patches/bash53-002"
+          },
+          "digest": {
+            "sha256": "44VUigATB2XseTilb73KUkR6tB+ryVol8ZreUn4oIAE="
+          },
+          "name": "bash53-002",
+          "uri": "pkg:nix-fetch/bash53-002?hash=sha256:44VUigATB2XseTilb73KUkR6tB+ryVol8ZreUn4oIAE="
+        },
+        {
+          "annotations": {
+            "drvPath": "ybjzd8lds1fxj1rpymgvf2xlmc9h40m7-bash53-002.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "44VUigATB2XseTilb73KUkR6tB+ryVol8ZreUn4oIAE="
+          },
+          "name": "bash53-002",
+          "uri": "pkg:nix-fetch/bash53-002?hash=sha256:44VUigATB2XseTilb73KUkR6tB+ryVol8ZreUn4oIAE="
+        },
+        {
+          "annotations": {
+            "drvPath": "1gcvsdsgx9igrphp9dy7ds52w5qakr63-bash53-003.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "8kXZx9w/WiDYS1PSSTNHR5QJNvCdyX4dy4n8OrN9YO0="
+          },
+          "name": "bash53-003",
+          "uri": "pkg:nix-fetch/bash53-003?hash=sha256:8kXZx9w/WiDYS1PSSTNHR5QJNvCdyX4dy4n8OrN9YO0="
+        },
+        {
+          "annotations": {
+            "drvPath": "5m6vm7vkilsgas517yf8f321k5r3g1m3-bash53-003.drv",
+            "outputHashMode": "flat",
+            "url": "https://ftpmirror.gnu.org/bash/bash-5.3-patches/bash53-003",
+            "urls": "https://ftpmirror.gnu.org/bash/bash-5.3-patches/bash53-003"
+          },
+          "digest": {
+            "sha256": "8kXZx9w/WiDYS1PSSTNHR5QJNvCdyX4dy4n8OrN9YO0="
+          },
+          "name": "bash53-003",
+          "uri": "pkg:nix-fetch/bash53-003?hash=sha256:8kXZx9w/WiDYS1PSSTNHR5QJNvCdyX4dy4n8OrN9YO0="
+        },
+        {
+          "annotations": {
+            "drvPath": "44sw3grr08hzn0jjg6vcdlxwpakf9jbq-binutils-with-gold-2.44.tar.bz2.drv",
+            "outputHashMode": "flat",
+            "url": "https://ftpmirror.gnu.org/binutils/binutils-with-gold-2.44.tar.bz2",
+            "urls": "https://ftpmirror.gnu.org/binutils/binutils-with-gold-2.44.tar.bz2"
+          },
+          "digest": {
+            "sha256": "NHM+pJXMDlDnDbTliQ3sKKxB8OFMShZeac8n+5moxMg="
+          },
+          "name": "binutils-with-gold-2.44.tar.bz2",
+          "uri": "pkg:nix-fetch/binutils-with-gold-2.44.tar.bz2?hash=sha256:NHM+pJXMDlDnDbTliQ3sKKxB8OFMShZeac8n+5moxMg="
+        },
+        {
+          "annotations": {
+            "drvPath": "g79jqplxpqcrawjy35vj6mj67cimx8am-binutils-with-gold-2.44.tar.bz2.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "NHM+pJXMDlDnDbTliQ3sKKxB8OFMShZeac8n+5moxMg="
+          },
+          "name": "binutils-with-gold-2.44.tar.bz2",
+          "uri": "pkg:nix-fetch/binutils-with-gold-2.44.tar.bz2?hash=sha256:NHM+pJXMDlDnDbTliQ3sKKxB8OFMShZeac8n+5moxMg="
+        },
+        {
+          "annotations": {
+            "drvPath": "32ivm4j3h98spqc1q9ypkav6fm22h5cz-bison-3.8.2.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "BsnhO99+sk1M62tZIFpPZ8LH5yExGWREMP6C+9FKCrs="
+          },
+          "name": "bison-3.8.2.tar.gz",
+          "uri": "pkg:nix-fetch/bison-3.8.2.tar.gz?hash=sha256:BsnhO99+sk1M62tZIFpPZ8LH5yExGWREMP6C+9FKCrs="
+        },
+        {
+          "annotations": {
+            "drvPath": "vgjfnqbxgxa8a5575bhq07nm35b2l31m-bison-3.8.2.tar.gz.drv",
+            "outputHashMode": "flat",
+            "url": "https://ftpmirror.gnu.org/bison/bison-3.8.2.tar.gz",
+            "urls": "https://ftpmirror.gnu.org/bison/bison-3.8.2.tar.gz"
+          },
+          "digest": {
+            "sha256": "BsnhO99+sk1M62tZIFpPZ8LH5yExGWREMP6C+9FKCrs="
+          },
+          "name": "bison-3.8.2.tar.gz",
+          "uri": "pkg:nix-fetch/bison-3.8.2.tar.gz?hash=sha256:BsnhO99+sk1M62tZIFpPZ8LH5yExGWREMP6C+9FKCrs="
+        },
+        {
+          "annotations": {
+            "drvPath": "0pbb02jyyjrf6fgin878c47pfwg2wxis-bits-only-build-when-cpu_set_t-is-available.patch.drv",
+            "outputHashMode": "flat",
+            "url": "https://lore.kernel.org/util-linux/20250501075806.88759-1-hi@alyssa.is/raw",
+            "urls": "https://lore.kernel.org/util-linux/20250501075806.88759-1-hi@alyssa.is/raw"
+          },
+          "digest": {
+            "sha256": "G7Cdv8636wJEjgt9am7PaDI8bpSF8sO9bFWEIiAL25A="
+          },
+          "name": "bits-only-build-when-cpu_set_t-is-available.patch",
+          "uri": "pkg:nix-fetch/bits-only-build-when-cpu_set_t-is-available.patch?hash=sha256:G7Cdv8636wJEjgt9am7PaDI8bpSF8sO9bFWEIiAL25A="
+        },
+        {
+          "annotations": {
+            "drvPath": "p56znbvwm8hsh0wvgn55j76wvzr82kpr-bluez-5.84.tar.xz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "W6c9Aw97AAh9Z4ALDjIWAa7A+JKCfHLlosg5DYyIaxE="
+          },
+          "name": "bluez-5.84.tar.xz",
+          "uri": "pkg:nix-fetch/bluez-5.84.tar.xz?hash=sha256:W6c9Aw97AAh9Z4ALDjIWAa7A+JKCfHLlosg5DYyIaxE="
+        },
+        {
+          "annotations": {
+            "drvPath": "xjkydxc0n24mwxp8kh4wn5jq0fppga9k-bootstrap-tools.tar.xz.drv",
+            "outputHashMode": "flat",
+            "url": "http://tarballs.nixos.org/stdenv/x86_64-unknown-linux-gnu/82b583ba2ba2e5706b35dbe23f31362e62be2a9d/bootstrap-tools.tar.xz",
+            "urls": "http://tarballs.nixos.org/stdenv/x86_64-unknown-linux-gnu/82b583ba2ba2e5706b35dbe23f31362e62be2a9d/bootstrap-tools.tar.xz"
+          },
+          "digest": {
+            "sha256": "YQlr088HPoVWBU2jpPhpIMyOyoEDZYDw1y60SGGbUM0="
+          },
+          "name": "bootstrap-tools.tar.xz",
+          "uri": "pkg:nix-fetch/bootstrap-tools.tar.xz?hash=sha256:YQlr088HPoVWBU2jpPhpIMyOyoEDZYDw1y60SGGbUM0="
+        },
+        {
+          "annotations": {
+            "drvPath": "bikdc4clj8bkkw3llg4fnij49vdyzvln-buildcatrust-0.4.0.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "GYw/RN1OK5fqo3em8hia2l/IwN76hnPnFuYprqeX144="
+          },
+          "name": "buildcatrust-0.4.0.tar.gz",
+          "uri": "pkg:nix-fetch/buildcatrust-0.4.0.tar.gz?hash=sha256:GYw/RN1OK5fqo3em8hia2l/IwN76hnPnFuYprqeX144="
+        },
+        {
+          "annotations": {
+            "drvPath": "0m4y3j4pnivlhhpr5yqdvlly86p93fwc-busybox.drv",
+            "outputHashMode": "nar",
+            "url": "http://tarballs.nixos.org/stdenv/x86_64-unknown-linux-gnu/82b583ba2ba2e5706b35dbe23f31362e62be2a9d/busybox",
+            "urls": "http://tarballs.nixos.org/stdenv/x86_64-unknown-linux-gnu/82b583ba2ba2e5706b35dbe23f31362e62be2a9d/busybox"
+          },
+          "digest": {
+            "sha256": "QrTEnQTBM1Y/qV9odq8irZkQSD9uOMbs2Q5NgCvKCNQ="
+          },
+          "name": "busybox",
+          "uri": "pkg:nix-fetch/busybox?hash=sha256:QrTEnQTBM1Y/qV9odq8irZkQSD9uOMbs2Q5NgCvKCNQ="
+        },
+        {
+          "annotations": {
+            "drvPath": "064azyv3x2ifvdww3hgk066yn1bm668j-byacc-20241231.tgz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "GSwvrgSNTn9RS6RRYn+cTmEnZQmfgZwZGR+f3j5glnM="
+          },
+          "name": "byacc-20241231.tgz",
+          "uri": "pkg:nix-fetch/byacc-20241231.tgz?hash=sha256:GSwvrgSNTn9RS6RRYn+cTmEnZQmfgZwZGR+f3j5glnM="
+        },
+        {
+          "annotations": {
+            "drvPath": "b6yxpjizcj55gzmm8vpjzdxgl15246qv-byacc-20241231.tgz.drv",
+            "outputHashMode": "flat",
+            "url": "https://invisible-mirror.net/archives/byacc/byacc-20241231.tgz",
+            "urls": "https://invisible-mirror.net/archives/byacc/byacc-20241231.tgz"
+          },
+          "digest": {
+            "sha256": "GSwvrgSNTn9RS6RRYn+cTmEnZQmfgZwZGR+f3j5glnM="
+          },
+          "name": "byacc-20241231.tgz",
+          "uri": "pkg:nix-fetch/byacc-20241231.tgz?hash=sha256:GSwvrgSNTn9RS6RRYn+cTmEnZQmfgZwZGR+f3j5glnM="
+        },
+        {
+          "annotations": {
+            "drvPath": "mhrxc5w6drwi4m5ykbdrayz7869i9mx9-bzip2-1.0.8.tar.gz.drv",
+            "outputHashMode": "flat",
+            "url": "https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz",
+            "urls": "https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz"
+          },
+          "digest": {
+            "sha256": "q1oDF27hBtPw+pDjgdpHjdrkBZGBU8yiSOaCzQxKImk="
+          },
+          "name": "bzip2-1.0.8.tar.gz",
+          "uri": "pkg:nix-fetch/bzip2-1.0.8.tar.gz?hash=sha256:q1oDF27hBtPw+pDjgdpHjdrkBZGBU8yiSOaCzQxKImk="
+        },
+        {
+          "annotations": {
+            "drvPath": "701sck2bicscs944sww4zd6dv7nha4wq-c-ares-1.34.5.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "fZNXkOmvCBwlxJX9E8LPzaR5KYNBjpY1jvbnMg7gY0Y="
+          },
+          "name": "c-ares-1.34.5.tar.gz",
+          "uri": "pkg:nix-fetch/c-ares-1.34.5.tar.gz?hash=sha256:fZNXkOmvCBwlxJX9E8LPzaR5KYNBjpY1jvbnMg7gY0Y="
+        },
+        {
+          "annotations": {
+            "drvPath": "qhbgqslnv9gld2p7wvng2km72z2bicd3-cargo-auditable-0.7.2-vendor-staging.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "JEfnUJ9J6Xak3AOCwQCnu+v+3Wl3QbXX20qVFWB6040="
+          },
+          "name": "cargo-auditable-0.7.2-vendor-staging",
+          "uri": "pkg:nix-fetch/cargo-auditable-0.7.2-vendor-staging?hash=sha256:JEfnUJ9J6Xak3AOCwQCnu+v+3Wl3QbXX20qVFWB6040="
+        },
+        {
+          "annotations": {
+            "drvPath": "yq2a83cdxclggjqs5ka4arcqpyck4xfd-cargo-auditable-bootstrap-0.7.2-vendor-staging.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "JEfnUJ9J6Xak3AOCwQCnu+v+3Wl3QbXX20qVFWB6040="
+          },
+          "name": "cargo-auditable-bootstrap-0.7.2-vendor-staging",
+          "uri": "pkg:nix-fetch/cargo-auditable-bootstrap-0.7.2-vendor-staging?hash=sha256:JEfnUJ9J6Xak3AOCwQCnu+v+3Wl3QbXX20qVFWB6040="
+        },
+        {
+          "annotations": {
+            "drvPath": "0i0ninm7mkwra7faxxrqanhmh4lgnlm6-cmake-4.1.2.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "ZD8EGCt7oyOrMfUm94UTT7ecujGIqFIgbvBHP+4oKhU="
+          },
+          "name": "cmake-4.1.2.tar.gz",
+          "uri": "pkg:nix-fetch/cmake-4.1.2.tar.gz?hash=sha256:ZD8EGCt7oyOrMfUm94UTT7ecujGIqFIgbvBHP+4oKhU="
+        },
+        {
+          "annotations": {
+            "drvPath": "bamwxswxacs3cjdcydv0z7bj22d7g2kc-config.guess-948ae97.drv",
+            "outputHashMode": "flat",
+            "url": "https://git.savannah.gnu.org/cgit/config.git/plain/config.guess?id=948ae97ca5703224bd3eada06b7a69f40dd15a02",
+            "urls": "https://git.savannah.gnu.org/cgit/config.git/plain/config.guess?id=948ae97ca5703224bd3eada06b7a69f40dd15a02"
+          },
+          "digest": {
+            "sha256": "ZByuPAx0xJNU0+3gCfP+vYD+vhUBp3wdn6yNQsxFtss="
+          },
+          "name": "config.guess-948ae97",
+          "uri": "pkg:nix-fetch/config.guess-948ae97?hash=sha256:ZByuPAx0xJNU0+3gCfP+vYD+vhUBp3wdn6yNQsxFtss="
+        },
+        {
+          "annotations": {
+            "drvPath": "ij8l0a4arlfajb7r7383ynlnnr5c0w4l-config.guess-948ae97.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "ZByuPAx0xJNU0+3gCfP+vYD+vhUBp3wdn6yNQsxFtss="
+          },
+          "name": "config.guess-948ae97",
+          "uri": "pkg:nix-fetch/config.guess-948ae97?hash=sha256:ZByuPAx0xJNU0+3gCfP+vYD+vhUBp3wdn6yNQsxFtss="
+        },
+        {
+          "annotations": {
+            "drvPath": "a3aj4n3x7mdsmf5rxblihs5s6p63lb7j-config.sub-948ae97.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "/jovMvuv9XhIcyVJ9I2YP9ZSYCTsLw9ancdcL0NZo6Y="
+          },
+          "name": "config.sub-948ae97",
+          "uri": "pkg:nix-fetch/config.sub-948ae97?hash=sha256:/jovMvuv9XhIcyVJ9I2YP9ZSYCTsLw9ancdcL0NZo6Y="
+        },
+        {
+          "annotations": {
+            "drvPath": "nbsdqpfzh1jlpmh95s69b3iivfcvv3lh-config.sub-948ae97.drv",
+            "outputHashMode": "flat",
+            "url": "https://git.savannah.gnu.org/cgit/config.git/plain/config.sub?id=948ae97ca5703224bd3eada06b7a69f40dd15a02",
+            "urls": "https://git.savannah.gnu.org/cgit/config.git/plain/config.sub?id=948ae97ca5703224bd3eada06b7a69f40dd15a02"
+          },
+          "digest": {
+            "sha256": "/jovMvuv9XhIcyVJ9I2YP9ZSYCTsLw9ancdcL0NZo6Y="
+          },
+          "name": "config.sub-948ae97",
+          "uri": "pkg:nix-fetch/config.sub-948ae97?hash=sha256:/jovMvuv9XhIcyVJ9I2YP9ZSYCTsLw9ancdcL0NZo6Y="
+        },
+        {
+          "annotations": {
+            "drvPath": "lq5pzlxzdbndqqbzdwm2n9cgyp7zqb71-coreutils-9.8.tar.xz.drv",
+            "outputHashMode": "flat",
+            "url": "https://ftpmirror.gnu.org/coreutils/coreutils-9.8.tar.xz",
+            "urls": "https://ftpmirror.gnu.org/coreutils/coreutils-9.8.tar.xz"
+          },
+          "digest": {
+            "sha256": "5tT9LYUskUGhwqGKE9FGoM1+RRlfcik6TkwETsbMyhU="
+          },
+          "name": "coreutils-9.8.tar.xz",
+          "uri": "pkg:nix-fetch/coreutils-9.8.tar.xz?hash=sha256:5tT9LYUskUGhwqGKE9FGoM1+RRlfcik6TkwETsbMyhU="
+        },
+        {
+          "annotations": {
+            "drvPath": "xs6zjwbabs3yrqllfdaaznj4ib6bps4h-crate-atty-0.2.14.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "2bOb4Ydw0RQhzbG5lHpF3T836TCSy/N3YUgooxnV/ug="
+          },
+          "name": "crate-atty-0.2.14.tar.gz",
+          "uri": "pkg:nix-fetch/crate-atty-0.2.14.tar.gz?hash=sha256:2bOb4Ydw0RQhzbG5lHpF3T836TCSy/N3YUgooxnV/ug="
+        },
+        {
+          "annotations": {
+            "drvPath": "f0frgz1nmcxmgvcysbccryiy1cqm36qv-crate-autocfg-1.4.0.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "rOULrejmI0qhQNmi9VK77h2001P2m4IXvFA0kPwanyY="
+          },
+          "name": "crate-autocfg-1.4.0.tar.gz",
+          "uri": "pkg:nix-fetch/crate-autocfg-1.4.0.tar.gz?hash=sha256:rOULrejmI0qhQNmi9VK77h2001P2m4IXvFA0kPwanyY="
+        },
+        {
+          "annotations": {
+            "drvPath": "sdr33zwbpwdd7kfip522k62m7ln649c9-crate-bitflags-1.3.2.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "vvONRRY8Lx3eCUp9/TPM9ZXJKQXI+PT9wY0G+xA3cYo="
+          },
+          "name": "crate-bitflags-1.3.2.tar.gz",
+          "uri": "pkg:nix-fetch/crate-bitflags-1.3.2.tar.gz?hash=sha256:vvONRRY8Lx3eCUp9/TPM9ZXJKQXI+PT9wY0G+xA3cYo="
+        },
+        {
+          "annotations": {
+            "drvPath": "cw1xpgk52dnnm8h8krhqlx3vs311j2rq-crate-cc-1.2.18.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "UlBGYX2DduPbHe/7B56RzvkKifw8pcGFu/jJ7N0VzVw="
+          },
+          "name": "crate-cc-1.2.18.tar.gz",
+          "uri": "pkg:nix-fetch/crate-cc-1.2.18.tar.gz?hash=sha256:UlBGYX2DduPbHe/7B56RzvkKifw8pcGFu/jJ7N0VzVw="
+        },
+        {
+          "annotations": {
+            "drvPath": "lpf73926gj61rz2x73aca9h06pnlvqdk-crate-cfg-if-1.0.0.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "uvHeQzl2FYi8Bhnjy8ASDuWC67dLU7Tvv3kRe9LaQP0="
+          },
+          "name": "crate-cfg-if-1.0.0.tar.gz",
+          "uri": "pkg:nix-fetch/crate-cfg-if-1.0.0.tar.gz?hash=sha256:uvHeQzl2FYi8Bhnjy8ASDuWC67dLU7Tvv3kRe9LaQP0="
+        },
+        {
+          "annotations": {
+            "drvPath": "60kpv1ih7xlkwds2vyr2yfiqqwfnzaz3-crate-clap-3.2.25.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "TqGBv1ZvccuaXRelnhhxr2OBgKGPsANckq5itwUgcSM="
+          },
+          "name": "crate-clap-3.2.25.tar.gz",
+          "uri": "pkg:nix-fetch/crate-clap-3.2.25.tar.gz?hash=sha256:TqGBv1ZvccuaXRelnhhxr2OBgKGPsANckq5itwUgcSM="
+        },
+        {
+          "annotations": {
+            "drvPath": "ypd1w5a53fbhziwbs21wkpmbilkc5pk5-crate-clap_derive-3.2.25.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "rmNxuL3It9OVnpz3si1ENe8+eeE4aIQh7GVKz4yBsAg="
+          },
+          "name": "crate-clap_derive-3.2.25.tar.gz",
+          "uri": "pkg:nix-fetch/crate-clap_derive-3.2.25.tar.gz?hash=sha256:rmNxuL3It9OVnpz3si1ENe8+eeE4aIQh7GVKz4yBsAg="
+        },
+        {
+          "annotations": {
+            "drvPath": "f7qkc9r4i9m39iyx3zwyqq5mafc1j7wp-crate-clap_lex-0.2.4.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "KFDy9agsv0N91a9NSYSPvfwnwVfD0BA0V3b5UnZSYcU="
+          },
+          "name": "crate-clap_lex-0.2.4.tar.gz",
+          "uri": "pkg:nix-fetch/crate-clap_lex-0.2.4.tar.gz?hash=sha256:KFDy9agsv0N91a9NSYSPvfwnwVfD0BA0V3b5UnZSYcU="
+        },
+        {
+          "annotations": {
+            "drvPath": "34lrx20mxkmv1phbp3p970np20wfpdks-crate-countme-3.0.1.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "dwS1/dF7GK4xxMHaWi4DBaK/F7UkkwCp7p7XtyEUxjY="
+          },
+          "name": "crate-countme-3.0.1.tar.gz",
+          "uri": "pkg:nix-fetch/crate-countme-3.0.1.tar.gz?hash=sha256:dwS1/dF7GK4xxMHaWi4DBaK/F7UkkwCp7p7XtyEUxjY="
+        },
+        {
+          "annotations": {
+            "drvPath": "9mbn7nqbhc5c6xap1n5s4hqv5y703fa8-crate-diff-0.1.13.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "ViVJhndeMjP/qcTX0/qvbTaiwJ0wsgaH6fiLyLr8Fsg="
+          },
+          "name": "crate-diff-0.1.13.tar.gz",
+          "uri": "pkg:nix-fetch/crate-diff-0.1.13.tar.gz?hash=sha256:ViVJhndeMjP/qcTX0/qvbTaiwJ0wsgaH6fiLyLr8Fsg="
+        },
+        {
+          "annotations": {
+            "drvPath": "9dd09bdbjyvanz7mhmbba3725vl4z01k-crate-equivalent-1.0.2.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "h3pKzocTsLzypOfuyCUpwCnx0GGYhtGBRf6pbD/+XA8="
+          },
+          "name": "crate-equivalent-1.0.2.tar.gz",
+          "uri": "pkg:nix-fetch/crate-equivalent-1.0.2.tar.gz?hash=sha256:h3pKzocTsLzypOfuyCUpwCnx0GGYhtGBRf6pbD/+XA8="
+        },
+        {
+          "annotations": {
+            "drvPath": "k1c8d6rbk5gvvyysxrbwbqwv3x6l8f66-crate-futures-0.3.31.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "ZbwHsai8fIXF8uEQxHbHOJtFVLpyr1fYRF6mOldrCHY="
+          },
+          "name": "crate-futures-0.3.31.tar.gz",
+          "uri": "pkg:nix-fetch/crate-futures-0.3.31.tar.gz?hash=sha256:ZbwHsai8fIXF8uEQxHbHOJtFVLpyr1fYRF6mOldrCHY="
+        },
+        {
+          "annotations": {
+            "drvPath": "sckq2kb7vpflw8dbpyf7jicjvqgnzaja-crate-futures-channel-0.3.31.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "Lf8Vv3iMZxwZNONm0H4wwYFKjvUU4a9ySmAuii++GxA="
+          },
+          "name": "crate-futures-channel-0.3.31.tar.gz",
+          "uri": "pkg:nix-fetch/crate-futures-channel-0.3.31.tar.gz?hash=sha256:Lf8Vv3iMZxwZNONm0H4wwYFKjvUU4a9ySmAuii++GxA="
+        },
+        {
+          "annotations": {
+            "drvPath": "1rpcix70p779s3lv4x4czskzppc2p528-crate-futures-core-0.3.31.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "BfKQWcDCCQYS6NdCF4sFgNLclAyDeFGtcjCW+Hr2Zj4="
+          },
+          "name": "crate-futures-core-0.3.31.tar.gz",
+          "uri": "pkg:nix-fetch/crate-futures-core-0.3.31.tar.gz?hash=sha256:BfKQWcDCCQYS6NdCF4sFgNLclAyDeFGtcjCW+Hr2Zj4="
+        },
+        {
+          "annotations": {
+            "drvPath": "5a0lqss9fq7hpxry2j83ynqz55nm85jm-crate-futures-executor-0.3.31.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "HijR2Zf1heVK68P5fTnnIziRISOmczDXI/27Vk1kbJ8="
+          },
+          "name": "crate-futures-executor-0.3.31.tar.gz",
+          "uri": "pkg:nix-fetch/crate-futures-executor-0.3.31.tar.gz?hash=sha256:HijR2Zf1heVK68P5fTnnIziRISOmczDXI/27Vk1kbJ8="
+        },
+        {
+          "annotations": {
+            "drvPath": "40mw6jzlc81kpylfp8qgsx5331qi0jhd-crate-futures-io-0.3.31.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "nlwbeMpKrhrAbEilJqZVdgaFFJ8NRl0h83q/5XzgdcY="
+          },
+          "name": "crate-futures-io-0.3.31.tar.gz",
+          "uri": "pkg:nix-fetch/crate-futures-io-0.3.31.tar.gz?hash=sha256:nlwbeMpKrhrAbEilJqZVdgaFFJ8NRl0h83q/5XzgdcY="
+        },
+        {
+          "annotations": {
+            "drvPath": "6pmhkkkbsq1w6rfi31p9yf1m8f0ab28a-crate-futures-sink-0.3.31.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "5XX6t9Hg3LjQx7z5pj7iE4FqtRkC5tJEqVgZrKzx1Pc="
+          },
+          "name": "crate-futures-sink-0.3.31.tar.gz",
+          "uri": "pkg:nix-fetch/crate-futures-sink-0.3.31.tar.gz?hash=sha256:5XX6t9Hg3LjQx7z5pj7iE4FqtRkC5tJEqVgZrKzx1Pc="
+        },
+        {
+          "annotations": {
+            "drvPath": "fd4na4qq881kmhdnklnzqnw0645y3q9g-crate-futures-task-0.3.31.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "+Q99zgci6VEE/LCVWFkQwJdyUvKG41S14704kCzZmYg="
+          },
+          "name": "crate-futures-task-0.3.31.tar.gz",
+          "uri": "pkg:nix-fetch/crate-futures-task-0.3.31.tar.gz?hash=sha256:+Q99zgci6VEE/LCVWFkQwJdyUvKG41S14704kCzZmYg="
+        },
+        {
+          "annotations": {
+            "drvPath": "rk45hayh8xgr0d3s645k9ck8kivi0sc4-crate-futures-util-0.3.31.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "n6CDFbthIIjMORJJ79w7x3U28WyR9s9JXm++hbIKSoE="
+          },
+          "name": "crate-futures-util-0.3.31.tar.gz",
+          "uri": "pkg:nix-fetch/crate-futures-util-0.3.31.tar.gz?hash=sha256:n6CDFbthIIjMORJJ79w7x3U28WyR9s9JXm++hbIKSoE="
+        },
+        {
+          "annotations": {
+            "drvPath": "s2qdsimjf81vjfy7cv9b0m7lfmzvwq5v-crate-getrandom-0.2.15.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "xFZ8jbEK6RCJyZr4TGjDjaPsLwh8P4KWC82/Nla29Nc="
+          },
+          "name": "crate-getrandom-0.2.15.tar.gz",
+          "uri": "pkg:nix-fetch/crate-getrandom-0.2.15.tar.gz?hash=sha256:xFZ8jbEK6RCJyZr4TGjDjaPsLwh8P4KWC82/Nla29Nc="
+        },
+        {
+          "annotations": {
+            "drvPath": "94dr1pzgimly4rwz8z6fp58y117qzc4q-crate-hashbrown-0.12.3.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "ip7nDEOq9BfJFDlmRaD6hSYkgBsk67eueP6CcoiayIg="
+          },
+          "name": "crate-hashbrown-0.12.3.tar.gz",
+          "uri": "pkg:nix-fetch/crate-hashbrown-0.12.3.tar.gz?hash=sha256:ip7nDEOq9BfJFDlmRaD6hSYkgBsk67eueP6CcoiayIg="
+        },
+        {
+          "annotations": {
+            "drvPath": "gfzn99fxngzgcbgpsq0aqc4s1fx7nrhw-crate-hashbrown-0.14.5.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "5SdEI+F7fJ/CC25+IIUy+bGYJdgt/WFXCLcO3YPfQfE="
+          },
+          "name": "crate-hashbrown-0.14.5.tar.gz",
+          "uri": "pkg:nix-fetch/crate-hashbrown-0.14.5.tar.gz?hash=sha256:5SdEI+F7fJ/CC25+IIUy+bGYJdgt/WFXCLcO3YPfQfE="
+        },
+        {
+          "annotations": {
+            "drvPath": "579zqg7hc5i4y5b1m9jydhphrkpndylf-crate-hashbrown-0.15.2.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "vxUUAP8Lr/VGUAfdLz5xfz/lAgdMpWMGnOOmYp0Hsok="
+          },
+          "name": "crate-hashbrown-0.15.2.tar.gz",
+          "uri": "pkg:nix-fetch/crate-hashbrown-0.15.2.tar.gz?hash=sha256:vxUUAP8Lr/VGUAfdLz5xfz/lAgdMpWMGnOOmYp0Hsok="
+        },
+        {
+          "annotations": {
+            "drvPath": "zhkpvl28gxm8f3rv8d8sxq8dg4ldrrnc-crate-heck-0.4.1.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "lVBcOLRXKy2RDOywKBVg9UtEChkzbLvLJ79s5q3G9ag="
+          },
+          "name": "crate-heck-0.4.1.tar.gz",
+          "uri": "pkg:nix-fetch/crate-heck-0.4.1.tar.gz?hash=sha256:lVBcOLRXKy2RDOywKBVg9UtEChkzbLvLJ79s5q3G9ag="
+        },
+        {
+          "annotations": {
+            "drvPath": "ah76wiarsvrbhlxinlrwaqpgibnyslcf-crate-hermit-abi-0.1.19.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "YrRnNDuUukdtyyUA0kLa27OVV9+IkxCsd8XZkQCqrDM="
+          },
+          "name": "crate-hermit-abi-0.1.19.tar.gz",
+          "uri": "pkg:nix-fetch/crate-hermit-abi-0.1.19.tar.gz?hash=sha256:YrRnNDuUukdtyyUA0kLa27OVV9+IkxCsd8XZkQCqrDM="
+        },
+        {
+          "annotations": {
+            "drvPath": "j7j3i2md7x29kv617b8b8sjjjsf299vy-crate-hermit-abi-0.3.9.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "0jHfuJz//bww5/xBV57WBmrQOr2p5WfMr65gK5fsUCQ="
+          },
+          "name": "crate-hermit-abi-0.3.9.tar.gz",
+          "uri": "pkg:nix-fetch/crate-hermit-abi-0.3.9.tar.gz?hash=sha256:0jHfuJz//bww5/xBV57WBmrQOr2p5WfMr65gK5fsUCQ="
+        },
+        {
+          "annotations": {
+            "drvPath": "49c99x285xhxrv8k0675jw65px6ngj5d-crate-indexmap-1.9.3.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "vQcOOTNTeW6AHSCa0znolZbrTI1DDRjt5qHM7Y+vvZk="
+          },
+          "name": "crate-indexmap-1.9.3.tar.gz",
+          "uri": "pkg:nix-fetch/crate-indexmap-1.9.3.tar.gz?hash=sha256:vQcOOTNTeW6AHSCa0znolZbrTI1DDRjt5qHM7Y+vvZk="
+        },
+        {
+          "annotations": {
+            "drvPath": "a1xhwqdmifvfb2z2c646g19aga5rzrg8-crate-indexmap-2.9.0.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "zqcN23lZliB61Xc1tQxZgtiETzi6nuXxrtz7cIoqoR4="
+          },
+          "name": "crate-indexmap-2.9.0.tar.gz",
+          "uri": "pkg:nix-fetch/crate-indexmap-2.9.0.tar.gz?hash=sha256:zqcN23lZliB61Xc1tQxZgtiETzi6nuXxrtz7cIoqoR4="
+        },
+        {
+          "annotations": {
+            "drvPath": "i39f4h8bgj21f297m9l9i4nk4a2nl4gw-crate-libc-0.2.171.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "wZk3IW6dOqmVbZu438CwyL62BY/E96TcTYUO34aiN9Y="
+          },
+          "name": "crate-libc-0.2.171.tar.gz",
+          "uri": "pkg:nix-fetch/crate-libc-0.2.171.tar.gz?hash=sha256:wZk3IW6dOqmVbZu438CwyL62BY/E96TcTYUO34aiN9Y="
+        },
+        {
+          "annotations": {
+            "drvPath": "vmkvci25yadv57xhxgm5395vzkmv3l2d-crate-libmimalloc-sys-0.1.42.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "7J1vrCd2HavNTuc1cc2wa3Ai3JkImsvlQ1aR7f+qwPQ="
+          },
+          "name": "crate-libmimalloc-sys-0.1.42.tar.gz",
+          "uri": "pkg:nix-fetch/crate-libmimalloc-sys-0.1.42.tar.gz?hash=sha256:7J1vrCd2HavNTuc1cc2wa3Ai3JkImsvlQ1aR7f+qwPQ="
+        },
+        {
+          "annotations": {
+            "drvPath": "42knksvfsbqbracbiv81fnn3zyqwn9hm-crate-memchr-2.7.4.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "eMqasaC6ux59VpXjUwiGKJwYzy+H7BmldaCr3OES46M="
+          },
+          "name": "crate-memchr-2.7.4.tar.gz",
+          "uri": "pkg:nix-fetch/crate-memchr-2.7.4.tar.gz?hash=sha256:eMqasaC6ux59VpXjUwiGKJwYzy+H7BmldaCr3OES46M="
+        },
+        {
+          "annotations": {
+            "drvPath": "ann871n2f2cc5v9q94bp3gcrsc0g2rpl-crate-mimalloc-0.1.46.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "mVlC9DK7tIIqfpw/qoemlRhbDQknO6hfCXtU9ORY8q8="
+          },
+          "name": "crate-mimalloc-0.1.46.tar.gz",
+          "uri": "pkg:nix-fetch/crate-mimalloc-0.1.46.tar.gz?hash=sha256:mVlC9DK7tIIqfpw/qoemlRhbDQknO6hfCXtU9ORY8q8="
+        },
+        {
+          "annotations": {
+            "drvPath": "hbpx4nva8v3qjkwz994i61ajwgfqnv5k-crate-num_cpus-1.16.0.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "QWH8ttYC1NIIGvfDpFhS2HWgPdM3pr/dbgZAe2E0KkM="
+          },
+          "name": "crate-num_cpus-1.16.0.tar.gz",
+          "uri": "pkg:nix-fetch/crate-num_cpus-1.16.0.tar.gz?hash=sha256:QWH8ttYC1NIIGvfDpFhS2HWgPdM3pr/dbgZAe2E0KkM="
+        },
+        {
+          "annotations": {
+            "drvPath": "vm2d6fgidps9aqwv6qy3gz5cy34bwzr7-crate-once_cell-1.21.3.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "QvXhXJlTxeTMzusuc4KnFkgsNFFTFfewNTK4tOg5PS0="
+          },
+          "name": "crate-once_cell-1.21.3.tar.gz",
+          "uri": "pkg:nix-fetch/crate-once_cell-1.21.3.tar.gz?hash=sha256:QvXhXJlTxeTMzusuc4KnFkgsNFFTFfewNTK4tOg5PS0="
+        },
+        {
+          "annotations": {
+            "drvPath": "d3x2vk5mbyqj8faspbmqa0ryj6lcl9nf-crate-os_str_bytes-6.6.1.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "4jVdhbmjeG9IF0fO0OD/K6NSE6H5vUBu2QZVTXr4BaE="
+          },
+          "name": "crate-os_str_bytes-6.6.1.tar.gz",
+          "uri": "pkg:nix-fetch/crate-os_str_bytes-6.6.1.tar.gz?hash=sha256:4jVdhbmjeG9IF0fO0OD/K6NSE6H5vUBu2QZVTXr4BaE="
+        },
+        {
+          "annotations": {
+            "drvPath": "i4rh4nysy2whh187glf5hjwj8kwxc91r-crate-pin-project-lite-0.2.16.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "Ozz/kivVFwm2Bdnq2apxAx2BRHFC2CjrSm66dv5hn5s="
+          },
+          "name": "crate-pin-project-lite-0.2.16.tar.gz",
+          "uri": "pkg:nix-fetch/crate-pin-project-lite-0.2.16.tar.gz?hash=sha256:Ozz/kivVFwm2Bdnq2apxAx2BRHFC2CjrSm66dv5hn5s="
+        },
+        {
+          "annotations": {
+            "drvPath": "wjlffzykgn2jrgwzvxjs64i0fy0891xh-crate-pin-utils-0.1.0.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "i4cNjBUbby+5PoShMUYTjwXQLtEcfnxU+IJqqvfJ8YQ="
+          },
+          "name": "crate-pin-utils-0.1.0.tar.gz",
+          "uri": "pkg:nix-fetch/crate-pin-utils-0.1.0.tar.gz?hash=sha256:i4cNjBUbby+5PoShMUYTjwXQLtEcfnxU+IJqqvfJ8YQ="
+        },
+        {
+          "annotations": {
+            "drvPath": "n0dcj3xgkywj40wgm33ia9xl78hmshns-crate-pretty_assertions-1.4.1.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "OuEw4vJx+8KsOkD7HQcYCDnNu+RDx6J+HjwTxcrAEW0="
+          },
+          "name": "crate-pretty_assertions-1.4.1.tar.gz",
+          "uri": "pkg:nix-fetch/crate-pretty_assertions-1.4.1.tar.gz?hash=sha256:OuEw4vJx+8KsOkD7HQcYCDnNu+RDx6J+HjwTxcrAEW0="
+        },
+        {
+          "annotations": {
+            "drvPath": "7v78fawfbjc5fx8x41mbw7xx0q9vaiz8-crate-proc-macro-error-1.0.4.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "2iVJD/mJKqs/z3w28Iz7kC3T5xyg+flRe+oCpzpc44w="
+          },
+          "name": "crate-proc-macro-error-1.0.4.tar.gz",
+          "uri": "pkg:nix-fetch/crate-proc-macro-error-1.0.4.tar.gz?hash=sha256:2iVJD/mJKqs/z3w28Iz7kC3T5xyg+flRe+oCpzpc44w="
+        },
+        {
+          "annotations": {
+            "drvPath": "r2hflvqdspximcg7p5sz3axsgjamv62w-crate-proc-macro-error-attr-1.0.4.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "ob5AGA5S7MmK2AsYSTS689DSn5eVdOQ5r1pVJ0s1+Gk="
+          },
+          "name": "crate-proc-macro-error-attr-1.0.4.tar.gz",
+          "uri": "pkg:nix-fetch/crate-proc-macro-error-attr-1.0.4.tar.gz?hash=sha256:ob5AGA5S7MmK2AsYSTS689DSn5eVdOQ5r1pVJ0s1+Gk="
+        },
+        {
+          "annotations": {
+            "drvPath": "50kbf8bws16m2vvhbpw57bii7915zy70-crate-proc-macro2-1.0.94.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "oxlxdS5wuLJobX5G7Bf7ONrUBR2UAkyI30m2Z8rqnIQ="
+          },
+          "name": "crate-proc-macro2-1.0.94.tar.gz",
+          "uri": "pkg:nix-fetch/crate-proc-macro2-1.0.94.tar.gz?hash=sha256:oxlxdS5wuLJobX5G7Bf7ONrUBR2UAkyI30m2Z8rqnIQ="
+        },
+        {
+          "annotations": {
+            "drvPath": "95zq2bpqf25m8mf0i4ir19g4bvjdjjna-crate-quote-1.0.40.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "GIXAOVcNwA3LT/CHqJ4YX9VrriNN3H8FapRb82RnJI0="
+          },
+          "name": "crate-quote-1.0.40.tar.gz",
+          "uri": "pkg:nix-fetch/crate-quote-1.0.40.tar.gz?hash=sha256:GIXAOVcNwA3LT/CHqJ4YX9VrriNN3H8FapRb82RnJI0="
+        },
+        {
+          "annotations": {
+            "drvPath": "g2gkzr53aw3xff72a0xm7naq6w661cax-crate-rand-0.8.5.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "NK+NGg4lkkvFt8Q8B5yUIznY8Ki1fDkEm+9YG0YydAQ="
+          },
+          "name": "crate-rand-0.8.5.tar.gz",
+          "uri": "pkg:nix-fetch/crate-rand-0.8.5.tar.gz?hash=sha256:NK+NGg4lkkvFt8Q8B5yUIznY8Ki1fDkEm+9YG0YydAQ="
+        },
+        {
+          "annotations": {
+            "drvPath": "986m1lpwdcbk8hnvpsfsvcw2rj7cqrm5-crate-rand_core-0.6.4.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "7AvkeV4vaigGm+wLX/PirJuvyZ5qmn3DVHmWxcgWkiw="
+          },
+          "name": "crate-rand_core-0.6.4.tar.gz",
+          "uri": "pkg:nix-fetch/crate-rand_core-0.6.4.tar.gz?hash=sha256:7AvkeV4vaigGm+wLX/PirJuvyZ5qmn3DVHmWxcgWkiw="
+        },
+        {
+          "annotations": {
+            "drvPath": "nb96kcgmy77p6q9jhdprzwyd55rn6djv-crate-rnix-0.12.0.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "bxXgCwq0Or1w1QtvjNAhKQAo+bf91836bDWZcXO8G6k="
+          },
+          "name": "crate-rnix-0.12.0.tar.gz",
+          "uri": "pkg:nix-fetch/crate-rnix-0.12.0.tar.gz?hash=sha256:bxXgCwq0Or1w1QtvjNAhKQAo+bf91836bDWZcXO8G6k="
+        },
+        {
+          "annotations": {
+            "drvPath": "mzp50dqsaxskd72nbn9kv8kq0irba1hb-crate-rowan-0.15.16.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "ClQrAlP6RuYy0nodxc97kw3k34ZZ3G5yC2R/xyFHrj0="
+          },
+          "name": "crate-rowan-0.15.16.tar.gz",
+          "uri": "pkg:nix-fetch/crate-rowan-0.15.16.tar.gz?hash=sha256:ClQrAlP6RuYy0nodxc97kw3k34ZZ3G5yC2R/xyFHrj0="
+        },
+        {
+          "annotations": {
+            "drvPath": "hn3mxnbgncsnwnn31x7dshqwpkxgi6lc-crate-rustc-hash-1.1.0.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "CNQ/eqawjUnzgs3mp5ggR8NCbblJsUJLxLfsmuEsbOI="
+          },
+          "name": "crate-rustc-hash-1.1.0.tar.gz",
+          "uri": "pkg:nix-fetch/crate-rustc-hash-1.1.0.tar.gz?hash=sha256:CNQ/eqawjUnzgs3mp5ggR8NCbblJsUJLxLfsmuEsbOI="
+        },
+        {
+          "annotations": {
+            "drvPath": "riz3bwlzfrpksy20icqq4vskqj66b9qv-crate-same-file-1.0.6.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "k/wdw6qpv+2V4C5urau0uvfjB4sL0bTXtrC2g3iQBQI="
+          },
+          "name": "crate-same-file-1.0.6.tar.gz",
+          "uri": "pkg:nix-fetch/crate-same-file-1.0.6.tar.gz?hash=sha256:k/wdw6qpv+2V4C5urau0uvfjB4sL0bTXtrC2g3iQBQI="
+        },
+        {
+          "annotations": {
+            "drvPath": "bjv6zvy1qmd9xf1gdskshvgc8s2zsf07-crate-serde-1.0.219.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "Xw4sbtZgYBm04p5p26upWxGFRBDlNH1SUAJFbbu3hrY="
+          },
+          "name": "crate-serde-1.0.219.tar.gz",
+          "uri": "pkg:nix-fetch/crate-serde-1.0.219.tar.gz?hash=sha256:Xw4sbtZgYBm04p5p26upWxGFRBDlNH1SUAJFbbu3hrY="
+        },
+        {
+          "annotations": {
+            "drvPath": "bm0aswr2xs6smix3m42nc3kl370xlgi8-crate-serde_derive-1.0.219.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "WwJ2z38sczZfcVfIEjwhzZpQ+72ER1evKMofWSX8KgA="
+          },
+          "name": "crate-serde_derive-1.0.219.tar.gz",
+          "uri": "pkg:nix-fetch/crate-serde_derive-1.0.219.tar.gz?hash=sha256:WwJ2z38sczZfcVfIEjwhzZpQ+72ER1evKMofWSX8KgA="
+        },
+        {
+          "annotations": {
+            "drvPath": "qifishxs54l9hmdxk2c8jpkvay47fm6y-crate-serde_spanned-0.6.8.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "h2B8sTmO1Z1Icy5XWkwop6jr8kVLlk/j8iTyr8B5CeE="
+          },
+          "name": "crate-serde_spanned-0.6.8.tar.gz",
+          "uri": "pkg:nix-fetch/crate-serde_spanned-0.6.8.tar.gz?hash=sha256:h2B8sTmO1Z1Icy5XWkwop6jr8kVLlk/j8iTyr8B5CeE="
+        },
+        {
+          "annotations": {
+            "drvPath": "hxypkh8v2djj887xpdz9i1f0cn9hpjyf-crate-shlex-1.3.0.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "D9ov8NCEAZuk18bzccldj9dc41JMPLj7ZTowI/YyPmQ="
+          },
+          "name": "crate-shlex-1.3.0.tar.gz",
+          "uri": "pkg:nix-fetch/crate-shlex-1.3.0.tar.gz?hash=sha256:D9ov8NCEAZuk18bzccldj9dc41JMPLj7ZTowI/YyPmQ="
+        },
+        {
+          "annotations": {
+            "drvPath": "l6v38xmd116753klaivm74a6bhsnq4kb-crate-slab-0.4.9.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "j5Kklvt2a0F8mWucXlfa8vetOwvr4cz8pIVjkOPTu2c="
+          },
+          "name": "crate-slab-0.4.9.tar.gz",
+          "uri": "pkg:nix-fetch/crate-slab-0.4.9.tar.gz?hash=sha256:j5Kklvt2a0F8mWucXlfa8vetOwvr4cz8pIVjkOPTu2c="
+        },
+        {
+          "annotations": {
+            "drvPath": "1pmkn7y4hcp9myw9daxqyxp8z0fffxlj-crate-strsim-0.10.0.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "c0c8Dlnm1YEsXf4qBkpkRJSfCJ4g7smi5VBllklORiM="
+          },
+          "name": "crate-strsim-0.10.0.tar.gz",
+          "uri": "pkg:nix-fetch/crate-strsim-0.10.0.tar.gz?hash=sha256:c0c8Dlnm1YEsXf4qBkpkRJSfCJ4g7smi5VBllklORiM="
+        },
+        {
+          "annotations": {
+            "drvPath": "dvgmkijiagjxrmqvl52kmk2yxfjqwn50-crate-syn-1.0.109.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "crZBkbJ1tm/+JGnorywc/juvpntSnq15Km0BYIiLQjc="
+          },
+          "name": "crate-syn-1.0.109.tar.gz",
+          "uri": "pkg:nix-fetch/crate-syn-1.0.109.tar.gz?hash=sha256:crZBkbJ1tm/+JGnorywc/juvpntSnq15Km0BYIiLQjc="
+        },
+        {
+          "annotations": {
+            "drvPath": "a629l0898dbvkbmg28w61n02ydny4ws4-crate-syn-2.0.100.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "sJpErMrYHhuhzXSjJGG6id7okJW6F7MvXQNoOxsfwqA="
+          },
+          "name": "crate-syn-2.0.100.tar.gz",
+          "uri": "pkg:nix-fetch/crate-syn-2.0.100.tar.gz?hash=sha256:sJpErMrYHhuhzXSjJGG6id7okJW6F7MvXQNoOxsfwqA="
+        },
+        {
+          "annotations": {
+            "drvPath": "x7ja8a1r2v5pwa0sl03cqvr4v0bqgds6-crate-termcolor-1.4.1.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "BnlPj2xciYsyda6++muKHLJM0sbHk5erFXdIN6C8V1U="
+          },
+          "name": "crate-termcolor-1.4.1.tar.gz",
+          "uri": "pkg:nix-fetch/crate-termcolor-1.4.1.tar.gz?hash=sha256:BnlPj2xciYsyda6++muKHLJM0sbHk5erFXdIN6C8V1U="
+        },
+        {
+          "annotations": {
+            "drvPath": "c46bfxa94cc5w7x9cbqglh2wmzhx5jii-crate-text-size-1.1.1.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "8Yqhh4ObK9sa0vo16tjEwpdrZOQ2PDhtRawPfuhckjM="
+          },
+          "name": "crate-text-size-1.1.1.tar.gz",
+          "uri": "pkg:nix-fetch/crate-text-size-1.1.1.tar.gz?hash=sha256:8Yqhh4ObK9sa0vo16tjEwpdrZOQ2PDhtRawPfuhckjM="
+        },
+        {
+          "annotations": {
+            "drvPath": "r58s77ilabckac54cbpzj098sms1ly3v-crate-textwrap-0.16.2.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "wTVHYVpE3JxFKopTRjis3wcSDUtoR8gXhwXaBjBqMFc="
+          },
+          "name": "crate-textwrap-0.16.2.tar.gz",
+          "uri": "pkg:nix-fetch/crate-textwrap-0.16.2.tar.gz?hash=sha256:wTVHYVpE3JxFKopTRjis3wcSDUtoR8gXhwXaBjBqMFc="
+        },
+        {
+          "annotations": {
+            "drvPath": "brxh4nicr2d3pl0v7f70gp2c09k4xppj-crate-toml-0.8.20.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "zYelzdb/q3M7L3S8T9fuX/9mNBJJmawnjDX8eMYSAUg="
+          },
+          "name": "crate-toml-0.8.20.tar.gz",
+          "uri": "pkg:nix-fetch/crate-toml-0.8.20.tar.gz?hash=sha256:zYelzdb/q3M7L3S8T9fuX/9mNBJJmawnjDX8eMYSAUg="
+        },
+        {
+          "annotations": {
+            "drvPath": "p9bwma3gyqkmvjrysyish7c8b16mj5i7-crate-toml_datetime-0.6.8.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "Ddc1jsuPwvjQFL+G9vY4znK6JSosOiVy8qeV8dI++0E="
+          },
+          "name": "crate-toml_datetime-0.6.8.tar.gz",
+          "uri": "pkg:nix-fetch/crate-toml_datetime-0.6.8.tar.gz?hash=sha256:Ddc1jsuPwvjQFL+G9vY4znK6JSosOiVy8qeV8dI++0E="
+        },
+        {
+          "annotations": {
+            "drvPath": "c7f6xh3pm981cmkaqqcx40c1062kbpv5-crate-toml_edit-0.22.24.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "F7R5X/Xt0gHHzW3KBlrlmXLOd9G4D6CoTZSVDs59FHQ="
+          },
+          "name": "crate-toml_edit-0.22.24.tar.gz",
+          "uri": "pkg:nix-fetch/crate-toml_edit-0.22.24.tar.gz?hash=sha256:F7R5X/Xt0gHHzW3KBlrlmXLOd9G4D6CoTZSVDs59FHQ="
+        },
+        {
+          "annotations": {
+            "drvPath": "71j6dxk0m4cwcxs8hlayv57ibqh6bgsd-crate-unicode-ident-1.0.18.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "Wl85QEpdpQcSpMHuzyXpDdYrYTUCt+kl/U5NGbXJZRI="
+          },
+          "name": "crate-unicode-ident-1.0.18.tar.gz",
+          "uri": "pkg:nix-fetch/crate-unicode-ident-1.0.18.tar.gz?hash=sha256:Wl85QEpdpQcSpMHuzyXpDdYrYTUCt+kl/U5NGbXJZRI="
+        },
+        {
+          "annotations": {
+            "drvPath": "1hynd7qis810njch80hgxgp9xvlliara-crate-version_check-0.9.5.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "C5KPM9l1/GrZ+GyPKDhTrSa91bELfxVCqi+hXiKJEFo="
+          },
+          "name": "crate-version_check-0.9.5.tar.gz",
+          "uri": "pkg:nix-fetch/crate-version_check-0.9.5.tar.gz?hash=sha256:C5KPM9l1/GrZ+GyPKDhTrSa91bELfxVCqi+hXiKJEFo="
+        },
+        {
+          "annotations": {
+            "drvPath": "8iz74pzzkavvvf18fvziv4jjr9fc7b4v-crate-walkdir-2.5.0.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "KXkJRkBPkdnF0G+YdO/d6h3AbF7+lFQafWhjEI46Xks="
+          },
+          "name": "crate-walkdir-2.5.0.tar.gz",
+          "uri": "pkg:nix-fetch/crate-walkdir-2.5.0.tar.gz?hash=sha256:KXkJRkBPkdnF0G+YdO/d6h3AbF7+lFQafWhjEI46Xks="
+        },
+        {
+          "annotations": {
+            "drvPath": "bkir9a8if91v8zczjm210xnyq8hyky1v-crate-wasi-0.11.0+wasi-snapshot-preview1.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "nI2H5ytko7TbKNEc4pI3wkYYj09RBX1lp+q2O3mH5CM="
+          },
+          "name": "crate-wasi-0.11.0+wasi-snapshot-preview1.tar.gz",
+          "uri": "pkg:nix-fetch/crate-wasi-0.11.0+wasi-snapshot-preview1.tar.gz?hash=sha256:nI2H5ytko7TbKNEc4pI3wkYYj09RBX1lp+q2O3mH5CM="
+        },
+        {
+          "annotations": {
+            "drvPath": "p7cxap11g9lkj2hv6sk2996axbfhsi0m-crate-winapi-0.3.9.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "XIOaZ0/NepiVLlkyQupACr6TmSdGdh44ZBQF0osA9Bk="
+          },
+          "name": "crate-winapi-0.3.9.tar.gz",
+          "uri": "pkg:nix-fetch/crate-winapi-0.3.9.tar.gz?hash=sha256:XIOaZ0/NepiVLlkyQupACr6TmSdGdh44ZBQF0osA9Bk="
+        },
+        {
+          "annotations": {
+            "drvPath": "qpvkzss4rgzlmgqnfijcgzm13g20cw13-crate-winapi-i686-pc-windows-gnu-0.4.0.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "rDuHxjYgQm3ZuZHlzgMp7/VFvMu7NPO+Cf9vtqtRt7Y="
+          },
+          "name": "crate-winapi-i686-pc-windows-gnu-0.4.0.tar.gz",
+          "uri": "pkg:nix-fetch/crate-winapi-i686-pc-windows-gnu-0.4.0.tar.gz?hash=sha256:rDuHxjYgQm3ZuZHlzgMp7/VFvMu7NPO+Cf9vtqtRt7Y="
+        },
+        {
+          "annotations": {
+            "drvPath": "j8apris7bjkj6352zvair3bv2gff43vb-crate-winapi-util-0.1.9.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "zyIck+E6MNeT92RaDndixV0WnbsKSWcZGKIxnSibELs="
+          },
+          "name": "crate-winapi-util-0.1.9.tar.gz",
+          "uri": "pkg:nix-fetch/crate-winapi-util-0.1.9.tar.gz?hash=sha256:zyIck+E6MNeT92RaDndixV0WnbsKSWcZGKIxnSibELs="
+        },
+        {
+          "annotations": {
+            "drvPath": "7scyhk207y68lqp9gr4mnqmsss8xhhc8-crate-winapi-x86_64-pc-windows-gnu-0.4.0.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "cS4ieEHQV8HuHNL7Ivp+WlRhro5I+iynnsQs/BkxGD8="
+          },
+          "name": "crate-winapi-x86_64-pc-windows-gnu-0.4.0.tar.gz",
+          "uri": "pkg:nix-fetch/crate-winapi-x86_64-pc-windows-gnu-0.4.0.tar.gz?hash=sha256:cS4ieEHQV8HuHNL7Ivp+WlRhro5I+iynnsQs/BkxGD8="
+        },
+        {
+          "annotations": {
+            "drvPath": "hj9zrsz4y3gdaicq0cfkfv8d5wyvmq8k-crate-windows-sys-0.59.0.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "Hji8TXntZ/0HW8wlGhw5syoXdrvpLlvvHwvx+MUxhTs="
+          },
+          "name": "crate-windows-sys-0.59.0.tar.gz",
+          "uri": "pkg:nix-fetch/crate-windows-sys-0.59.0.tar.gz?hash=sha256:Hji8TXntZ/0HW8wlGhw5syoXdrvpLlvvHwvx+MUxhTs="
+        },
+        {
+          "annotations": {
+            "drvPath": "q6439fz6xy3n306vn1f625g57gz251n1-crate-windows-targets-0.52.6.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "m3JPcnluA2q5DBAh1HgNTT1kispZ5JHmuY5yW4TpmXM="
+          },
+          "name": "crate-windows-targets-0.52.6.tar.gz",
+          "uri": "pkg:nix-fetch/crate-windows-targets-0.52.6.tar.gz?hash=sha256:m3JPcnluA2q5DBAh1HgNTT1kispZ5JHmuY5yW4TpmXM="
+        },
+        {
+          "annotations": {
+            "drvPath": "vlr5dycd1j37waa11vma5g1gyl21zir3-crate-windows_aarch64_gnullvm-0.52.6.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "MqRiIYDnoOwES7VVQEyAC8n9nsJi7BR+3VmJzNDALNM="
+          },
+          "name": "crate-windows_aarch64_gnullvm-0.52.6.tar.gz",
+          "uri": "pkg:nix-fetch/crate-windows_aarch64_gnullvm-0.52.6.tar.gz?hash=sha256:MqRiIYDnoOwES7VVQEyAC8n9nsJi7BR+3VmJzNDALNM="
+        },
+        {
+          "annotations": {
+            "drvPath": "f799gja3sgh987p4dg0g4kvz6wp6n9bx-crate-windows_aarch64_msvc-0.52.6.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "Cewqe7FS4iUrU/p4AxUAB4eVSLxwnAOd92J8q70F1Gk="
+          },
+          "name": "crate-windows_aarch64_msvc-0.52.6.tar.gz",
+          "uri": "pkg:nix-fetch/crate-windows_aarch64_msvc-0.52.6.tar.gz?hash=sha256:Cewqe7FS4iUrU/p4AxUAB4eVSLxwnAOd92J8q70F1Gk="
+        },
+        {
+          "annotations": {
+            "drvPath": "ds53h30nqqkybcy025xm2bqjm65wx9db-crate-windows_i686_gnu-0.52.6.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "jpta1auALpfrjilaxnIOUJ7kwkP2nXgTlAFOv+i7+gs="
+          },
+          "name": "crate-windows_i686_gnu-0.52.6.tar.gz",
+          "uri": "pkg:nix-fetch/crate-windows_i686_gnu-0.52.6.tar.gz?hash=sha256:jpta1auALpfrjilaxnIOUJ7kwkP2nXgTlAFOv+i7+gs="
+        },
+        {
+          "annotations": {
+            "drvPath": "lcb27amha7q1pp2wxyyiw81h86adnyjv-crate-windows_i686_gnullvm-0.52.6.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "Du5S04wJCzyqdsVjuGw6S9ce8agZKHwZ1YbXM0ro7WY="
+          },
+          "name": "crate-windows_i686_gnullvm-0.52.6.tar.gz",
+          "uri": "pkg:nix-fetch/crate-windows_i686_gnullvm-0.52.6.tar.gz?hash=sha256:Du5S04wJCzyqdsVjuGw6S9ce8agZKHwZ1YbXM0ro7WY="
+        },
+        {
+          "annotations": {
+            "drvPath": "h5drhfpdlc0xp30rf5frrq2ii63sh0y8-crate-windows_i686_msvc-0.52.6.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "JAlIvAXF58bau6KL+J2J/84+MDAigJ5z3q7+T27FbGY="
+          },
+          "name": "crate-windows_i686_msvc-0.52.6.tar.gz",
+          "uri": "pkg:nix-fetch/crate-windows_i686_msvc-0.52.6.tar.gz?hash=sha256:JAlIvAXF58bau6KL+J2J/84+MDAigJ5z3q7+T27FbGY="
+        },
+        {
+          "annotations": {
+            "drvPath": "q406a87q47qshdp6w9dgxd8mn1jb030x-crate-windows_x86_64_gnu-0.52.6.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "FHpcgKq/vwx9kBy1iV0d4w7ykH6yH7urKcqUxbCLGng="
+          },
+          "name": "crate-windows_x86_64_gnu-0.52.6.tar.gz",
+          "uri": "pkg:nix-fetch/crate-windows_x86_64_gnu-0.52.6.tar.gz?hash=sha256:FHpcgKq/vwx9kBy1iV0d4w7ykH6yH7urKcqUxbCLGng="
+        },
+        {
+          "annotations": {
+            "drvPath": "vyd9hk1kp5513pbfpx3bac9bx15mxkm6-crate-windows_x86_64_gnullvm-0.52.6.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "JNWyPcQXQSZ5aBOW8rSfPejBRz3rUWvTRBCHLv9R7Q0="
+          },
+          "name": "crate-windows_x86_64_gnullvm-0.52.6.tar.gz",
+          "uri": "pkg:nix-fetch/crate-windows_x86_64_gnullvm-0.52.6.tar.gz?hash=sha256:JNWyPcQXQSZ5aBOW8rSfPejBRz3rUWvTRBCHLv9R7Q0="
+        },
+        {
+          "annotations": {
+            "drvPath": "mbzqsx89hfg1mb2pvxp8b30aj5qk3662-crate-windows_x86_64_msvc-0.52.6.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "WJ9tqExkYgR0fRJwoqVmHqZu0cztJjHVRv37FVlZ+ew="
+          },
+          "name": "crate-windows_x86_64_msvc-0.52.6.tar.gz",
+          "uri": "pkg:nix-fetch/crate-windows_x86_64_msvc-0.52.6.tar.gz?hash=sha256:WJ9tqExkYgR0fRJwoqVmHqZu0cztJjHVRv37FVlZ+ew="
+        },
+        {
+          "annotations": {
+            "drvPath": "g5xdwabc49xl38phdlnin6sqcgvmjjpr-crate-winnow-0.7.6.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "Y9P82bukSwOCHn1pnu7pWfMSbcxKqOSuGOxhfCpc6hA="
+          },
+          "name": "crate-winnow-0.7.6.tar.gz",
+          "uri": "pkg:nix-fetch/crate-winnow-0.7.6.tar.gz?hash=sha256:Y9P82bukSwOCHn1pnu7pWfMSbcxKqOSuGOxhfCpc6hA="
+        },
+        {
+          "annotations": {
+            "drvPath": "4342pi8h7ldwc3klzl0mnzw6mds5yn33-crate-yansi-1.0.1.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "z+U6Zlf9KA6qiQo7xZFSiS/6PjAQExnRaLeB7WUpsEk="
+          },
+          "name": "crate-yansi-1.0.1.tar.gz",
+          "uri": "pkg:nix-fetch/crate-yansi-1.0.1.tar.gz?hash=sha256:z+U6Zlf9KA6qiQo7xZFSiS/6PjAQExnRaLeB7WUpsEk="
+        },
+        {
+          "annotations": {
+            "drvPath": "5fv9l8fjgkf3wzra1d33cg2fb58pngf8-curl-8.17.0.tar.xz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "lV9ucprWs1ZiYOj+9oYg52ujwxrPChhSRBahhaz3eZI="
+          },
+          "name": "curl-8.17.0.tar.xz",
+          "uri": "pkg:nix-fetch/curl-8.17.0.tar.xz?hash=sha256:lV9ucprWs1ZiYOj+9oYg52ujwxrPChhSRBahhaz3eZI="
+        },
+        {
+          "annotations": {
+            "drvPath": "m89sxvlc3w9dzy6f6vb9ghivacr8fass-curl-8.17.0.tar.xz.drv",
+            "outputHashMode": "flat",
+            "url": "https://curl.haxx.se/download/curl-8.17.0.tar.xz",
+            "urls": "https://curl.haxx.se/download/curl-8.17.0.tar.xz"
+          },
+          "digest": {
+            "sha256": "lV9ucprWs1ZiYOj+9oYg52ujwxrPChhSRBahhaz3eZI="
+          },
+          "name": "curl-8.17.0.tar.xz",
+          "uri": "pkg:nix-fetch/curl-8.17.0.tar.xz?hash=sha256:lV9ucprWs1ZiYOj+9oYg52ujwxrPChhSRBahhaz3eZI="
+        },
+        {
+          "annotations": {
+            "drvPath": "7wfd9r1p5l4xp2fm1g5c8gv4jbg5m62j-dash-0.5.13.1.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "2ScbzgnBJ9mGbiXAEVgt3HWrmIlYoEvE2FU6O48w43A="
+          },
+          "name": "dash-0.5.13.1.tar.gz",
+          "uri": "pkg:nix-fetch/dash-0.5.13.1.tar.gz?hash=sha256:2ScbzgnBJ9mGbiXAEVgt3HWrmIlYoEvE2FU6O48w43A="
+        },
+        {
+          "annotations": {
+            "drvPath": "8fm1chmmxnahg014p8cjk1k3y9na0f7h-dejagnu-1.6.3.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "h9rvrNeVi0pp+IxoVtvRY0JhljxBQHnQw3H1ic1mouM="
+          },
+          "name": "dejagnu-1.6.3.tar.gz",
+          "uri": "pkg:nix-fetch/dejagnu-1.6.3.tar.gz?hash=sha256:h9rvrNeVi0pp+IxoVtvRY0JhljxBQHnQw3H1ic1mouM="
+        },
+        {
+          "annotations": {
+            "drvPath": "mag3pq29n9f6jw0rb17crny8ilm4kfjy-diffutils-3.12.tar.xz.drv",
+            "outputHashMode": "flat",
+            "url": "https://ftpmirror.gnu.org/diffutils/diffutils-3.12.tar.xz",
+            "urls": "https://ftpmirror.gnu.org/diffutils/diffutils-3.12.tar.xz"
+          },
+          "digest": {
+            "sha256": "fIt/n8hgkUH96pzs6FJJ0whiQ5H/Yd7a9Sj8szdyff0="
+          },
+          "name": "diffutils-3.12.tar.xz",
+          "uri": "pkg:nix-fetch/diffutils-3.12.tar.xz?hash=sha256:fIt/n8hgkUH96pzs6FJJ0whiQ5H/Yd7a9Sj8szdyff0="
+        },
+        {
+          "annotations": {
+            "drvPath": "5dyyvxmw5vhdg5j31am8zw7c7zk3lhxk-docbook-style-xsl-non-recursive-string-subst.patch.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "I8aqrTR5rCofFuzDlvPW1Kwa6y/R/N8nXJXzO8uTMlM="
+          },
+          "name": "docbook-style-xsl-non-recursive-string-subst.patch",
+          "uri": "pkg:nix-fetch/docbook-style-xsl-non-recursive-string-subst.patch?hash=sha256:I8aqrTR5rCofFuzDlvPW1Kwa6y/R/N8nXJXzO8uTMlM="
+        },
+        {
+          "annotations": {
+            "drvPath": "6yj6q8wfc3br5c2aiqfilv4davd92z26-docbook-xml-4.3.zip.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "IwaKlOpv1ISwBMWnPsNqZqpH6o8Na2LMFpWTH1wUNGQ="
+          },
+          "name": "docbook-xml-4.3.zip",
+          "uri": "pkg:nix-fetch/docbook-xml-4.3.zip?hash=sha256:IwaKlOpv1ISwBMWnPsNqZqpH6o8Na2LMFpWTH1wUNGQ="
+        },
+        {
+          "annotations": {
+            "drvPath": "prycd0rrvfkay9n85xz9fvqd12l2mbi8-docbook-xml-4.5.zip.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "Tk4DeiuDyYxslIGDkNS90/bhD27GLdeRiFlOJhkNx7Q="
+          },
+          "name": "docbook-xml-4.5.zip",
+          "uri": "pkg:nix-fetch/docbook-xml-4.5.zip?hash=sha256:Tk4DeiuDyYxslIGDkNS90/bhD27GLdeRiFlOJhkNx7Q="
+        },
+        {
+          "annotations": {
+            "drvPath": "yzi91p12fj64kykglnyfg98c8ja80ccj-docbook-xsl-1.79.2.tar.bz2.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "MWUk6kROUyCKL7kO62dq91XaluFBeDW6X163Gcgfo3E="
+          },
+          "name": "docbook-xsl-1.79.2.tar.bz2",
+          "uri": "pkg:nix-fetch/docbook-xsl-1.79.2.tar.bz2?hash=sha256:MWUk6kROUyCKL7kO62dq91XaluFBeDW6X163Gcgfo3E="
+        },
+        {
+          "annotations": {
+            "drvPath": "9y2qq94fyh8p75dgzv8y1h0nk36458s6-docbook-xsl-nons-1.79.2.tar.bz2.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "7oueygt6j4kHWDKi2nU0vOjFR4/I/CZ29RLV2H2DIQI="
+          },
+          "name": "docbook-xsl-nons-1.79.2.tar.bz2",
+          "uri": "pkg:nix-fetch/docbook-xsl-nons-1.79.2.tar.bz2?hash=sha256:7oueygt6j4kHWDKi2nU0vOjFR4/I/CZ29RLV2H2DIQI="
+        },
+        {
+          "annotations": {
+            "drvPath": "mh9lmg3jifh54ph8j35kd8wmxdyhyyni-ed-1.22.2.tar.lz.drv",
+            "outputHashMode": "flat",
+            "url": "https://ftpmirror.gnu.org/ed/ed-1.22.2.tar.lz",
+            "urls": "https://ftpmirror.gnu.org/ed/ed-1.22.2.tar.lz"
+          },
+          "digest": {
+            "sha256": "9Y0VJCBW4Vr3bxPzTGDYkPoqLVywq++RwRXk2DeU/+M="
+          },
+          "name": "ed-1.22.2.tar.lz",
+          "uri": "pkg:nix-fetch/ed-1.22.2.tar.lz?hash=sha256:9Y0VJCBW4Vr3bxPzTGDYkPoqLVywq++RwRXk2DeU/+M="
+        },
+        {
+          "annotations": {
+            "drvPath": "5c6jzqwz5r3gya6dcqi6xsrlif4g8il4-editables-0.5.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "MJYn2bXErcDmaNjG+nusG6fIxdQVwtJ/YPCB+OgNHeI="
+          },
+          "name": "editables-0.5.tar.gz",
+          "uri": "pkg:nix-fetch/editables-0.5.tar.gz?hash=sha256:MJYn2bXErcDmaNjG+nusG6fIxdQVwtJ/YPCB+OgNHeI="
+        },
+        {
+          "annotations": {
+            "drvPath": "199fa6cahlwcgi74ajrglpn58m14qaxz-execnet-2.1.1.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "UYm1LGEhwk/q4ogWarQbMlScfiNIZSc2VAuebn1OcuM="
+          },
+          "name": "execnet-2.1.1.tar.gz",
+          "uri": "pkg:nix-fetch/execnet-2.1.1.tar.gz?hash=sha256:UYm1LGEhwk/q4ogWarQbMlScfiNIZSc2VAuebn1OcuM="
+        },
+        {
+          "annotations": {
+            "drvPath": "cvg8z51ca91x3p79nf7w0sqxjwz2xq7x-expat-2.7.3.tar.xz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "cd+PQHBqe7CoClNnB56nXZHaT4xlxY7Fm837997Nq58="
+          },
+          "name": "expat-2.7.3.tar.xz",
+          "uri": "pkg:nix-fetch/expat-2.7.3.tar.xz?hash=sha256:cd+PQHBqe7CoClNnB56nXZHaT4xlxY7Fm837997Nq58="
+        },
+        {
+          "annotations": {
+            "drvPath": "dbzxq6j9m9g296l5hf4bn0h1r1v20rc5-expect-configure-c99.patch.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "PxQQ9roWgVXUoCMxkXEgu+it26ES/JuzHF6oML/nk54="
+          },
+          "name": "expect-configure-c99.patch",
+          "uri": "pkg:nix-fetch/expect-configure-c99.patch?hash=sha256:PxQQ9roWgVXUoCMxkXEgu+it26ES/JuzHF6oML/nk54="
+        },
+        {
+          "annotations": {
+            "drvPath": "66jf3f5fg2lylk6qzvll0dz3jh8mn4yh-expect-gui--askyesno-failure-in-t1517.patch.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "vvhbvg74OIMzfksHiErSnjOZ+W0M/T9J8GOQ4E4wKbU="
+          },
+          "name": "expect-gui--askyesno-failure-in-t1517.patch",
+          "uri": "pkg:nix-fetch/expect-gui--askyesno-failure-in-t1517.patch?hash=sha256:vvhbvg74OIMzfksHiErSnjOZ+W0M/T9J8GOQ4E4wKbU="
+        },
+        {
+          "annotations": {
+            "drvPath": "71flvrmqdx2w8mpl7dfwn4d1cl3093gr-expect5.45.4.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "Safag7C92fRtBKBN7sGcd2e7mjI+QMR4H4nK92C5LDQ="
+          },
+          "name": "expect5.45.4.tar.gz",
+          "uri": "pkg:nix-fetch/expect5.45.4.tar.gz?hash=sha256:Safag7C92fRtBKBN7sGcd2e7mjI+QMR4H4nK92C5LDQ="
+        },
+        {
+          "annotations": {
+            "drvPath": "i1mwv84a5pbqpkqmbc3qil32w2g4ic3r-file-5.45.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "/Jf1ECm7DiyfTjv/79r2ePDgOe6HK53lwAKm0Jx4TYI="
+          },
+          "name": "file-5.45.tar.gz",
+          "uri": "pkg:nix-fetch/file-5.45.tar.gz?hash=sha256:/Jf1ECm7DiyfTjv/79r2ePDgOe6HK53lwAKm0Jx4TYI="
+        },
+        {
+          "annotations": {
+            "drvPath": "klfl82nqgac8fyl7z83q1i7rngka20d3-file-5.45.tar.gz.drv",
+            "outputHashMode": "flat",
+            "url": "https://astron.com/pub/file/file-5.45.tar.gz",
+            "urls": "https://astron.com/pub/file/file-5.45.tar.gz"
+          },
+          "digest": {
+            "sha256": "/Jf1ECm7DiyfTjv/79r2ePDgOe6HK53lwAKm0Jx4TYI="
+          },
+          "name": "file-5.45.tar.gz",
+          "uri": "pkg:nix-fetch/file-5.45.tar.gz?hash=sha256:/Jf1ECm7DiyfTjv/79r2ePDgOe6HK53lwAKm0Jx4TYI="
+        },
+        {
+          "annotations": {
+            "drvPath": "5cir3xkk7ynjdd3zmkaxqg5m4ahjqq72-filelock-3.20.0.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "cR6UO07GvkLh1OZpC0jcF1yCKWdGa7McDCk/NDNME/Q="
+          },
+          "name": "filelock-3.20.0.tar.gz",
+          "uri": "pkg:nix-fetch/filelock-3.20.0.tar.gz?hash=sha256:cR6UO07GvkLh1OZpC0jcF1yCKWdGa7McDCk/NDNME/Q="
+        },
+        {
+          "annotations": {
+            "drvPath": "130xp3xbhxwms383bbf7wpcvc6ksjjnk-findutils-4.10.0.tar.xz.drv",
+            "outputHashMode": "flat",
+            "url": "https://ftpmirror.gnu.org/findutils/findutils-4.10.0.tar.xz",
+            "urls": "https://ftpmirror.gnu.org/findutils/findutils-4.10.0.tar.xz"
+          },
+          "digest": {
+            "sha256": "E4fgtn/yR9Kr3pmPkN+/cMFJE5Glnd/suK5ph4nwpPU="
+          },
+          "name": "findutils-4.10.0.tar.xz",
+          "uri": "pkg:nix-fetch/findutils-4.10.0.tar.xz?hash=sha256:E4fgtn/yR9Kr3pmPkN+/cMFJE5Glnd/suK5ph4nwpPU="
+        },
+        {
+          "annotations": {
+            "drvPath": "79g78vzphsrhzs95ph6g4wcm31d6b1q1-gawk-5.3.2.tar.xz.drv",
+            "outputHashMode": "flat",
+            "url": "https://ftpmirror.gnu.org/gawk/gawk-5.3.2.tar.xz",
+            "urls": "https://ftpmirror.gnu.org/gawk/gawk-5.3.2.tar.xz"
+          },
+          "digest": {
+            "sha256": "+MNIZQnecFGSE4sA7ywAu73Q6Eww1cB9I/xzqdxMycw="
+          },
+          "name": "gawk-5.3.2.tar.xz",
+          "uri": "pkg:nix-fetch/gawk-5.3.2.tar.xz?hash=sha256:+MNIZQnecFGSE4sA7ywAu73Q6Eww1cB9I/xzqdxMycw="
+        },
+        {
+          "annotations": {
+            "drvPath": "2ayyjhs9mz8nb1yfml9lsmfnd1lkw8h4-gcc-15.2.0.tar.xz.drv",
+            "outputHashMode": "flat",
+            "url": "https://mirror.koddos.net/gcc/releases/gcc-15.2.0/gcc-15.2.0.tar.xz",
+            "urls": "https://mirror.koddos.net/gcc/releases/gcc-15.2.0/gcc-15.2.0.tar.xz"
+          },
+          "digest": {
+            "sha256": "Q4/ZloJrDIJIWinaA6ctcdbjVBqD7HAt9Ccfb+Al0k4="
+          },
+          "name": "gcc-15.2.0.tar.xz",
+          "uri": "pkg:nix-fetch/gcc-15.2.0.tar.xz?hash=sha256:Q4/ZloJrDIJIWinaA6ctcdbjVBqD7HAt9Ccfb+Al0k4="
+        },
+        {
+          "annotations": {
+            "drvPath": "8kp4gpdkl397jv0xbjarbfqpqm39lsqj-gdbm-1.26.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "aiRQShTeSnRBA9y5Nr6Xbfb76IzP8mBl5UwcR5RvSl4="
+          },
+          "name": "gdbm-1.26.tar.gz",
+          "uri": "pkg:nix-fetch/gdbm-1.26.tar.gz?hash=sha256:aiRQShTeSnRBA9y5Nr6Xbfb76IzP8mBl5UwcR5RvSl4="
+        },
+        {
+          "annotations": {
+            "drvPath": "hsv0hmb120jna81v6dip5msh265lj8dw-getopt-1.1.6.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "0L8dxkKpk+c4ihzd+5QJvtN1wh1SeAVszKOgrNCdxf4="
+          },
+          "name": "getopt-1.1.6.tar.gz",
+          "uri": "pkg:nix-fetch/getopt-1.1.6.tar.gz?hash=sha256:0L8dxkKpk+c4ihzd+5QJvtN1wh1SeAVszKOgrNCdxf4="
+        },
+        {
+          "annotations": {
+            "drvPath": "2insclk26f57yj3fns9flazkbx4dwrwr-gettext-0.25.1.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "dG+VXULXHrac52OGnLkmgvCaQGZSjQGLbKej9ICJoIU="
+          },
+          "name": "gettext-0.25.1.tar.gz",
+          "uri": "pkg:nix-fetch/gettext-0.25.1.tar.gz?hash=sha256:dG+VXULXHrac52OGnLkmgvCaQGZSjQGLbKej9ICJoIU="
+        },
+        {
+          "annotations": {
+            "drvPath": "vmhss394mpk9262p6jijry11g72pwpgg-gettext-0.25.1.tar.gz.drv",
+            "outputHashMode": "flat",
+            "url": "https://ftpmirror.gnu.org/gettext/gettext-0.25.1.tar.gz",
+            "urls": "https://ftpmirror.gnu.org/gettext/gettext-0.25.1.tar.gz"
+          },
+          "digest": {
+            "sha256": "dG+VXULXHrac52OGnLkmgvCaQGZSjQGLbKej9ICJoIU="
+          },
+          "name": "gettext-0.25.1.tar.gz",
+          "uri": "pkg:nix-fetch/gettext-0.25.1.tar.gz?hash=sha256:dG+VXULXHrac52OGnLkmgvCaQGZSjQGLbKej9ICJoIU="
+        },
+        {
+          "annotations": {
+            "drvPath": "5k2whk0jhc3hhbcnfs5x3gmdkp0r93j3-gevent-25.5.1.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "WCyUj6miMYi4kNC8Ewc0pQbQOaLlrYfa4nakVsxoPmE="
+          },
+          "name": "gevent-25.5.1.tar.gz",
+          "uri": "pkg:nix-fetch/gevent-25.5.1.tar.gz?hash=sha256:WCyUj6miMYi4kNC8Ewc0pQbQOaLlrYfa4nakVsxoPmE="
+        },
+        {
+          "annotations": {
+            "drvPath": "xvv786zwgpxarbqpl7mgfh7carhxx4zc-git-2.52.0.tar.xz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "PNj+6G9pqUnLYQ/ujNkmTmhz0H+lhBH2Bgs9YnKe18U="
+          },
+          "name": "git-2.52.0.tar.xz",
+          "uri": "pkg:nix-fetch/git-2.52.0.tar.xz?hash=sha256:PNj+6G9pqUnLYQ/ujNkmTmhz0H+lhBH2Bgs9YnKe18U="
+        },
+        {
+          "annotations": {
+            "drvPath": "5fia0s7sl13hsqbhcmgmjpq84i0rqczs-glibc-2.40.tar.xz.drv",
+            "outputHashMode": "flat",
+            "url": "https://ftpmirror.gnu.org/glibc/glibc-2.40.tar.xz",
+            "urls": "https://ftpmirror.gnu.org/glibc/glibc-2.40.tar.xz"
+          },
+          "digest": {
+            "sha256": "GaiQF16SY9dI9ieZPeb0sa+c0h4D8IDkv7Oh+sECBaI="
+          },
+          "name": "glibc-2.40.tar.xz",
+          "uri": "pkg:nix-fetch/glibc-2.40.tar.xz?hash=sha256:GaiQF16SY9dI9ieZPeb0sa+c0h4D8IDkv7Oh+sECBaI="
+        },
+        {
+          "annotations": {
+            "drvPath": "qlvjp3fv0v00y1hsai2ic2m0f2p8gb1z-glibc-2.40.tar.xz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "GaiQF16SY9dI9ieZPeb0sa+c0h4D8IDkv7Oh+sECBaI="
+          },
+          "name": "glibc-2.40.tar.xz",
+          "uri": "pkg:nix-fetch/glibc-2.40.tar.xz?hash=sha256:GaiQF16SY9dI9ieZPeb0sa+c0h4D8IDkv7Oh+sECBaI="
+        },
+        {
+          "annotations": {
+            "drvPath": "z4x4wa4ahsc6xn40j847dsrnagxd41w0-gmp-6.3.0.tar.bz2.drv",
+            "outputHashMode": "flat",
+            "url": "https://ftpmirror.gnu.org/gmp/gmp-6.3.0.tar.bz2",
+            "urls": "https://ftpmirror.gnu.org/gmp/gmp-6.3.0.tar.bz2"
+          },
+          "digest": {
+            "sha256": "rCghGnz7YJuuLiyNYFjWbI/pZDT3QM9v4uR7AA0cIMs="
+          },
+          "name": "gmp-6.3.0.tar.bz2",
+          "uri": "pkg:nix-fetch/gmp-6.3.0.tar.bz2?hash=sha256:rCghGnz7YJuuLiyNYFjWbI/pZDT3QM9v4uR7AA0cIMs="
+        },
+        {
+          "annotations": {
+            "drvPath": "gz9q6hc9dgr2cawy7799q5cgm91vj6gh-greenlet-3.2.3.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "iw3YrkwNb15U7lW6k17rPXNam1iooeW1y6tk4Bo582U="
+          },
+          "name": "greenlet-3.2.3.tar.gz",
+          "uri": "pkg:nix-fetch/greenlet-3.2.3.tar.gz?hash=sha256:iw3YrkwNb15U7lW6k17rPXNam1iooeW1y6tk4Bo582U="
+        },
+        {
+          "annotations": {
+            "drvPath": "vsbymyzgxr2pbsbdk5zfn74nb73njni5-grep-3.12.tar.xz.drv",
+            "outputHashMode": "flat",
+            "url": "https://ftpmirror.gnu.org/grep/grep-3.12.tar.xz",
+            "urls": "https://ftpmirror.gnu.org/grep/grep-3.12.tar.xz"
+          },
+          "digest": {
+            "sha256": "JkmyfA6Q5jLq3NdXvgbG6aT0jZQd5R58D4P/dkCKB7k="
+          },
+          "name": "grep-3.12.tar.xz",
+          "uri": "pkg:nix-fetch/grep-3.12.tar.xz?hash=sha256:JkmyfA6Q5jLq3NdXvgbG6aT0jZQd5R58D4P/dkCKB7k="
+        },
+        {
+          "annotations": {
+            "drvPath": "mbfqb9y6ryn2axyvg797s3lw1w49liz5-gzip-1.14.tar.xz.drv",
+            "outputHashMode": "flat",
+            "url": "https://ftpmirror.gnu.org/gzip/gzip-1.14.tar.xz",
+            "urls": "https://ftpmirror.gnu.org/gzip/gzip-1.14.tar.xz"
+          },
+          "digest": {
+            "sha256": "Aae4gb0iC/32Ffl7hxj4C9/T9q3ThbmT3Pbv0U6MCsY="
+          },
+          "name": "gzip-1.14.tar.xz",
+          "uri": "pkg:nix-fetch/gzip-1.14.tar.xz?hash=sha256:Aae4gb0iC/32Ffl7hxj4C9/T9q3ThbmT3Pbv0U6MCsY="
+        },
+        {
+          "annotations": {
+            "drvPath": "xzpspjxpmrc70dhcl39cpcx1024vzz18-hatch_vcs-0.5.0.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "A5X6EmlANAIVCQw0Siv04qd7y+faqxb0Gze5jJWAn/k="
+          },
+          "name": "hatch_vcs-0.5.0.tar.gz",
+          "uri": "pkg:nix-fetch/hatch_vcs-0.5.0.tar.gz?hash=sha256:A5X6EmlANAIVCQw0Siv04qd7y+faqxb0Gze5jJWAn/k="
+        },
+        {
+          "annotations": {
+            "drvPath": "cxa3hbr38hbqx73l84nln3kcci4nyydk-hatchling-1.28.0.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "TVCwKuzmiSuM0LPObILLIYWU0+xYNtvedb9BohqwBMg="
+          },
+          "name": "hatchling-1.28.0.tar.gz",
+          "uri": "pkg:nix-fetch/hatchling-1.28.0.tar.gz?hash=sha256:TVCwKuzmiSuM0LPObILLIYWU0+xYNtvedb9BohqwBMg="
+        },
+        {
+          "annotations": {
+            "drvPath": "a2qb8fz35hwx18b7qczdbhlvky2jsh9n-importlib_metadata-8.7.0.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "0TuBrSI7iQqhbFRx8qwwVs92xfEPgtb5KS8LQV84kAA="
+          },
+          "name": "importlib_metadata-8.7.0.tar.gz",
+          "uri": "pkg:nix-fetch/importlib_metadata-8.7.0.tar.gz?hash=sha256:0TuBrSI7iQqhbFRx8qwwVs92xfEPgtb5KS8LQV84kAA="
+        },
+        {
+          "annotations": {
+            "drvPath": "n2qhv8pyl2hhh922l35wckrjwlb34avv-iniconfig-2.1.0.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "OrvS4ws2cz/uePnH9zCPLQBQ6I8Ah/0lwmRfY8dz4cc="
+          },
+          "name": "iniconfig-2.1.0.tar.gz",
+          "uri": "pkg:nix-fetch/iniconfig-2.1.0.tar.gz?hash=sha256:OrvS4ws2cz/uePnH9zCPLQBQ6I8Ah/0lwmRfY8dz4cc="
+        },
+        {
+          "annotations": {
+            "drvPath": "qxz8v1gxrrw9j138k2ajl36vcajra8mb-isl-0.20.tar.xz.drv",
+            "outputHashMode": "flat",
+            "url": "https://downloads.sourceforge.net/libisl/isl-0.20.tar.xz",
+            "urls": "https://downloads.sourceforge.net/libisl/isl-0.20.tar.xz"
+          },
+          "digest": {
+            "sha256": "pVlqn7ils2XLYS5LlihzXW5n6RePrhNKgWrhlQF+d6o="
+          },
+          "name": "isl-0.20.tar.xz",
+          "uri": "pkg:nix-fetch/isl-0.20.tar.xz?hash=sha256:pVlqn7ils2XLYS5LlihzXW5n6RePrhNKgWrhlQF+d6o="
+        },
+        {
+          "annotations": {
+            "drvPath": "d73dcanibd1r0k7ynlp03k09lby13nmi-keyutils-1.6.3.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "ph1XBhNq5MBb1I+GGGvP29iN2L1RB+Phlckkz8Gzm7Q="
+          },
+          "name": "keyutils-1.6.3.tar.gz",
+          "uri": "pkg:nix-fetch/keyutils-1.6.3.tar.gz?hash=sha256:ph1XBhNq5MBb1I+GGGvP29iN2L1RB+Phlckkz8Gzm7Q="
+        },
+        {
+          "annotations": {
+            "drvPath": "lkkzb8ybhp5jjgvb04b13n68i51lxwd9-keyutils-1.6.3.tar.gz.drv",
+            "outputHashMode": "flat",
+            "url": "https://git.kernel.org/pub/scm/linux/kernel/git/dhowells/keyutils.git/snapshot/keyutils-1.6.3.tar.gz",
+            "urls": "https://git.kernel.org/pub/scm/linux/kernel/git/dhowells/keyutils.git/snapshot/keyutils-1.6.3.tar.gz"
+          },
+          "digest": {
+            "sha256": "ph1XBhNq5MBb1I+GGGvP29iN2L1RB+Phlckkz8Gzm7Q="
+          },
+          "name": "keyutils-1.6.3.tar.gz",
+          "uri": "pkg:nix-fetch/keyutils-1.6.3.tar.gz?hash=sha256:ph1XBhNq5MBb1I+GGGvP29iN2L1RB+Phlckkz8Gzm7Q="
+        },
+        {
+          "annotations": {
+            "drvPath": "ivcp039790b1n0gi3gs0ii254yrgh2m4-krb5-1.22.1.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "GogyuMrZI+u/E5T2fi789B46SfRgKFpm41reyPoAU68="
+          },
+          "name": "krb5-1.22.1.tar.gz",
+          "uri": "pkg:nix-fetch/krb5-1.22.1.tar.gz?hash=sha256:GogyuMrZI+u/E5T2fi789B46SfRgKFpm41reyPoAU68="
+        },
+        {
+          "annotations": {
+            "drvPath": "zgklqdh9majhk3nyivpl33ciflvsq5lc-krb5-1.22.1.tar.gz.drv",
+            "outputHashMode": "flat",
+            "url": "https://kerberos.org/dist/krb5/1.22/krb5-1.22.1.tar.gz",
+            "urls": "https://kerberos.org/dist/krb5/1.22/krb5-1.22.1.tar.gz"
+          },
+          "digest": {
+            "sha256": "GogyuMrZI+u/E5T2fi789B46SfRgKFpm41reyPoAU68="
+          },
+          "name": "krb5-1.22.1.tar.gz",
+          "uri": "pkg:nix-fetch/krb5-1.22.1.tar.gz?hash=sha256:GogyuMrZI+u/E5T2fi789B46SfRgKFpm41reyPoAU68="
+        },
+        {
+          "annotations": {
+            "drvPath": "jaqb2ybbc95jlf0aq2rb0fyqjdjw9xd1-libedit-20251016-3.1.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "ITYrAGU7v8HHH3GnV42ma1tSA1WdQxNNLddxnjE84EE="
+          },
+          "name": "libedit-20251016-3.1.tar.gz",
+          "uri": "pkg:nix-fetch/libedit-20251016-3.1.tar.gz?hash=sha256:ITYrAGU7v8HHH3GnV42ma1tSA1WdQxNNLddxnjE84EE="
+        },
+        {
+          "annotations": {
+            "drvPath": "ppw13jl72rklwp7rvmbwwr25c4a53abh-libev-4.33.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "UH63uNEBX77FuTXzTr7RW/NGvtBKEauCuO7oSMQgWuo="
+          },
+          "name": "libev-4.33.tar.gz",
+          "uri": "pkg:nix-fetch/libev-4.33.tar.gz?hash=sha256:UH63uNEBX77FuTXzTr7RW/NGvtBKEauCuO7oSMQgWuo="
+        },
+        {
+          "annotations": {
+            "drvPath": "lqb526isvwvxkbdk6aij8r4m0rbh4csb-libffi-3.5.2.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "86MIKiOzfCk6T80QUxR7Nx8v+R+n6hsqUuM1Z2usgtw="
+          },
+          "name": "libffi-3.5.2.tar.gz",
+          "uri": "pkg:nix-fetch/libffi-3.5.2.tar.gz?hash=sha256:86MIKiOzfCk6T80QUxR7Nx8v+R+n6hsqUuM1Z2usgtw="
+        },
+        {
+          "annotations": {
+            "drvPath": "3xs5n9hmbbmc5qis9zzs764ilbjk0v72-libidn2-2.3.8.tar.gz.drv",
+            "outputHashMode": "flat",
+            "url": "https://ftp.gnu.org/gnu/libidn/libidn2-2.3.8.tar.gz",
+            "urls": "https://ftp.gnu.org/gnu/libidn/libidn2-2.3.8.tar.gz"
+          },
+          "digest": {
+            "sha256": "9VeRG/YXFiHh9y/zX1sYJbs1tS7UUyXc3ukx5dPAeHo="
+          },
+          "name": "libidn2-2.3.8.tar.gz",
+          "uri": "pkg:nix-fetch/libidn2-2.3.8.tar.gz?hash=sha256:9VeRG/YXFiHh9y/zX1sYJbs1tS7UUyXc3ukx5dPAeHo="
+        },
+        {
+          "annotations": {
+            "drvPath": "8jjdv66z8m1kmpkk24w91yr4m0dwxghy-libpfm-4.13.0.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "0YuXdkx1VSjBBR03bjNUXQ62DG6/hWgENoE/pbBMw9E="
+          },
+          "name": "libpfm-4.13.0.tar.gz",
+          "uri": "pkg:nix-fetch/libpfm-4.13.0.tar.gz?hash=sha256:0YuXdkx1VSjBBR03bjNUXQ62DG6/hWgENoE/pbBMw9E="
+        },
+        {
+          "annotations": {
+            "drvPath": "35yszblprgwivp54id3jj6hdy1swshx2-libpsl-0.21.5.tar.lz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "mp9qjG7bplDPnqVUdc0XLdKEhzFoBOnHMgLZdXLNOi0="
+          },
+          "name": "libpsl-0.21.5.tar.lz",
+          "uri": "pkg:nix-fetch/libpsl-0.21.5.tar.lz?hash=sha256:mp9qjG7bplDPnqVUdc0XLdKEhzFoBOnHMgLZdXLNOi0="
+        },
+        {
+          "annotations": {
+            "drvPath": "9b6yp7cq5yv3v50d55dv1pbg9rsgpfrx-libssh2-1.11.1.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "2ex2y+NNuY7sNTn+LImdJrDIN8s+tGalaw8QnKv2WPc="
+          },
+          "name": "libssh2-1.11.1.tar.gz",
+          "uri": "pkg:nix-fetch/libssh2-1.11.1.tar.gz?hash=sha256:2ex2y+NNuY7sNTn+LImdJrDIN8s+tGalaw8QnKv2WPc="
+        },
+        {
+          "annotations": {
+            "drvPath": "l4q7jsk9n0ys3qb31zafgzwakpwq0360-libssh2-1.11.1.tar.gz.drv",
+            "outputHashMode": "flat",
+            "url": "https://www.libssh2.org/download/libssh2-1.11.1.tar.gz",
+            "urls": "https://www.libssh2.org/download/libssh2-1.11.1.tar.gz"
+          },
+          "digest": {
+            "sha256": "2ex2y+NNuY7sNTn+LImdJrDIN8s+tGalaw8QnKv2WPc="
+          },
+          "name": "libssh2-1.11.1.tar.gz",
+          "uri": "pkg:nix-fetch/libssh2-1.11.1.tar.gz?hash=sha256:2ex2y+NNuY7sNTn+LImdJrDIN8s+tGalaw8QnKv2WPc="
+        },
+        {
+          "annotations": {
+            "drvPath": "izbfj3rckm6lyip0y99dw9hyyap52kg6-libtool-2.5.4.tar.gz.drv",
+            "outputHashMode": "flat",
+            "url": "https://ftpmirror.gnu.org/libtool/libtool-2.5.4.tar.gz",
+            "urls": "https://ftpmirror.gnu.org/libtool/libtool-2.5.4.tar.gz"
+          },
+          "digest": {
+            "sha256": "2o67LOTc9GuQCY2vliz/po9LT2LqYPeY0O8Skp7eat8="
+          },
+          "name": "libtool-2.5.4.tar.gz",
+          "uri": "pkg:nix-fetch/libtool-2.5.4.tar.gz?hash=sha256:2o67LOTc9GuQCY2vliz/po9LT2LqYPeY0O8Skp7eat8="
+        },
+        {
+          "annotations": {
+            "drvPath": "yvzg3f3djjizk1mdgvqf8wkn3c2fn2cc-libtool-2.5.4.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "2o67LOTc9GuQCY2vliz/po9LT2LqYPeY0O8Skp7eat8="
+          },
+          "name": "libtool-2.5.4.tar.gz",
+          "uri": "pkg:nix-fetch/libtool-2.5.4.tar.gz?hash=sha256:2o67LOTc9GuQCY2vliz/po9LT2LqYPeY0O8Skp7eat8="
+        },
+        {
+          "annotations": {
+            "drvPath": "9b6fqyahkq36md44m6fwnzvh2xm8666n-libunistring-1.4.1.tar.gz.drv",
+            "outputHashMode": "flat",
+            "url": "https://ftpmirror.gnu.org/libunistring/libunistring-1.4.1.tar.gz",
+            "urls": "https://ftpmirror.gnu.org/libunistring/libunistring-1.4.1.tar.gz"
+          },
+          "digest": {
+            "sha256": "ElQq12GUcO/ZWmIxdNzUs2TySDyvcIxr7oN8tTpUy50="
+          },
+          "name": "libunistring-1.4.1.tar.gz",
+          "uri": "pkg:nix-fetch/libunistring-1.4.1.tar.gz?hash=sha256:ElQq12GUcO/ZWmIxdNzUs2TySDyvcIxr7oN8tTpUy50="
+        },
+        {
+          "annotations": {
+            "drvPath": "55d91flpk4776srkw66wdx69wll7b5zr-libxcrypt-4.5.2.tar.xz.drv",
+            "outputHashMode": "flat",
+            "url": "https://github.com/besser82/libxcrypt/releases/download/v4.5.2/libxcrypt-4.5.2.tar.xz",
+            "urls": "https://github.com/besser82/libxcrypt/releases/download/v4.5.2/libxcrypt-4.5.2.tar.xz"
+          },
+          "digest": {
+            "sha256": "cVE6McAaQovM1TZ6Mv2V8RXW2sUPtbYMd51ceUKuwHE="
+          },
+          "name": "libxcrypt-4.5.2.tar.xz",
+          "uri": "pkg:nix-fetch/libxcrypt-4.5.2.tar.xz?hash=sha256:cVE6McAaQovM1TZ6Mv2V8RXW2sUPtbYMd51ceUKuwHE="
+        },
+        {
+          "annotations": {
+            "drvPath": "5kjphasir645kv08ih1hy26z7dag7ql6-libxslt-1.1.45.tar.xz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "ms/mhBnE0GpFxVAyGzISdi2S9BRlBiyk6hnmMu5dIW4="
+          },
+          "name": "libxslt-1.1.45.tar.xz",
+          "uri": "pkg:nix-fetch/libxslt-1.1.45.tar.xz?hash=sha256:ms/mhBnE0GpFxVAyGzISdi2S9BRlBiyk6hnmMu5dIW4="
+        },
+        {
+          "annotations": {
+            "drvPath": "6a5kk32digd34mdzp729bxkpjipy5mbz-linux-6.16.7.tar.xz.drv",
+            "outputHashMode": "flat",
+            "url": "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.16.7.tar.xz",
+            "urls": "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.16.7.tar.xz"
+          },
+          "digest": {
+            "sha256": "W+PaoflCexvbNMSJTZwa36w4z/Z0N2/gYRowZXKaGoE="
+          },
+          "name": "linux-6.16.7.tar.xz",
+          "uri": "pkg:nix-fetch/linux-6.16.7.tar.xz?hash=sha256:W+PaoflCexvbNMSJTZwa36w4z/Z0N2/gYRowZXKaGoE="
+        },
+        {
+          "annotations": {
+            "drvPath": "9w6shyqwkxcp812cvhx3azwbxjipyjwl-linux-6.16.7.tar.xz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "W+PaoflCexvbNMSJTZwa36w4z/Z0N2/gYRowZXKaGoE="
+          },
+          "name": "linux-6.16.7.tar.xz",
+          "uri": "pkg:nix-fetch/linux-6.16.7.tar.xz?hash=sha256:W+PaoflCexvbNMSJTZwa36w4z/Z0N2/gYRowZXKaGoE="
+        },
+        {
+          "annotations": {
+            "drvPath": "bsf32582y9rl8wy0dmi6h1lfd0f3qklh-lzip-1.25.tar.gz.drv",
+            "outputHashMode": "flat",
+            "url": "https://download.savannah.gnu.org/releases/lzip/lzip-1.25.tar.gz",
+            "urls": "https://download.savannah.gnu.org/releases/lzip/lzip-1.25.tar.gz"
+          },
+          "digest": {
+            "sha256": "CUGKbY+4P1ET9b2FbglwPfXTe64DCMZo0PNG49PwpW8="
+          },
+          "name": "lzip-1.25.tar.gz",
+          "uri": "pkg:nix-fetch/lzip-1.25.tar.gz?hash=sha256:CUGKbY+4P1ET9b2FbglwPfXTe64DCMZo0PNG49PwpW8="
+        },
+        {
+          "annotations": {
+            "drvPath": "yjwz596min8pikdr3ny83bg0mpvm8zwf-lzip-1.25.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "CUGKbY+4P1ET9b2FbglwPfXTe64DCMZo0PNG49PwpW8="
+          },
+          "name": "lzip-1.25.tar.gz",
+          "uri": "pkg:nix-fetch/lzip-1.25.tar.gz?hash=sha256:CUGKbY+4P1ET9b2FbglwPfXTe64DCMZo0PNG49PwpW8="
+        },
+        {
+          "annotations": {
+            "drvPath": "4h58dzxj22skirj59ip79kvrsiqp7w3l-lzo-2.10.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "wPiSlDIIJm+bZUOzrjCPq2KExckOYnkxRG+0m0IhoHI="
+          },
+          "name": "lzo-2.10.tar.gz",
+          "uri": "pkg:nix-fetch/lzo-2.10.tar.gz?hash=sha256:wPiSlDIIJm+bZUOzrjCPq2KExckOYnkxRG+0m0IhoHI="
+        },
+        {
+          "annotations": {
+            "drvPath": "j54kvd8mlj8cl9ycvlkh5987fqvzl4p5-m4-1.4.20.tar.bz2.drv",
+            "outputHashMode": "flat",
+            "url": "https://ftpmirror.gnu.org/m4/m4-1.4.20.tar.bz2",
+            "urls": "https://ftpmirror.gnu.org/m4/m4-1.4.20.tar.bz2"
+          },
+          "digest": {
+            "sha256": "rGmJ7l0q7YFzl4BjDMLOCX4qZUb+uWpKVNs31GoUUuQ="
+          },
+          "name": "m4-1.4.20.tar.bz2",
+          "uri": "pkg:nix-fetch/m4-1.4.20.tar.bz2?hash=sha256:rGmJ7l0q7YFzl4BjDMLOCX4qZUb+uWpKVNs31GoUUuQ="
+        },
+        {
+          "annotations": {
+            "drvPath": "w98iwxhpc8g3amwf59rf2czp7szx4hds-m4-1.4.20.tar.bz2.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "rGmJ7l0q7YFzl4BjDMLOCX4qZUb+uWpKVNs31GoUUuQ="
+          },
+          "name": "m4-1.4.20.tar.bz2",
+          "uri": "pkg:nix-fetch/m4-1.4.20.tar.bz2?hash=sha256:rGmJ7l0q7YFzl4BjDMLOCX4qZUb+uWpKVNs31GoUUuQ="
+        },
+        {
+          "annotations": {
+            "drvPath": "mlk82l98adawbhihvawfj1wa70hfhcdr-mailcap-2.1.54.tar.xz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "mkAyIC/A0rCFj0GxZzianP5SrCTsKC5kebkHZTGd4RM="
+          },
+          "name": "mailcap-2.1.54.tar.xz",
+          "uri": "pkg:nix-fetch/mailcap-2.1.54.tar.xz?hash=sha256:mkAyIC/A0rCFj0GxZzianP5SrCTsKC5kebkHZTGd4RM="
+        },
+        {
+          "annotations": {
+            "drvPath": "cxh8cwlp0z4a7xl6bk7zsqr7ci1hzdq6-make-4.4.1.tar.gz.drv",
+            "outputHashMode": "flat",
+            "url": "https://ftpmirror.gnu.org/make/make-4.4.1.tar.gz",
+            "urls": "https://ftpmirror.gnu.org/make/make-4.4.1.tar.gz"
+          },
+          "digest": {
+            "sha256": "3Rb7HWe/q3mnL16DkHNcSePo5wtJRaFasfgd23hlj7M="
+          },
+          "name": "make-4.4.1.tar.gz",
+          "uri": "pkg:nix-fetch/make-4.4.1.tar.gz?hash=sha256:3Rb7HWe/q3mnL16DkHNcSePo5wtJRaFasfgd23hlj7M="
+        },
+        {
+          "annotations": {
+            "drvPath": "qd1pp4lfc05wsr3w4zx6scvkwr2bwfkv-man-fix.patch.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "i+iv+owUXbKU3UtZBsjfj86kFB3TDlpcVDNsDX8dyZE="
+          },
+          "name": "man-fix.patch",
+          "uri": "pkg:nix-fetch/man-fix.patch?hash=sha256:i+iv+owUXbKU3UtZBsjfj86kFB3TDlpcVDNsDX8dyZE="
+        },
+        {
+          "annotations": {
+            "drvPath": "9c29lf47bqzyi1vy2gbvnjy37wja7vm9-mccabe-0.7.0.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "NI4CQMM7YLvfTlIxku+RnyjLLD19XHeU90AJKQ8jYyU="
+          },
+          "name": "mccabe-0.7.0.tar.gz",
+          "uri": "pkg:nix-fetch/mccabe-0.7.0.tar.gz?hash=sha256:NI4CQMM7YLvfTlIxku+RnyjLLD19XHeU90AJKQ8jYyU="
+        },
+        {
+          "annotations": {
+            "drvPath": "156yvnw4g1h0gv1s8p7bray6hyn43f8q-mpc-1.3.1.tar.gz.drv",
+            "outputHashMode": "flat",
+            "url": "https://ftpmirror.gnu.org/mpc/mpc-1.3.1.tar.gz",
+            "urls": "https://ftpmirror.gnu.org/mpc/mpc-1.3.1.tar.gz"
+          },
+          "digest": {
+            "sha256": "q2QkkvXPiCt0qgy3MM1BCoHtzb7IlRg86TDnBsHHWbg="
+          },
+          "name": "mpc-1.3.1.tar.gz",
+          "uri": "pkg:nix-fetch/mpc-1.3.1.tar.gz?hash=sha256:q2QkkvXPiCt0qgy3MM1BCoHtzb7IlRg86TDnBsHHWbg="
+        },
+        {
+          "annotations": {
+            "drvPath": "7bwnb0awcffvwc753v0rs1a8hgxras9v-mpdecimal-4.0.1.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "ltM6u0uwBwx74P7UJGzThBYYgyX4IEaCFEcZOFRbGsg="
+          },
+          "name": "mpdecimal-4.0.1.tar.gz",
+          "uri": "pkg:nix-fetch/mpdecimal-4.0.1.tar.gz?hash=sha256:ltM6u0uwBwx74P7UJGzThBYYgyX4IEaCFEcZOFRbGsg="
+        },
+        {
+          "annotations": {
+            "drvPath": "ixwy12didmgk7j4z7ghlirpw46ahmhbd-mpfr-4.2.2.tar.xz.drv",
+            "outputHashMode": "flat",
+            "url": "https://www.mpfr.org/mpfr-4.2.2/mpfr-4.2.2.tar.xz",
+            "urls": "https://www.mpfr.org/mpfr-4.2.2/mpfr-4.2.2.tar.xz"
+          },
+          "digest": {
+            "sha256": "tnugOD736KhWNzTi6InvXsPDuJigHQD6CmhprYHGzgE="
+          },
+          "name": "mpfr-4.2.2.tar.xz",
+          "uri": "pkg:nix-fetch/mpfr-4.2.2.tar.xz?hash=sha256:tnugOD736KhWNzTi6InvXsPDuJigHQD6CmhprYHGzgE="
+        },
+        {
+          "annotations": {
+            "drvPath": "ykhg1107zsrg33ijpav6zp4cid7rnmsi-ncurses-6.5.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "E22RvCaamleF5fnpgLx2q1dCj2BM4+WlqQzrx2eXHMY="
+          },
+          "name": "ncurses-6.5.tar.gz",
+          "uri": "pkg:nix-fetch/ncurses-6.5.tar.gz?hash=sha256:E22RvCaamleF5fnpgLx2q1dCj2BM4+WlqQzrx2eXHMY="
+        },
+        {
+          "annotations": {
+            "drvPath": "86cv6sw632a803406y0441gnr9r251sh-nghttp2-1.67.1.tar.bz2.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "37cg1CQ6eVBYn6JjI3i+te6a1ELpS3lLO44soowdfio="
+          },
+          "name": "nghttp2-1.67.1.tar.bz2",
+          "uri": "pkg:nix-fetch/nghttp2-1.67.1.tar.bz2?hash=sha256:37cg1CQ6eVBYn6JjI3i+te6a1ELpS3lLO44soowdfio="
+        },
+        {
+          "annotations": {
+            "drvPath": "chi1p3hax6h0a8s3bffy1ishq8k9ka3b-nghttp2-1.67.1.tar.bz2.drv",
+            "outputHashMode": "flat",
+            "url": "https://github.com/nghttp2/nghttp2/releases/download/v1.67.1/nghttp2-1.67.1.tar.bz2",
+            "urls": "https://github.com/nghttp2/nghttp2/releases/download/v1.67.1/nghttp2-1.67.1.tar.bz2"
+          },
+          "digest": {
+            "sha256": "37cg1CQ6eVBYn6JjI3i+te6a1ELpS3lLO44soowdfio="
+          },
+          "name": "nghttp2-1.67.1.tar.bz2",
+          "uri": "pkg:nix-fetch/nghttp2-1.67.1.tar.bz2?hash=sha256:37cg1CQ6eVBYn6JjI3i+te6a1ELpS3lLO44soowdfio="
+        },
+        {
+          "annotations": {
+            "drvPath": "m258fidk7ikfwdzj8bk347g27d8s2i0d-nghttp3-1.13.1.tar.bz2.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "8lH+Vm4oIdz9BChVN15QsevqxfHKeUjQDiFWPFgiHiA="
+          },
+          "name": "nghttp3-1.13.1.tar.bz2",
+          "uri": "pkg:nix-fetch/nghttp3-1.13.1.tar.bz2?hash=sha256:8lH+Vm4oIdz9BChVN15QsevqxfHKeUjQDiFWPFgiHiA="
+        },
+        {
+          "annotations": {
+            "drvPath": "f7kjlwb7ch80pz9dzysjgbb3sq571ym2-ngtcp2-1.18.0.tar.bz2.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "E7r7bFCdv2pw2WBaLIkuE/WuuTZnOZWHeKhXvHDOH6c="
+          },
+          "name": "ngtcp2-1.18.0.tar.bz2",
+          "uri": "pkg:nix-fetch/ngtcp2-1.18.0.tar.bz2?hash=sha256:E7r7bFCdv2pw2WBaLIkuE/WuuTZnOZWHeKhXvHDOH6c="
+        },
+        {
+          "annotations": {
+            "drvPath": "sdxzyk51x3ik4ihrnli0krl642km6pql-openssl-3.6.0.tar.gz.drv",
+            "outputHashMode": "flat",
+            "url": "https://github.com/openssl/openssl/releases/download/openssl-3.6.0/openssl-3.6.0.tar.gz",
+            "urls": "https://github.com/openssl/openssl/releases/download/openssl-3.6.0/openssl-3.6.0.tar.gz"
+          },
+          "digest": {
+            "sha256": "tqX0S362nj+jXb8VUkQFtEg3pIHUPYHa3d4/8h/LuOk="
+          },
+          "name": "openssl-3.6.0.tar.gz",
+          "uri": "pkg:nix-fetch/openssl-3.6.0.tar.gz?hash=sha256:tqX0S362nj+jXb8VUkQFtEg3pIHUPYHa3d4/8h/LuOk="
+        },
+        {
+          "annotations": {
+            "drvPath": "wwr14jz3cdz3sz3czaihwmqid03a2kij-openssl-3.6.0.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "tqX0S362nj+jXb8VUkQFtEg3pIHUPYHa3d4/8h/LuOk="
+          },
+          "name": "openssl-3.6.0.tar.gz",
+          "uri": "pkg:nix-fetch/openssl-3.6.0.tar.gz?hash=sha256:tqX0S362nj+jXb8VUkQFtEg3pIHUPYHa3d4/8h/LuOk="
+        },
+        {
+          "annotations": {
+            "drvPath": "4g9zzk7ha7c3g13gq2i0yw5nl7c4i7dd-packaging-25.0.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "1EOHLJjWd79g9qHy+MHLdI6P52LSv50xSLVZkpWw/E8="
+          },
+          "name": "packaging-25.0.tar.gz",
+          "uri": "pkg:nix-fetch/packaging-25.0.tar.gz?hash=sha256:1EOHLJjWd79g9qHy+MHLdI6P52LSv50xSLVZkpWw/E8="
+        },
+        {
+          "annotations": {
+            "drvPath": "h7ijrlrjxvy87frncwpqivqxn9zaqx5x-patch-2.8.tar.xz.drv",
+            "outputHashMode": "flat",
+            "url": "https://ftpmirror.gnu.org/patch/patch-2.8.tar.xz",
+            "urls": "https://ftpmirror.gnu.org/patch/patch-2.8.tar.xz"
+          },
+          "digest": {
+            "sha256": "+Hzuae7CtPy/YKOWsDCtaqNBXxkqpffuhMrV4R9/WuM="
+          },
+          "name": "patch-2.8.tar.xz",
+          "uri": "pkg:nix-fetch/patch-2.8.tar.xz?hash=sha256:+Hzuae7CtPy/YKOWsDCtaqNBXxkqpffuhMrV4R9/WuM="
+        },
+        {
+          "annotations": {
+            "drvPath": "zigk3wnq3iywrbk5i77a87wbc8c7cybi-patch-ev.c.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "jaeJuCYM/U2ZNbbyA/7YOKvo0lj7Dc9L3LNJfZwcaw0="
+          },
+          "name": "patch-ev.c",
+          "uri": "pkg:nix-fetch/patch-ev.c?hash=sha256:jaeJuCYM/U2ZNbbyA/7YOKvo0lj7Dc9L3LNJfZwcaw0="
+        },
+        {
+          "annotations": {
+            "drvPath": "0i89ydplmfyhw5rykihdpcr1ndki1bp3-patchelf-0.15.2.tar.bz2.drv",
+            "outputHashMode": "flat",
+            "url": "https://github.com/NixOS/patchelf/releases/download/0.15.2/patchelf-0.15.2.tar.bz2",
+            "urls": "https://github.com/NixOS/patchelf/releases/download/0.15.2/patchelf-0.15.2.tar.bz2"
+          },
+          "digest": {
+            "sha256": "F3RfVkFZyOIo/EEtplogSLhGxLa0Igt3y/IkFuAvLXw="
+          },
+          "name": "patchelf-0.15.2.tar.bz2",
+          "uri": "pkg:nix-fetch/patchelf-0.15.2.tar.bz2?hash=sha256:F3RfVkFZyOIo/EEtplogSLhGxLa0Igt3y/IkFuAvLXw="
+        },
+        {
+          "annotations": {
+            "drvPath": "6z1k6yq4qnbyhv8lays8kg1kz7lrh428-patchutils-0.3.3.tar.xz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "kfToRRsu/KxdQMlm5CwXWANFDw3pTJJr/swSyQBwrTw="
+          },
+          "name": "patchutils-0.3.3.tar.xz",
+          "uri": "pkg:nix-fetch/patchutils-0.3.3.tar.xz?hash=sha256:kfToRRsu/KxdQMlm5CwXWANFDw3pTJJr/swSyQBwrTw="
+        },
+        {
+          "annotations": {
+            "drvPath": "xrid5skgga4z8j1r1ah6a0261jpnqhif-pathspec-0.12.1.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "pILVFQOhqzOxxnpsOBOiaVPb3HHDHayu+ag4xOKfVxI="
+          },
+          "name": "pathspec-0.12.1.tar.gz",
+          "uri": "pkg:nix-fetch/pathspec-0.12.1.tar.gz?hash=sha256:pILVFQOhqzOxxnpsOBOiaVPb3HHDHayu+ag4xOKfVxI="
+        },
+        {
+          "annotations": {
+            "drvPath": "3siddy2kzlx0pj7h8s15jgqdicg3j3lr-pcre2-10.46.tar.bz2.drv",
+            "outputHashMode": "flat",
+            "url": "https://github.com/PhilipHazel/pcre2/releases/download/pcre2-10.46/pcre2-10.46.tar.bz2",
+            "urls": "https://github.com/PhilipHazel/pcre2/releases/download/pcre2-10.46/pcre2-10.46.tar.bz2"
+          },
+          "digest": {
+            "sha256": "FfvFq6a+7gsXrssEYCrjlDI5OroevY45t8q/fbiDKZ8="
+          },
+          "name": "pcre2-10.46.tar.bz2",
+          "uri": "pkg:nix-fetch/pcre2-10.46.tar.bz2?hash=sha256:FfvFq6a+7gsXrssEYCrjlDI5OroevY45t8q/fbiDKZ8="
+        },
+        {
+          "annotations": {
+            "drvPath": "4y9kzg6h4wxyfpvw3ml99ia9cgn8p6n7-perl-5.42.0.tar.gz.drv",
+            "outputHashMode": "flat",
+            "url": "https://cpan.metacpan.org/src/5.0/perl-5.42.0.tar.gz",
+            "urls": "https://cpan.metacpan.org/src/5.0/perl-5.42.0.tar.gz"
+          },
+          "digest": {
+            "sha256": "4JPvGE1/mhuXl+JGUpb1VRCtttq4hCsMPtUzKWYwltw="
+          },
+          "name": "perl-5.42.0.tar.gz",
+          "uri": "pkg:nix-fetch/perl-5.42.0.tar.gz?hash=sha256:4JPvGE1/mhuXl+JGUpb1VRCtttq4hCsMPtUzKWYwltw="
+        },
+        {
+          "annotations": {
+            "drvPath": "ly0s0gwhnign4gqmpk6j2lip0jsysyvi-perl-5.42.0.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "4JPvGE1/mhuXl+JGUpb1VRCtttq4hCsMPtUzKWYwltw="
+          },
+          "name": "perl-5.42.0.tar.gz",
+          "uri": "pkg:nix-fetch/perl-5.42.0.tar.gz?hash=sha256:4JPvGE1/mhuXl+JGUpb1VRCtttq4hCsMPtUzKWYwltw="
+        },
+        {
+          "annotations": {
+            "drvPath": "sbz8y1r3kiqg774ir0s5v15i6q5w04vc-pexpect-4.9.0.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "7n1BEj88mREFDqLC2sEHVo3EOy07DHVXozISw5jq0w8="
+          },
+          "name": "pexpect-4.9.0.tar.gz",
+          "uri": "pkg:nix-fetch/pexpect-4.9.0.tar.gz?hash=sha256:7n1BEj88mREFDqLC2sEHVo3EOy07DHVXozISw5jq0w8="
+        },
+        {
+          "annotations": {
+            "drvPath": "6b29gjz7rj4mw0ch0vy2m6qrqipz2bbb-pkg-config-0.29.2.tar.gz.drv",
+            "outputHashMode": "flat",
+            "url": "https://pkg-config.freedesktop.org/releases/pkg-config-0.29.2.tar.gz",
+            "urls": "https://pkg-config.freedesktop.org/releases/pkg-config-0.29.2.tar.gz"
+          },
+          "digest": {
+            "sha256": "b8acAWiMlFilfrmhZkyaujcszaQgoCv0Qp/mEOfn1ZE="
+          },
+          "name": "pkg-config-0.29.2.tar.gz",
+          "uri": "pkg:nix-fetch/pkg-config-0.29.2.tar.gz?hash=sha256:b8acAWiMlFilfrmhZkyaujcszaQgoCv0Qp/mEOfn1ZE="
+        },
+        {
+          "annotations": {
+            "drvPath": "n1p7xiq7h022fbkrpxipclcxvmmbbhv9-pkg-config-0.29.2.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "b8acAWiMlFilfrmhZkyaujcszaQgoCv0Qp/mEOfn1ZE="
+          },
+          "name": "pkg-config-0.29.2.tar.gz",
+          "uri": "pkg:nix-fetch/pkg-config-0.29.2.tar.gz?hash=sha256:b8acAWiMlFilfrmhZkyaujcszaQgoCv0Qp/mEOfn1ZE="
+        },
+        {
+          "annotations": {
+            "drvPath": "0s3yq335nykmymzp9wzsw87gifjaj8x5-ptyprocess-0.7.0.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "XF0KO0jO7gtISF4MJgN8Cs19KXZco/u1yzgx00dCMiA="
+          },
+          "name": "ptyprocess-0.7.0.tar.gz",
+          "uri": "pkg:nix-fetch/ptyprocess-0.7.0.tar.gz?hash=sha256:XF0KO0jO7gtISF4MJgN8Cs19KXZco/u1yzgx00dCMiA="
+        },
+        {
+          "annotations": {
+            "drvPath": "y0c2abwyyqbgxp7q0g0m040swbfc1cp5-pygments-2.19.2.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "Y2yyR3zsf4lSU2lwvFM7xDdDVC9wOSrgJjdGAK3VuIc="
+          },
+          "name": "pygments-2.19.2.tar.gz",
+          "uri": "pkg:nix-fetch/pygments-2.19.2.tar.gz?hash=sha256:Y2yyR3zsf4lSU2lwvFM7xDdDVC9wOSrgJjdGAK3VuIc="
+        },
+        {
+          "annotations": {
+            "drvPath": "r493by0r1liaiig9v091gmh82la5h82f-pyproject_hooks-1.2.0.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "HoWb1cQPrpRIZC3Yca30WeXiCEGG6NLCp5qCTJcNofg="
+          },
+          "name": "pyproject_hooks-1.2.0.tar.gz",
+          "uri": "pkg:nix-fetch/pyproject_hooks-1.2.0.tar.gz?hash=sha256:HoWb1cQPrpRIZC3Yca30WeXiCEGG6NLCp5qCTJcNofg="
+        },
+        {
+          "annotations": {
+            "drvPath": "4qaja4ig70876iv09ys85xfirm4q6f8k-pytest-8.4.2.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "hsDQuTMGuWHVjWKk20h58n/iVRPUuWnfNRq93bPDDgE="
+          },
+          "name": "pytest-8.4.2.tar.gz",
+          "uri": "pkg:nix-fetch/pytest-8.4.2.tar.gz?hash=sha256:hsDQuTMGuWHVjWKk20h58n/iVRPUuWnfNRq93bPDDgE="
+        },
+        {
+          "annotations": {
+            "drvPath": "aly0xrm52maa8j7bjabmwnif5bhwqvb4-raw.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "OrC81ewNhgUX/D9xCHiu9m4c+9HsWTRgo4U7JHDnb7E="
+          },
+          "name": "raw",
+          "uri": "pkg:nix-fetch/raw?hash=sha256:OrC81ewNhgUX/D9xCHiu9m4c+9HsWTRgo4U7JHDnb7E="
+        },
+        {
+          "annotations": {
+            "drvPath": "dhjhlihqj08f3fs1cvsja0fims0dqnlw-raw.drv",
+            "outputHashMode": "flat",
+            "url": "https://lore.kernel.org/keyrings/20230301134250.301819-1-hi@alyssa.is/raw",
+            "urls": "https://lore.kernel.org/keyrings/20230301134250.301819-1-hi@alyssa.is/raw"
+          },
+          "digest": {
+            "sha256": "OrC81ewNhgUX/D9xCHiu9m4c+9HsWTRgo4U7JHDnb7E="
+          },
+          "name": "raw",
+          "uri": "pkg:nix-fetch/raw?hash=sha256:OrC81ewNhgUX/D9xCHiu9m4c+9HsWTRgo4U7JHDnb7E="
+        },
+        {
+          "annotations": {
+            "drvPath": "lyrm58ba3gz1b9i4bhbnjzmvj77ibzwp-readline-8.3.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "/lODIERngozUle6NHTwDen66E4nCK8agQfYnl2+QYcw="
+          },
+          "name": "readline-8.3.tar.gz",
+          "uri": "pkg:nix-fetch/readline-8.3.tar.gz?hash=sha256:/lODIERngozUle6NHTwDen66E4nCK8agQfYnl2+QYcw="
+        },
+        {
+          "annotations": {
+            "drvPath": "d2dylypiy39jissdsqldkwi7dzk6cdll-readline83-001.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "IfCgMQbb5pczfNJccOsO26or221ZW0X4MoXN01ushN4="
+          },
+          "name": "readline83-001",
+          "uri": "pkg:nix-fetch/readline83-001?hash=sha256:IfCgMQbb5pczfNJccOsO26or221ZW0X4MoXN01ushN4="
+        },
+        {
+          "annotations": {
+            "drvPath": "l2zb00ynya174hma1i8572bqmwnsy3h4-rust-1.91.1-x86_64-unknown-linux-gnu.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "HJVcBA3Qh+R1HRVYjd7CiLQgi+oW+OxQRsFkh35V//c="
+          },
+          "name": "rust-1.91.1-x86_64-unknown-linux-gnu.tar.gz",
+          "uri": "pkg:nix-fetch/rust-1.91.1-x86_64-unknown-linux-gnu.tar.gz?hash=sha256:HJVcBA3Qh+R1HRVYjd7CiLQgi+oW+OxQRsFkh35V//c="
+        },
+        {
+          "annotations": {
+            "drvPath": "p5jh0wv3mpmpr3r5i7iv6jyqmib1kxfw-rustc-1.91.1-src.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "ONziBdOfYVcSYfBEQjehzp7+y5cOdg2OxNlXr1tEVyM="
+          },
+          "name": "rustc-1.91.1-src.tar.gz",
+          "uri": "pkg:nix-fetch/rustc-1.91.1-src.tar.gz?hash=sha256:ONziBdOfYVcSYfBEQjehzp7+y5cOdg2OxNlXr1tEVyM="
+        },
+        {
+          "annotations": {
+            "drvPath": "ql7jhf1wzhazxw4cw627zyls49xm5g3n-sed-4.9.tar.xz.drv",
+            "outputHashMode": "flat",
+            "url": "https://ftpmirror.gnu.org/sed/sed-4.9.tar.xz",
+            "urls": "https://ftpmirror.gnu.org/sed/sed-4.9.tar.xz"
+          },
+          "digest": {
+            "sha256": "biJrcy4c1zlGStaGK9Ghq6QteYKSLaelNRljHSSXUYE="
+          },
+          "name": "sed-4.9.tar.xz",
+          "uri": "pkg:nix-fetch/sed-4.9.tar.xz?hash=sha256:biJrcy4c1zlGStaGK9Ghq6QteYKSLaelNRljHSSXUYE="
+        },
+        {
+          "annotations": {
+            "drvPath": "jm58fhsw4lcf0lbif0hb0n7fyjrmf8dx-setuptools_scm-9.0.1.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "RuHPfooJZSthP5uk/ptV8vSW56Iz5OANJafLQflMPAs="
+          },
+          "name": "setuptools_scm-9.0.1.tar.gz",
+          "uri": "pkg:nix-fetch/setuptools_scm-9.0.1.tar.gz?hash=sha256:RuHPfooJZSthP5uk/ptV8vSW56Iz5OANJafLQflMPAs="
+        },
+        {
+          "annotations": {
+            "drvPath": "0acqskp4150mh0wzl53bnkysir5al53x-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "qcHIHG59PDPfPsXA1r4hG4QhK2qyE7AgXOwUDjIy7lE="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:qcHIHG59PDPfPsXA1r4hG4QhK2qyE7AgXOwUDjIy7lE="
+        },
+        {
+          "annotations": {
+            "drvPath": "122q44pzqyn7q96bsl92w80378fj6dlv-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "Du37ySvAL9iwGec5wbWxwLTYm+kcDSOs5OJ5Sw7R87g="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:Du37ySvAL9iwGec5wbWxwLTYm+kcDSOs5OJ5Sw7R87g="
+        },
+        {
+          "annotations": {
+            "drvPath": "1in2css4cgxlcrik0vl4m65n0z3izq5b-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "t4a/Zp8rC+DMjskdwVvYIfYDAT57zGVfVu7IApwRNGA="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:t4a/Zp8rC+DMjskdwVvYIfYDAT57zGVfVu7IApwRNGA="
+        },
+        {
+          "annotations": {
+            "drvPath": "1ni25nlilayr1y7r1qkn7w7zmjc66ixz-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "Ri5SzfQJFghRcMAKHS5QKD365OZlio895fSlumq83vs="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:Ri5SzfQJFghRcMAKHS5QKD365OZlio895fSlumq83vs="
+        },
+        {
+          "annotations": {
+            "drvPath": "1pzqd5hlbk467gai2sx20p4i1ic5hlxd-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "dkteM8VizYf9ZLPOe8od5CZgg7a3fs4Hy+t8bGLV/GI="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:dkteM8VizYf9ZLPOe8od5CZgg7a3fs4Hy+t8bGLV/GI="
+        },
+        {
+          "annotations": {
+            "drvPath": "296id83q914bpq9mjln9ighwp93rhjxg-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "NGTy3Hua6yEMWXQDJQO2Z5DD3clXTZXEH6DNQBMSGtQ="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:NGTy3Hua6yEMWXQDJQO2Z5DD3clXTZXEH6DNQBMSGtQ="
+        },
+        {
+          "annotations": {
+            "drvPath": "2fm1icvnafrn70zkyvi9jc2frdwcf514-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "1ZdhJwxzYsMT2s+z4MLR71cLFzIEmwE0KFilwg7BQ1E="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:1ZdhJwxzYsMT2s+z4MLR71cLFzIEmwE0KFilwg7BQ1E="
+        },
+        {
+          "annotations": {
+            "drvPath": "3xbyrf6ml5qkxlkydmk1k7li5pakn2nl-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "SaRJ7+iZMhhBdcUDuJpMAY4REQVhrvYMqI2aq3Kz08o="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:SaRJ7+iZMhhBdcUDuJpMAY4REQVhrvYMqI2aq3Kz08o="
+        },
+        {
+          "annotations": {
+            "drvPath": "4dhhl22k18xyarp36z2s64spjj8kxd53-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "wEqbKDgXVU8kQxdh7uC+EZ0u5leeoYh2d/61qB4guOg="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:wEqbKDgXVU8kQxdh7uC+EZ0u5leeoYh2d/61qB4guOg="
+        },
+        {
+          "annotations": {
+            "drvPath": "4fpgzl15babl6hg7bwjkhmjmrddlklkm-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "td3C7xTWfSzdo9Bbz0dHW2oPaCQYmUE9H2sUFfg5HH0="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:td3C7xTWfSzdo9Bbz0dHW2oPaCQYmUE9H2sUFfg5HH0="
+        },
+        {
+          "annotations": {
+            "drvPath": "4r9644hqbvr0i2v6v632w96dy3aynmir-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "FfONUCCMU1bJXHx3GHH46Tu+wYU5FLPOqeCSCi1bRSs="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:FfONUCCMU1bJXHx3GHH46Tu+wYU5FLPOqeCSCi1bRSs="
+        },
+        {
+          "annotations": {
+            "drvPath": "54f3bv4px4l5q0fqq0qa185jgwp59gp5-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "FUfYMq5xT2i88JdIw9OtSofraUL3yjsyOVund+mfJKQ="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:FUfYMq5xT2i88JdIw9OtSofraUL3yjsyOVund+mfJKQ="
+        },
+        {
+          "annotations": {
+            "drvPath": "5i75hjxvkld06pnd9k4h0y7ckdvysnsi-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "58Twjf7ECOPynQ5KPCTDQWdD3nb7ADJZISozWGRGoXM="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:58Twjf7ECOPynQ5KPCTDQWdD3nb7ADJZISozWGRGoXM="
+        },
+        {
+          "annotations": {
+            "drvPath": "6yjrligkb5gb60pmkzrj3bxhvyk0nj18-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "4MWp9pPiUZZkjvGXzw8/gDele743NBj8uG4jvK2ohUM="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:4MWp9pPiUZZkjvGXzw8/gDele743NBj8uG4jvK2ohUM="
+        },
+        {
+          "annotations": {
+            "drvPath": "7r06ni73vd033dws6nhc03ghmxki73s1-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "vMGUoiPr+QIe1N+I++d/DM9i2jeHTI68npGoJ2vKF10="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:vMGUoiPr+QIe1N+I++d/DM9i2jeHTI68npGoJ2vKF10="
+        },
+        {
+          "annotations": {
+            "drvPath": "8m48h3dq1l1c6a2ma34lpzcvrxqdmj53-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "1EEQp/QEulrdU9tTe28NerQ33IWlAiSlicpmNYciW88="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:1EEQp/QEulrdU9tTe28NerQ33IWlAiSlicpmNYciW88="
+        },
+        {
+          "annotations": {
+            "drvPath": "8q3vl12aa3dpypsmz2759ayjb2qxi3v0-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "EqU7lnBnOn3gR3hT95yjdTUb3cqX2XJK5UAKsFw2Q10="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:EqU7lnBnOn3gR3hT95yjdTUb3cqX2XJK5UAKsFw2Q10="
+        },
+        {
+          "annotations": {
+            "drvPath": "9akdds1ayxbxa80v0da2i0yissr545q5-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "Ugou4SzYx9EtzcBtocCqhCZZaU1Sngvk1IEVAIJZ4KY="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:Ugou4SzYx9EtzcBtocCqhCZZaU1Sngvk1IEVAIJZ4KY="
+        },
+        {
+          "annotations": {
+            "drvPath": "9c9xh536hdmkhgcpv5p13njbjn92j9fh-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "ihtAB6HLgYhX+FKPFy01RByy/M468YrHv2v5wB9bJws="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:ihtAB6HLgYhX+FKPFy01RByy/M468YrHv2v5wB9bJws="
+        },
+        {
+          "annotations": {
+            "drvPath": "a8ajkxy5bz0h69v4ks6rvcqh993mhx93-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "7Mzz3KmmmE2xQru1GA4aY0DZqn6vxykWiExQvnA1bjM="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:7Mzz3KmmmE2xQru1GA4aY0DZqn6vxykWiExQvnA1bjM="
+        },
+        {
+          "annotations": {
+            "drvPath": "ajxvgl7asqx4k05ffv4bbnszb3h01b9d-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "thHghU+1Alpay5r9Dc3v7ATRFfYKV8l9qR0nbGOOX/A="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:thHghU+1Alpay5r9Dc3v7ATRFfYKV8l9qR0nbGOOX/A="
+        },
+        {
+          "annotations": {
+            "drvPath": "b1g6ymfbrd7bcfxnm1wwmcwji00j6x4f-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "ayTk3qkeeAjrGj5ab7wF7vpWI8XWS1EeKKUqzaD/LY0="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:ayTk3qkeeAjrGj5ab7wF7vpWI8XWS1EeKKUqzaD/LY0="
+        },
+        {
+          "annotations": {
+            "drvPath": "b6lgw7vrwdjiy7l5nxrwlqhrjhx2aq5x-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "hR6PjTOps8JSM7UbfGlCoZmmwtWExVqYwh4lxDiFWdc="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:hR6PjTOps8JSM7UbfGlCoZmmwtWExVqYwh4lxDiFWdc="
+        },
+        {
+          "annotations": {
+            "drvPath": "bc3iz3vsvs7v56ds13ar8xhz5p7hplgc-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "HNAFsWX4tU9hfZkKxLNJn1J+H3uTesQflbRPlo3GQ4k="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:HNAFsWX4tU9hfZkKxLNJn1J+H3uTesQflbRPlo3GQ4k="
+        },
+        {
+          "annotations": {
+            "drvPath": "bfffhn7c763k4578m1w70ylyhw84m00k-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "iyGfGr3pLVZSEIHetjsPbIIXkuXrmIPiSqqOw31l9Qw="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:iyGfGr3pLVZSEIHetjsPbIIXkuXrmIPiSqqOw31l9Qw="
+        },
+        {
+          "annotations": {
+            "drvPath": "bk8pwwkp6nymm58nglyjfr7rm2byxhxj-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "8CfPQ4uMgKDqMMgutLdsjn/MaAVBJQAp1KqUfxzNMQw="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:8CfPQ4uMgKDqMMgutLdsjn/MaAVBJQAp1KqUfxzNMQw="
+        },
+        {
+          "annotations": {
+            "drvPath": "csivinazgqkpvamp7wb7a9c0a1afiq9g-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "sAs0TiV3TK/WtgHvEjl2KFAgebyWZYmcRcmxjpn2AME="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:sAs0TiV3TK/WtgHvEjl2KFAgebyWZYmcRcmxjpn2AME="
+        },
+        {
+          "annotations": {
+            "drvPath": "dn63r2gy9g4wk4ycpzck9xxvlp4xh161-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "9h5/cssWs4F0LKnFLjWDsEjB2AYczLvnSjiUdsaEcBQ="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:9h5/cssWs4F0LKnFLjWDsEjB2AYczLvnSjiUdsaEcBQ="
+        },
+        {
+          "annotations": {
+            "drvPath": "fi26qh3c3dl1rqg7ql0ifl3hwr46cgb4-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "3CW41ULdXoID4cOgrcG2j85tgIJ/sz5hU7A83qpuxf4="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:3CW41ULdXoID4cOgrcG2j85tgIJ/sz5hU7A83qpuxf4="
+        },
+        {
+          "annotations": {
+            "drvPath": "gbdbavj87y7n6fnbx8wd7144a5qxp0f7-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "3oAlwvNSJ7NhPiHekh4SJI99cPFh29KCCR9314QzsvQ="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:3oAlwvNSJ7NhPiHekh4SJI99cPFh29KCCR9314QzsvQ="
+        },
+        {
+          "annotations": {
+            "drvPath": "h9df87igbcr6y8m0r63z7r197sz33b15-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "tNFWIT9ydfozB8dWcmTMuZLCQmQudTFJIkSr0aG7S44="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:tNFWIT9ydfozB8dWcmTMuZLCQmQudTFJIkSr0aG7S44="
+        },
+        {
+          "annotations": {
+            "drvPath": "hbv8qsck71m0rb1s1p8023ir4av1fcam-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "kl8ZHt71v17QR2bDP+ad/5uixf+GStEPLQ5ooFoC5i8="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:kl8ZHt71v17QR2bDP+ad/5uixf+GStEPLQ5ooFoC5i8="
+        },
+        {
+          "annotations": {
+            "drvPath": "i7mjpqafdbk5q9shf8wldwg3868izxcn-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "oWV+KK22+iK99iCOCKCV1OCLq2Ef1bcYRKXT5GHwiL8="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:oWV+KK22+iK99iCOCKCV1OCLq2Ef1bcYRKXT5GHwiL8="
+        },
+        {
+          "annotations": {
+            "drvPath": "ibv7bi15x0wdwml1jpnq0pyp48g7yl40-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "ZEHxBErjjvofqe3rkkgiEuEJcoluwo+2nZrLfrsHn5Q="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:ZEHxBErjjvofqe3rkkgiEuEJcoluwo+2nZrLfrsHn5Q="
+        },
+        {
+          "annotations": {
+            "drvPath": "j1958pn75swjzmxly25kd6h7z2pia3a9-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "D9HsIjv8EJ1qAdXFAKy260K77cCvopgQ2Fx6uXpt6VI="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:D9HsIjv8EJ1qAdXFAKy260K77cCvopgQ2Fx6uXpt6VI="
+        },
+        {
+          "annotations": {
+            "drvPath": "jc759f39bgp4m7mb3jjifila1d3551y6-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "HIHMxAUR4bjmFLoltJeIAVSulVQ6kVuIT2Ku+lwAx/4="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:HIHMxAUR4bjmFLoltJeIAVSulVQ6kVuIT2Ku+lwAx/4="
+        },
+        {
+          "annotations": {
+            "drvPath": "k2pac6k7ycyn4538rmbwjryk6vpmc2s2-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "TSqBca42i7i59ERTrnPN0fLdLWToYMCq5cfFFsgZm5U="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:TSqBca42i7i59ERTrnPN0fLdLWToYMCq5cfFFsgZm5U="
+        },
+        {
+          "annotations": {
+            "drvPath": "p4znf7q2db6ir732lq9ld9mp5fz1f4cy-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "4UEJjn9Eey1vHeaG468x/nMlbfGu3ohZX1R7RR2R5ik="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:4UEJjn9Eey1vHeaG468x/nMlbfGu3ohZX1R7RR2R5ik="
+        },
+        {
+          "annotations": {
+            "drvPath": "qvhcx34xrkb3j34c26lzqirlmd3dgv9m-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "pkQjPJuSASWmzwzp9H/UTJBQDr2r2RiofxpF135lAgc="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:pkQjPJuSASWmzwzp9H/UTJBQDr2r2RiofxpF135lAgc="
+        },
+        {
+          "annotations": {
+            "drvPath": "r85bm3nihw5ajyqx39nwl213d9a9alln-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "4mnWOit+lrZnVslVyfalt6lv7qSYpLlyvET553SplJU="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:4mnWOit+lrZnVslVyfalt6lv7qSYpLlyvET553SplJU="
+        },
+        {
+          "annotations": {
+            "drvPath": "ri1fd1vjmxbarqx2afwkrm1nlg4n43pn-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "OB9DsGabbn5pE+8Ru29D3Jp9Wu+gwlHYYy79x+M+HPI="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:OB9DsGabbn5pE+8Ru29D3Jp9Wu+gwlHYYy79x+M+HPI="
+        },
+        {
+          "annotations": {
+            "drvPath": "sxhjxa26vi01lkhc7aj679qrzrhvrh5l-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "IYtfd9mJLcwk3FGPWlD5PbrKdIwDQf1Thn6fWFa5Rpo="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:IYtfd9mJLcwk3FGPWlD5PbrKdIwDQf1Thn6fWFa5Rpo="
+        },
+        {
+          "annotations": {
+            "drvPath": "v1j0n3mmpw0pwp27fjpdzgl8hpb3vcp3-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "MWKMJkvxdvuOyxE8rNlf15j7C+MwJibnNsbfS0biKwo="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:MWKMJkvxdvuOyxE8rNlf15j7C+MwJibnNsbfS0biKwo="
+        },
+        {
+          "annotations": {
+            "drvPath": "w4jjixjy62sb01ygxqg35jdp6iyzsprw-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "wueVQsV0ja/iPFRK7OKV27FQ7hYKF8cP3WH5wJeIXnI="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:wueVQsV0ja/iPFRK7OKV27FQ7hYKF8cP3WH5wJeIXnI="
+        },
+        {
+          "annotations": {
+            "drvPath": "w8r263aa2xb3b34pfmk24nl8qgmi4aj0-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "2x3znm92wo8DCshf5sYK0stnESg0oVXbxsWRAaTj6oQ="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:2x3znm92wo8DCshf5sYK0stnESg0oVXbxsWRAaTj6oQ="
+        },
+        {
+          "annotations": {
+            "drvPath": "wgd70sdxsr6qd1rdi2h806zkc1wvgwy2-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "cEBalMFoYFaGG8M48k+OEBvzLegzrTNP1NxH2ljP6qg="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:cEBalMFoYFaGG8M48k+OEBvzLegzrTNP1NxH2ljP6qg="
+        },
+        {
+          "annotations": {
+            "drvPath": "x9h5nv98kfpay3gir79rrpm2axxagpcp-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "c2RYqHi3hj/ViBzJcYWoNib27GAbq/B1SJUfvG7CPG4="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:c2RYqHi3hj/ViBzJcYWoNib27GAbq/B1SJUfvG7CPG4="
+        },
+        {
+          "annotations": {
+            "drvPath": "xm66nam0n5jn7gzpvrzs3fiq8rylkvra-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "w2YKQzni8e6rpnQJH2J0bHzRigjWOlWiI8Po5d3ZqS8="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:w2YKQzni8e6rpnQJH2J0bHzRigjWOlWiI8Po5d3ZqS8="
+        },
+        {
+          "annotations": {
+            "drvPath": "yp82yfyzx3a74yvr37l0vk219h3a4d01-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "iao7Aco1Ktvyt1uQCD/le4tAdyVpxfKPi3TRT12YHuU="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:iao7Aco1Ktvyt1uQCD/le4tAdyVpxfKPi3TRT12YHuU="
+        },
+        {
+          "annotations": {
+            "drvPath": "yr2pcldf9q83zrbn1d19kqmqvwmc6p55-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "dZFIGyjqkd+MRz9NoOEcMuR9ZshFb/h+zO2OJZsQajc="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:dZFIGyjqkd+MRz9NoOEcMuR9ZshFb/h+zO2OJZsQajc="
+        },
+        {
+          "annotations": {
+            "drvPath": "zm2yi7pka5xy2zrmryr3qrzax3sa3pjh-source.drv",
+            "outputHashMode": "nar"
+          },
+          "digest": {
+            "sha256": "qNz7BAvi3dTNg6Bz2cfqaYGKFJlM4C+y/GARsQRRYsY="
+          },
+          "name": "source",
+          "uri": "pkg:nix-fetch/source?hash=sha256:qNz7BAvi3dTNg6Bz2cfqaYGKFJlM4C+y/GARsQRRYsY="
+        },
+        {
+          "annotations": {
+            "drvPath": "44h33zavnmpbv7xjmiy8chlhs3qg7d5b-sqlite-autoconf-3510100.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "TyRFzXBHlyTTKtAV7H/Tf7tvYTABO9S/vIDDK+tCt+A="
+          },
+          "name": "sqlite-autoconf-3510100.tar.gz",
+          "uri": "pkg:nix-fetch/sqlite-autoconf-3510100.tar.gz?hash=sha256:TyRFzXBHlyTTKtAV7H/Tf7tvYTABO9S/vIDDK+tCt+A="
+        },
+        {
+          "annotations": {
+            "drvPath": "x12sbhpjmlxzbrkwf2cmwdjv7ls3ik89-sqlite-doc-3510100.zip.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "cygHoBzJ/K8ftBxw5Bam7dUVlXeI89Wud/7J2BtuIns="
+          },
+          "name": "sqlite-doc-3510100.zip",
+          "uri": "pkg:nix-fetch/sqlite-doc-3510100.zip?hash=sha256:cygHoBzJ/K8ftBxw5Bam7dUVlXeI89Wud/7J2BtuIns="
+        },
+        {
+          "annotations": {
+            "drvPath": "ijnaax347cn1kl1ls9kd3hz4l0l9vdsz-static.patch.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "7Uu9gaVuA9Aly2mmnhUVgv2BYQTSBODJ2rDl5xp0uVY="
+          },
+          "name": "static.patch",
+          "uri": "pkg:nix-fetch/static.patch?hash=sha256:7Uu9gaVuA9Aly2mmnhUVgv2BYQTSBODJ2rDl5xp0uVY="
+        },
+        {
+          "annotations": {
+            "drvPath": "72cmq1ms8qih2svpnw3v1rs9a035h2gy-tar-1.35.tar.xz.drv",
+            "outputHashMode": "flat",
+            "url": "https://ftpmirror.gnu.org/tar/tar-1.35.tar.xz",
+            "urls": "https://ftpmirror.gnu.org/tar/tar-1.35.tar.xz"
+          },
+          "digest": {
+            "sha256": "TWL/NzQux67XSFNTI5MMfPlKz3HDWRiCsmp+pQ8+3BY="
+          },
+          "name": "tar-1.35.tar.xz",
+          "uri": "pkg:nix-fetch/tar-1.35.tar.xz?hash=sha256:TWL/NzQux67XSFNTI5MMfPlKz3HDWRiCsmp+pQ8+3BY="
+        },
+        {
+          "annotations": {
+            "drvPath": "2r2qvm97pych10fr3a1c83fqzn4k7zxl-tcl8.6.16-src.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "kcuPphdxxjwmLvtVMFm3x61nV6+lhXr2Jl5LC9wqFKU="
+          },
+          "name": "tcl8.6.16-src.tar.gz",
+          "uri": "pkg:nix-fetch/tcl8.6.16-src.tar.gz?hash=sha256:kcuPphdxxjwmLvtVMFm3x61nV6+lhXr2Jl5LC9wqFKU="
+        },
+        {
+          "annotations": {
+            "drvPath": "6g3b3xbacf8yhj8wm75ac03cc8rcxql5-texinfo-7.2.tar.xz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "AynXeI++8RP6gsuAiJyhl6NEzg33ZG/gAJdMXXFDY6Y="
+          },
+          "name": "texinfo-7.2.tar.xz",
+          "uri": "pkg:nix-fetch/texinfo-7.2.tar.xz?hash=sha256:AynXeI++8RP6gsuAiJyhl6NEzg33ZG/gAJdMXXFDY6Y="
+        },
+        {
+          "annotations": {
+            "drvPath": "896vsnl7w7rhd17b65j8sp3g4kc0zh35-texinfo-7.2.tar.xz.drv",
+            "outputHashMode": "flat",
+            "url": "https://ftpmirror.gnu.org/texinfo/texinfo-7.2.tar.xz",
+            "urls": "https://ftpmirror.gnu.org/texinfo/texinfo-7.2.tar.xz"
+          },
+          "digest": {
+            "sha256": "AynXeI++8RP6gsuAiJyhl6NEzg33ZG/gAJdMXXFDY6Y="
+          },
+          "name": "texinfo-7.2.tar.xz",
+          "uri": "pkg:nix-fetch/texinfo-7.2.tar.xz?hash=sha256:AynXeI++8RP6gsuAiJyhl6NEzg33ZG/gAJdMXXFDY6Y="
+        },
+        {
+          "annotations": {
+            "drvPath": "vj8hfccr48hpfnk3598f9j5360zpahhr-toml-0.10.2.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "s72h0QjV3Zn0og0k2cNI6RxNt6sbdJIAve0vg5zL5o8="
+          },
+          "name": "toml-0.10.2.tar.gz",
+          "uri": "pkg:nix-fetch/toml-0.10.2.tar.gz?hash=sha256:s72h0QjV3Zn0og0k2cNI6RxNt6sbdJIAve0vg5zL5o8="
+        },
+        {
+          "annotations": {
+            "drvPath": "45w77n88a6jibig7rwcssj4m29k4w36q-trove_classifiers-2025.11.14.15.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "a2D0nUC72JW8YdjcQU/C8ihtcOty7SNUjbjPlPYoBMo="
+          },
+          "name": "trove_classifiers-2025.11.14.15.tar.gz",
+          "uri": "pkg:nix-fetch/trove_classifiers-2025.11.14.15.tar.gz?hash=sha256:a2D0nUC72JW8YdjcQU/C8ihtcOty7SNUjbjPlPYoBMo="
+        },
+        {
+          "annotations": {
+            "drvPath": "mjxrvlx2wn2wjsyxbwmgmfyvl46yf33d-types_psutil-7.0.0.20250822.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "Imy8DA6pzApQuKvMHZGibIdty0C+I4Ex9peINpBBlpg="
+          },
+          "name": "types_psutil-7.0.0.20250822.tar.gz",
+          "uri": "pkg:nix-fetch/types_psutil-7.0.0.20250822.tar.gz?hash=sha256:Imy8DA6pzApQuKvMHZGibIdty0C+I4Ex9peINpBBlpg="
+        },
+        {
+          "annotations": {
+            "drvPath": "v7ja2gw0b962xl3b48z422gq1clfdq9l-types_setuptools-80.9.0.20250822.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "Bw6ncWlo7GeoTH93aNmVL/JNKLZbZZR5ekZPGzBm+WU="
+          },
+          "name": "types_setuptools-80.9.0.20250822.tar.gz",
+          "uri": "pkg:nix-fetch/types_setuptools-80.9.0.20250822.tar.gz?hash=sha256:Bw6ncWlo7GeoTH93aNmVL/JNKLZbZZR5ekZPGzBm+WU="
+        },
+        {
+          "annotations": {
+            "drvPath": "xrsbb8kcxin9ia2dh7ca9w6frargsc4l-tzcode2025b.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "Bfj+2zUl7nDUnIfT+ueKig265P6HqlZcZc2plIrhNew="
+          },
+          "name": "tzcode2025b.tar.gz",
+          "uri": "pkg:nix-fetch/tzcode2025b.tar.gz?hash=sha256:Bfj+2zUl7nDUnIfT+ueKig265P6HqlZcZc2plIrhNew="
+        },
+        {
+          "annotations": {
+            "drvPath": "sk1851qqxgggzv8y0nr6isjvm2i0r0xc-tzdata2025b.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "EYEEEzRfx4BQF+J+qfpIhf10zWGykRcRrQOPXSjXFHQ="
+          },
+          "name": "tzdata2025b.tar.gz",
+          "uri": "pkg:nix-fetch/tzdata2025b.tar.gz?hash=sha256:EYEEEzRfx4BQF+J+qfpIhf10zWGykRcRrQOPXSjXFHQ="
+        },
+        {
+          "annotations": {
+            "drvPath": "21kj9w53pn4i56v3cb1a7wfp8cn01ij4-unzip60.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "A22WmRZG0ESe0KqVLk++IbR2zplKvCduSdMOaGcIvTc="
+          },
+          "name": "unzip60.tar.gz",
+          "uri": "pkg:nix-fetch/unzip60.tar.gz?hash=sha256:A22WmRZG0ESe0KqVLk++IbR2zplKvCduSdMOaGcIvTc="
+        },
+        {
+          "annotations": {
+            "drvPath": "k42j3q85r06kk3p1ia1y31vljy8rw4kn-urllib3-2.6.0.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "y5vO9aSzRdXaXRRdw+MINPWOgBiCjLxyTTC0y31NSfE="
+          },
+          "name": "urllib3-2.6.0.tar.gz",
+          "uri": "pkg:nix-fetch/urllib3-2.6.0.tar.gz?hash=sha256:y5vO9aSzRdXaXRRdw+MINPWOgBiCjLxyTTC0y31NSfE="
+        },
+        {
+          "annotations": {
+            "drvPath": "x2mzaq4qw65bqj7c0r71hk078gacvqq3-util-linux-2.41.2.tar.xz.drv",
+            "outputHashMode": "flat",
+            "url": "https://cdn.kernel.org/pub/linux/utils/util-linux/v2.41/util-linux-2.41.2.tar.xz",
+            "urls": "https://cdn.kernel.org/pub/linux/utils/util-linux/v2.41/util-linux-2.41.2.tar.xz"
+          },
+          "digest": {
+            "sha256": "YGKh2JtXGmGTLm/AIR82BgxBg1aLge6GbPNjvOn2WD4="
+          },
+          "name": "util-linux-2.41.2.tar.xz",
+          "uri": "pkg:nix-fetch/util-linux-2.41.2.tar.xz?hash=sha256:YGKh2JtXGmGTLm/AIR82BgxBg1aLge6GbPNjvOn2WD4="
+        },
+        {
+          "annotations": {
+            "drvPath": "a2hbzpmfk8659rmkp0nzagm3pbk96i8q-which-2.23.tar.gz.drv",
+            "outputHashMode": "flat"
+          },
+          "digest": {
+            "sha256": "osVYIm/E2eTOMxvS/Tw/F/lVEV0sAORHYYpO+ZeKKnM="
+          },
+          "name": "which-2.23.tar.gz",
+          "uri": "pkg:nix-fetch/which-2.23.tar.gz?hash=sha256:osVYIm/E2eTOMxvS/Tw/F/lVEV0sAORHYYpO+ZeKKnM="
+        },
+        {
+          "annotations": {
+            "drvPath": "g39zbiv8d8qbgzkqk2s03zdfc39b1j4a-which-2.23.tar.gz.drv",
+            "outputHashMode": "flat",
+            "url": "https://ftpmirror.gnu.org/which/which-2.23.tar.gz",
+            "urls": "https://ftpmirror.gnu.org/which/which-2.23.tar.gz"
+          },
+          "digest": {
+            "sha256": "osVYIm/E2eTOMxvS/Tw/F/lVEV0sAORHYYpO+ZeKKnM="
+          },
+          "name": "which-2.23.tar.gz",
+          "uri": "pkg:nix-fetch/which-2.23.tar.gz?hash=sha256:osVYIm/E2eTOMxvS/Tw/F/lVEV0sAORHYYpO+ZeKKnM="
+        },
+        {
+          "annotations": {
+            "drvPath": "qsxr00amrjgxry1hirafhlrzhl9ban5b-xz-5.8.1.tar.xz.drv",
+            "outputHashMode": "flat",
+            "url": "https://github.com/tukaani-project/xz/releases/download/v5.8.1/xz-5.8.1.tar.xz",
+            "urls": "https://github.com/tukaani-project/xz/releases/download/v5.8.1/xz-5.8.1.tar.xz"
+          },
+          "digest": {
+            "sha256": "C1T3nfhZElBN4LFK7Hlx4/lkSRrxgS2DRHAFgHUTzZ4="
+          },
+          "name": "xz-5.8.1.tar.xz",
+          "uri": "pkg:nix-fetch/xz-5.8.1.tar.xz?hash=sha256:C1T3nfhZElBN4LFK7Hlx4/lkSRrxgS2DRHAFgHUTzZ4="
+        },
+        {
+          "annotations": {
+            "drvPath": "gyks6vvl7x0gq214ldjhi3w4rg37nh8i-zlib-1.3.1.tar.gz.drv",
+            "outputHashMode": "flat",
+            "url": "https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz",
+            "urls": "https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz"
+          },
+          "digest": {
+            "sha256": "mpOyt9/ax3zrpaVYpYDnRmfdb+3kWFuR7vtg8Dty3yM="
+          },
+          "name": "zlib-1.3.1.tar.gz",
+          "uri": "pkg:nix-fetch/zlib-1.3.1.tar.gz?hash=sha256:mpOyt9/ax3zrpaVYpYDnRmfdb+3kWFuR7vtg8Dty3yM="
+        }
+      ]
+    },
+    "runDetails": {
+      "builder": {
+        "id": "https://lunal.dev/kettle-tee/v1"
+      },
+      "byproducts": [
+        {
+          "digest": {
+            "sha256": "d6da62fa8519b3d50754054a951a2674e644cad8344fe5235a75672b0806e7ef"
+          },
+          "name": "input_merkle_root"
+        }
+      ],
+      "metadata": {
+        "invocationId": "build-20260303-213245-adfaecab",
+        "startedOn": "2026-03-03T21:32:45.081012+00:00",
+        "finishedOn": "2026-03-03T21:32:45.277574+00:00"
+      }
+    }
+  },
+  "predicateType": "https://slsa.dev/provenance/v1",
+  "subject": [
+    {
+      "digest": {
+        "sha256": "abd66aa915e9839cef0cc33e0f0ec026259fee1ba97729ff441df4f6d421800a"
+      },
+      "name": "alejandra"
+    }
+  ]
+}
