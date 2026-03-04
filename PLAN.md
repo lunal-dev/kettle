@@ -44,7 +44,10 @@
 
 ## future work
 
-- [ ] `kettle verify-source` BUILD_PATH SOURCE_PATH # verify SOURCE_PATH was used to create BUILD_PATH
+- [ ] toolchain for python packages
+- [ ] toolchain for go binaries
+- [ ] `kettle verify-source` BUILD_PATH SOURCE_PATH\
+      # verifies that SOURCE_PATH was used to create BUILD_PATH
   - [ ] verify git commit against provenance
   - [ ] verify lockfile against provenance
   - [ ] verify entire merkle tree against provenance
