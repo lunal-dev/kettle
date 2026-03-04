@@ -216,6 +216,7 @@ mod tests {
             platform: PlatformType::Snp,
             claims: Claims {
                 launch_digest: String::new(),
+                signed_data: vec![],
                 report_data: vec![],
                 init_data: vec![],
                 tcb: TcbInfo::Snp {
