@@ -110,28 +110,18 @@ fn verify_report_data(
     verification_result: &VerificationResult,
     provenance: &Provenance,
 ) -> Verification {
-    let data_value = verification_result
-        .claims
-        .platform_data
-        .pointer("/tpm/nonce");
-    let checksum = hex::encode(provenance.checksum());
+    let signed_data = &verification_result.claims.signed_data;
+    let checksum = provenance.checksum();
 
-    if let Some(report_data) = data_value {
-        match *report_data == checksum {
-            true => Verification::success("Provenance checksum match"),
-            false => Verification::failure(
-                "Provenance checksum mismatch",
-                &format!(
-                    "Expected provenance.json checksum {:?}\nActual provenance.json checksum   {:?}",
-                    report_data, checksum
-                ),
+    match *signed_data == checksum {
+        true => Verification::success("Provenance checksum match"),
+        false => Verification::failure(
+            "Provenance checksum mismatch",
+            &format!(
+                "Expected provenance.json checksum {:?}\nActual provenance.json checksum   {:?}",
+                signed_data, checksum
             ),
-        }
-    } else {
-        Verification::failure(
-            "Provenance checksum missing",
-            "Expected to validate provenance.json checksum, but no checksum was present in the attestation.",
-        )
+        ),
     }
 }
 
