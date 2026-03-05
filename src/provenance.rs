@@ -209,18 +209,24 @@ pub(crate) struct Byproduct {
 pub enum Toolchain {
     NixToolchain {
         nix: ToolchainVersion,
+        kettle: ToolchainVersion,
     },
     RustToolchain {
         cargo: ToolchainVersion,
         rustc: ToolchainVersion,
+        kettle: ToolchainVersion,
     },
 }
 
 impl Display for Toolchain {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Toolchain::NixToolchain { nix } => write!(f, "{}", nix.version),
-            Toolchain::RustToolchain { cargo: _, rustc } => write!(f, "{}", rustc.version),
+            Toolchain::NixToolchain { kettle: _, nix } => write!(f, "{}", nix.version),
+            Toolchain::RustToolchain {
+                kettle: _,
+                cargo: _,
+                rustc,
+            } => write!(f, "{}", rustc.version),
         }
     }
 }
@@ -287,7 +293,11 @@ mod tests {
         assert_eq!(p.subject[0].name, "rg");
         // Toolchain should be RustToolchain
         match &p.predicate.build_definition.internal_parameters.toolchain {
-            Toolchain::RustToolchain { cargo, rustc } => {
+            Toolchain::RustToolchain {
+                cargo,
+                rustc,
+                kettle: _,
+            } => {
                 assert!(rustc.version.starts_with("rustc"));
                 assert!(cargo.version.starts_with("cargo"));
             }
@@ -305,7 +315,7 @@ mod tests {
             "https://lunal.dev/kettle/nix@v1"
         );
         match &p.predicate.build_definition.internal_parameters.toolchain {
-            Toolchain::NixToolchain { nix } => {
+            Toolchain::NixToolchain { nix, kettle: _ } => {
                 assert!(nix.version.contains("nix"));
             }
             _ => panic!("expected NixToolchain"),
@@ -531,6 +541,12 @@ mod tests {
                                     sha256: String::new(),
                                 },
                             },
+                            kettle: ToolchainVersion {
+                                version: String::new(),
+                                digest: Digest {
+                                    sha256: String::new(),
+                                },
+                            },
                         },
                     },
                     resolved_dependencies: vec![],
@@ -600,6 +616,12 @@ mod tests {
                                 },
                             },
                             cargo: ToolchainVersion {
+                                version: String::new(),
+                                digest: Digest {
+                                    sha256: String::new(),
+                                },
+                            },
+                            kettle: ToolchainVersion {
                                 version: String::new(),
                                 digest: Digest {
                                     sha256: String::new(),
@@ -675,6 +697,12 @@ mod tests {
                                 },
                             },
                             cargo: ToolchainVersion {
+                                version: String::new(),
+                                digest: Digest {
+                                    sha256: String::new(),
+                                },
+                            },
+                            kettle: ToolchainVersion {
                                 version: String::new(),
                                 digest: Digest {
                                     sha256: String::new(),
@@ -758,6 +786,12 @@ mod tests {
                                 },
                             },
                             cargo: ToolchainVersion {
+                                version: String::new(),
+                                digest: Digest {
+                                    sha256: String::new(),
+                                },
+                            },
+                            kettle: ToolchainVersion {
                                 version: String::new(),
                                 digest: Digest {
                                     sha256: String::new(),
@@ -881,6 +915,12 @@ mod tests {
                     sha256: String::new(),
                 },
             },
+            kettle: ToolchainVersion {
+                version: "kettle 1.0.0".to_string(),
+                digest: Digest {
+                    sha256: String::new(),
+                },
+            },
         };
         assert_eq!(format!("{t}"), "nix 2.18.1");
     }
@@ -896,6 +936,12 @@ mod tests {
             },
             cargo: ToolchainVersion {
                 version: "cargo 1.78.0".to_string(),
+                digest: Digest {
+                    sha256: String::new(),
+                },
+            },
+            kettle: ToolchainVersion {
+                version: "kettle 1.0.0".to_string(),
                 digest: Digest {
                     sha256: String::new(),
                 },

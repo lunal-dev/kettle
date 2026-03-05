@@ -38,6 +38,8 @@ pub(crate) fn build(path: &PathBuf) -> Result<()> {
 
 #[derive(Debug)]
 struct NixInputs {
+    kettle_version: String,
+    kettle_hash: String,
     nix_version: String,
     nix_hash: String,
     lockfile_hash: String,
@@ -62,11 +64,14 @@ impl ToolchainDriver for NixInputs {
         lockfile_bytes: &[u8],
     ) -> Result<Self> {
         let nix = ToolBinaryInfo::via_which("nix")?;
+        let kettle = ToolBinaryInfo::via_which("kettle")?;
         let flake_deps = parse_flake_lock(lockfile_bytes)?;
         let graph = evaluate_derivation_graph(path)?;
         let derivation_count = graph.as_object().map(|o| o.len()).unwrap_or(0);
         let fetches = extract_fixed_output_hashes(&graph);
         Ok(Self {
+            kettle_version: kettle.version,
+            kettle_hash: kettle.sha256,
             nix_version: nix.version,
             nix_hash: nix.sha256,
             lockfile_hash: lockfile_hash.to_string(),
@@ -191,6 +196,12 @@ impl ToolchainDriver for NixInputs {
                         version: self.nix_version,
                         digest: Digest {
                             sha256: self.nix_hash,
+                        },
+                    },
+                    kettle: ToolchainVersion {
+                        version: self.kettle_version,
+                        digest: Digest {
+                            sha256: self.kettle_hash,
                         },
                     },
                 },

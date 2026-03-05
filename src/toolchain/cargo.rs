@@ -14,6 +14,8 @@ pub(crate) fn build(path: &PathBuf) -> Result<()> {
 }
 
 struct CargoInputs {
+    kettle_version: String,
+    kettle_hash: String,
     rustc_version: String,
     rustc_hash: String,
     cargo_version: String,
@@ -39,8 +41,11 @@ impl ToolchainDriver for CargoInputs {
     ) -> Result<Self> {
         let rustc = ToolBinaryInfo::via_rustup("rustc")?;
         let cargo = ToolBinaryInfo::via_rustup("cargo")?;
+        let kettle = ToolBinaryInfo::via_which("kettle")?;
         let resolved_deps = parse_cargo_lock(lockfile_bytes)?;
         Ok(Self {
+            kettle_version: kettle.version,
+            kettle_hash: kettle.sha256,
             rustc_version: rustc.version,
             rustc_hash: rustc.sha256,
             cargo_version: cargo.version,
@@ -123,6 +128,12 @@ impl ToolchainDriver for CargoInputs {
                         version: self.cargo_version,
                         digest: Digest {
                             sha256: self.cargo_hash,
+                        },
+                    },
+                    kettle: ToolchainVersion {
+                        version: self.kettle_version,
+                        digest: Digest {
+                            sha256: self.kettle_hash,
                         },
                     },
                 },

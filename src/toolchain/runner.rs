@@ -171,6 +171,12 @@ mod tests {
                             sha256: "e".repeat(64),
                         },
                     },
+                    kettle: ToolchainVersion {
+                        version: "kettle 1.0.0".to_string(),
+                        digest: Digest {
+                            sha256: "f".repeat(64),
+                        },
+                    },
                 },
             },
             resolved_dependencies: vec![],
