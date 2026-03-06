@@ -88,8 +88,7 @@ pub(crate) fn git_cmd(path: &PathBuf, args: &[&str]) -> Result<String> {
     Ok(String::from_utf8(out.stdout)?.trim().to_string())
 }
 
-// --- New shared types ---
-
+#[derive(Debug)]
 pub(crate) struct GitContext {
     pub(crate) commit: String,
     pub(crate) tree: String,
@@ -98,8 +97,8 @@ pub(crate) struct GitContext {
 
 impl GitContext {
     pub(crate) fn from_dir(path: &PathBuf) -> Result<Self> {
-        let commit = git_cmd(path, &["rev-parse", "HEAD", "--"])?;
-        let tree = git_cmd(path, &["rev-parse", "HEAD^{tree}", "--"])?;
+        let commit = git_cmd(path, &["rev-parse", "HEAD"])?;
+        let tree = git_cmd(path, &["rev-parse", "HEAD^{tree}"])?;
         let source_uri = git_cmd(path, &["remote", "get-url", "origin"]).unwrap_or_default();
         Ok(Self {
             commit,
