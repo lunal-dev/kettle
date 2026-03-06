@@ -61,5 +61,4 @@ tokio = { version = "1.49.0", features = ["rt-multi-thread"] }
 
 [dev-dependencies]
 tempfile = "3"
-proptest = "1"
 regex-lite = "0.1"
