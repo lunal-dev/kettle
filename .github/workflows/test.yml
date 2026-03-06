@@ -34,7 +34,7 @@ jobs:
           command: check ${{ matrix.checks }}
 
   lint:
-    name: Lint (${{ matrix.os }})
+    name: Lint
     runs-on: ubuntu-latest
 
     steps:
