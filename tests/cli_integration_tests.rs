@@ -105,7 +105,7 @@ fn cli_attest_feature_disabled() {
 #[cfg(all(feature = "attest", target_os = "linux"))]
 #[ignore]
 #[test]
-fn cli_attest_ripgrep() {
+fn cli_attest_ripgrep() -> anyhow::Result<()> {
     let tmp = TempDir::new().unwrap();
     let path = tmp.path().to_string_lossy();
     Command::new("git")
@@ -140,12 +140,16 @@ fn cli_attest_ripgrep() {
         "expected verify to pass, got {}",
         stdout
     );
+
+    fs_err::rename(tmp.path().join("kettle-build"), "/tmp/ripgrep-build")?;
+
+    Ok(())
 }
 
 #[cfg(all(feature = "attest", target_os = "linux"))]
 #[ignore]
 #[test]
-fn cli_attest_alejandra() {
+fn cli_attest_alejandra() -> anyhow::Result<()> {
     let tmp = TempDir::new().unwrap();
     let path = tmp.path().to_string_lossy();
     Command::new("git")
@@ -180,4 +184,8 @@ fn cli_attest_alejandra() {
         "expected verify to pass, got {}",
         stdout
     );
+
+    fs_err::rename(tmp.path().join("kettle-build"), "/tmp/alejandra-build")?;
+
+    Ok(())
 }
