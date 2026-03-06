@@ -1,0 +1,7 @@
+#!/bin/bash
+set -euo pipefail
+
+set -x
+
+cargo nextest run
+cargo nextest run --features attest
