@@ -30,8 +30,15 @@ struct Args {
 #[derive(Subcommand, Debug)]
 enum Commands {
     /// Build and attest a project inside a Trusted Execution Environment
+    #[cfg(all(feature = "attest", target_os = "linux"))]
     Attest {
         #[arg()]
+        path: PathBuf,
+    },
+    #[cfg(not(all(feature = "attest", target_os = "linux")))]
+    #[command(hide = true)]
+    Attest {
+        #[arg(default_value = ".")]
         path: PathBuf,
     },
     /// Build a project with SLSA v1.2 provenance
