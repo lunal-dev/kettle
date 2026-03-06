@@ -4,19 +4,19 @@
 
 # Kettle, for attested builds
 
-**The security of reproducible builds, without having to constantly rewrite your build system to ensure every build is byte-for-byte identical.**
+Kettle builds and verifies **attested builds**, packages that include cryptographically signed SLSA provenance certifying the source, tools, and machine used to create the build.
+
+**Get just the good parts of reproducible builds: the security and assurance of signed and provable inputs, without the misery of constantly repairing your build system.**
 
 ## Why attested builds?
-
-Do you need to ensure your servers only run code you have approved? Do your customers need to be confident that you ran exactly the code they requested?
 
 Attested builds allow anyone to verify the exact inputs that produced any binary output, by adding cryptographic signatures showing exactly what source code, dependencies, and toolchains were used.
 
 Kettle uses TEEs (Trusted Execution Environments) to sign builds using hardware attestation. Hardware attestations are verified against certificates published by the hardware manufacturer, cryptographically linking binaries to their exact source code.
 
-### Dive into attested builds
+### Use cases for attested builds
 
-Kettle's attested builds provide a solution to almost every scenario where binaries need a verification trail directly back to the source code and tools that created them. This is just a few examples of the kinds of problems you can solve:
+Kettle's attested builds provide a solution to almost every scenario where binaries need a verification trail directly back to the source code and tools that created them. This is just a few examples of problems Kettle can solve:
 
 - A customer deploying your service wants to know it’s running the code you claim, built from the source they audited.
 - A compliance team wants evidence that a binary was built with specific dependency versions, not newer ones with unknown changes.
@@ -31,17 +31,23 @@ For a full tour of Kettle's design, architecture, and security guarantees, read 
 3. [Provenance and Standards](/docs/3-provenance-standards.md)
 4. [Threat Model and Security Boundaries](/docs/4-threat-model.md)
 
-## Why Kettle?
+## Why attest with Kettle?
 
-Existing attestation systems force trust in the provider running the build. If you use GitHub's [artifact attestations](https://docs.github.com/en/actions/concepts/security/artifact-attestations), you are agreeing to take GitHub's word that their cloud VMs didn't tamper with your build.
+Most build systems can't provide hardware-secured build machines. Kettle ensures your build was created and signed inside a confidential virtual machine, with memory and compute secured even against a malicious hypervisor. In contrast, if you use GitHub's [artifact attestations](https://docs.github.com/en/actions/concepts/security/artifact-attestations), you are forced to simply take GitHub's word that their cloud VMs didn't tamper with your build.
 
-You are no longer required to trust the sysadmins with root on the bare metal, or the authors of the hypervisor that creates and manages your build VMs, or the developers maintaining the image your code will run on. The code that runs in your TEE is signed by the hardware, so you can be sure what ran, and encrypted so even the hypervisor can't read the memory of your job as it runs.
-
-By using Kettle to build and attest inside a TEE, you get a hardware-based cryptographic assertion, dramatically reducing the number of parties you are forced to trust. You only need to trust the hardware manufacturer and the physical custodians of your build machines.
+Using Kettle to build and attest inside a TEE gives you hardware-based cryptographic assertion, dramatically reducing the number of parties you are forced to trust. You only need to trust the hardware manufacturer and the physical custodians of your build machines. No need to trust the sysadmins with root on the bare metal, or the authors of the hypervisor that creates and manages your build VMs, or the developers maintaining the image your code will run on. The code that runs in your TEE is signed by the hardware, so you can be sure what ran, and encrypted so even the hypervisor can't read the memory of your job as it runs.
 
 ## Installing Kettle
 
-Kettle is available
+Kettle is available from GitHub Releases or from source via Cargo, the Rust build tool.
+
+### From GitHub Releases
+
+```bash
+curl -LO https://github.com/lunal-dev/kettle/releases/latest/download/kettle
+```
+
+### From source
 
 To install Kettle, first [install Rust](https://rustup.rs), and then use Cargo to build and install:
 
@@ -58,9 +64,24 @@ cargo install --features attest --git https://github.com/lunal-dev/kettle
 
 ## Using Kettle
 
+### Build anywhere
+
+Run `kettle build` to do all the steps except the hardware cryptography: generate a SLSA-compliant `provenance.json` file, build the project, and checksum the binaries. Use this command to test your build process even if you aren't inside a TEE.
+
+Today, Kettle supports building and attesting Rust and Nix projects. It's easy to add additional toolchains, and we plan to add first-party support for Python and Go soon.
+
+This example will check out the `ripgrep` search tool, build a binary, and generate a provenance file:
+
+```bash
+git clone https://github.com/burntsushi/ripgrep
+kettle build ripgrep
+```
+
+After Kettle finishes running, look for the provenance and binaries are available inside the `kettle-build` directory.
+
 ### Attest from a TEE
 
-Run `kettle attest` to generate a SLSA-compliant `provenance.json` file, build the project, checksum the binaries, record measurements from the VM, and apply a hardware signature to everything.
+Run `kettle attest` to run a build, record measurements from the VM, and then apply a hardware signature to everything.
 
 ![build from source code, dependencies, and toolchain. measure the binaries, provenance file, and VM. attest those to create hardware-signed evidence](/docs/build.png)
 
@@ -71,11 +92,11 @@ git clone https://github.com/burntsushi/ripgrep
 kettle attest ripgrep
 ```
 
-After Kettle finishes running , look for the provenance, attestation, and binary inside the `kettle-build` directory.
+After Kettle finishes running, the provenance, attestation, and binaries are available inside the `kettle-build` directory.
 
 ### Verify anywhere
 
-Run `kettle verify` to cryptographically verify your binaries. Kettle will read the `evidence.json`, verify the signature using hardware vendor public keys, and then validate the signed `provenance.json` and confirm the checksum of your binary.
+Run `kettle verify` to cryptographically verify your binaries. Kettle will read the `evidence.json`, verify the signature using hardware vendor public keys, and then validate the signed `provenance.json` and use it to confirm the checksum of your binary.
 
 ![verify the hardware-signed evidence, which provides the checksums for the provenance and binary, which you can use to prove which source code, dependencies, and toolchain were used](/docs/verify.png)
 
@@ -85,25 +106,8 @@ Verify the attested build created above like this:
 kettle verify ripgrep/kettle-build
 ```
 
-### Build anywhere
-
-Run `kettle build` to do all the steps except the hardware cryptography: generate a SLSA-compliant `provenance.json` file, build the project, and checksum the binaries. Use this command to test your build process even if you aren't inside a TEE.
-
-This will check out the `ripgrep` search tool, build a binary, and generate a provenance file:
-
-```bash
-git clone https://github.com/burntsushi/ripgrep
-kettle build ripgrep
-```
-
-After Kettle finishes running , look for the provenance and binary inside the `kettle-build` directory.
-
-## Plans
-
-In the future, Kettle will be able to attest builds from any toolchain, including Python, Go, and many others.
-
 ## Development
 
-Use `cargo nextest run` to run the tests on any platform.
+Use `cargo nextest run` to run the tests for any platform.
 
 In a TEE, use `cargo nextest run --ignored all` to run the full integration tests that checkout Rust and Nix projects, build them, attest them, and verify them.
