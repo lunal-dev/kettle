@@ -1,3 +1,7 @@
+<h1 align="center">
+  <img src="docs/kettle.png" width="160px" height="160px" alt="kettle">
+</h1>
+
 # Kettle, for attested builds
 
 **The security of reproducible builds, without having to constantly rewrite your build system to ensure every build is byte-for-byte identical.**
