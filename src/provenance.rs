@@ -889,13 +889,13 @@ mod tests {
     #[test]
     fn accessor_build_id() {
         let p = Provenance::from_json(CARGO_FIXTURE).unwrap();
-        assert_eq!(p.build_id(), "build-20260303-213252-50343e02");
+        assert_eq!(p.build_id(), "build-20260305-070604-f76e0da8");
     }
 
     #[test]
     fn accessor_timestamp() {
         let p = Provenance::from_json(CARGO_FIXTURE).unwrap();
-        assert_eq!(p.timestamp(), "2026-03-03T21:32:52.225028+00:00");
+        assert_eq!(p.timestamp(), "2026-03-05T07:06:04.269222+00:00");
     }
 
     #[test]
