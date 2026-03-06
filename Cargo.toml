@@ -2,6 +2,7 @@
 name = "kettle"
 version = "0.1.0"
 edition = "2024"
+repository = "https://github.com/lunal-dev/kettle"
 
 [features]
 attest = ["attestation/attest"]
@@ -62,3 +63,8 @@ tokio = { version = "1.49.0", features = ["rt-multi-thread"] }
 [dev-dependencies]
 tempfile = "3"
 regex-lite = "0.1"
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
