@@ -197,16 +197,13 @@ mod tests {
 
     const CARGO_FIXTURE: &[u8] = include_bytes!("../../tests/fixtures/ripgrep/provenance.json");
 
-    fn make_verification_result(
-        signature_valid: bool,
-        platform_data: serde_json::Value,
-    ) -> VerificationResult {
+    fn make_verification_result(signature_valid: bool, signed_data: Vec<u8>) -> VerificationResult {
         VerificationResult {
             signature_valid,
             platform: PlatformType::Snp,
             claims: Claims {
                 launch_digest: String::new(),
-                signed_data: vec![],
+                signed_data,
                 report_data: vec![],
                 init_data: vec![],
                 tcb: TcbInfo::Snp {
@@ -215,7 +212,7 @@ mod tests {
                     snp: 0,
                     microcode: 0,
                 },
-                platform_data,
+                platform_data: Default::default(),
             },
             report_data_match: None,
             init_data_match: None,
@@ -247,7 +244,7 @@ mod tests {
 
     #[test]
     fn verify_signature_valid() {
-        let vr = make_verification_result(true, serde_json::json!({}));
+        let vr = make_verification_result(true, vec![]);
         match verify_signature(&vr) {
             Verification::Success { .. } => {}
             Verification::Failure { message, .. } => panic!("expected success: {message}"),
@@ -256,7 +253,7 @@ mod tests {
 
     #[test]
     fn verify_signature_invalid() {
-        let vr = make_verification_result(false, serde_json::json!({}));
+        let vr = make_verification_result(false, vec![]);
         match verify_signature(&vr) {
             Verification::Failure { message, .. } => {
                 assert!(message.contains("invalid"), "message: {message}");
@@ -268,15 +265,10 @@ mod tests {
     // --- verify_report_data ---
 
     #[test]
-    fn verify_report_data_match() {
+    fn verify_signed_data_match() {
         let provenance = Provenance::from_json(CARGO_FIXTURE).unwrap();
-        let checksum_hex = hex::encode(provenance.checksum());
-        let platform_data = serde_json::json!({
-            "tpm": {
-                "nonce": checksum_hex
-            }
-        });
-        let vr = make_verification_result(true, platform_data);
+        let signed_data = provenance.checksum();
+        let vr = make_verification_result(true, signed_data);
         match verify_report_data(&vr, &provenance) {
             Verification::Success { message } => {
                 assert!(message.contains("match"), "message: {message}");
@@ -286,14 +278,10 @@ mod tests {
     }
 
     #[test]
-    fn verify_report_data_mismatch() {
+    fn verify_signed_data_mismatch() {
         let provenance = Provenance::from_json(CARGO_FIXTURE).unwrap();
-        let platform_data = serde_json::json!({
-            "tpm": {
-                "nonce": "0000000000000000000000000000000000000000000000000000000000000000"
-            }
-        });
-        let vr = make_verification_result(true, platform_data);
+        let signed_data = vec![0, 0, 0];
+        let vr = make_verification_result(true, signed_data);
         match verify_report_data(&vr, &provenance) {
             Verification::Failure { message, .. } => {
                 assert!(message.contains("mismatch"), "message: {message}");
@@ -303,38 +291,13 @@ mod tests {
     }
 
     #[test]
-    fn verify_report_data_tpm_key_absent() {
+    fn verify_signed_data_absent() {
         let provenance = Provenance::from_json(CARGO_FIXTURE).unwrap();
-        let platform_data = serde_json::json!({});
-        let vr = make_verification_result(true, platform_data);
+        let signed_data = vec![];
+        let vr = make_verification_result(true, signed_data);
         match verify_report_data(&vr, &provenance) {
             Verification::Failure { message, .. } => {
-                assert!(message.contains("missing"), "message: {message}");
-            }
-            Verification::Success { .. } => panic!("expected failure"),
-        }
-    }
-
-    #[test]
-    fn verify_report_data_nonce_key_absent() {
-        let provenance = Provenance::from_json(CARGO_FIXTURE).unwrap();
-        let platform_data = serde_json::json!({"tpm": {}});
-        let vr = make_verification_result(true, platform_data);
-        match verify_report_data(&vr, &provenance) {
-            Verification::Failure { message, .. } => {
-                assert!(message.contains("missing"), "message: {message}");
-            }
-            Verification::Success { .. } => panic!("expected failure"),
-        }
-    }
-
-    #[test]
-    fn verify_report_data_null_platform_data() {
-        let provenance = Provenance::from_json(CARGO_FIXTURE).unwrap();
-        let vr = make_verification_result(true, serde_json::Value::Null);
-        match verify_report_data(&vr, &provenance) {
-            Verification::Failure { message, .. } => {
-                assert!(message.contains("missing"), "message: {message}");
+                assert!(message.contains("mismatch"), "message: {message}");
             }
             Verification::Success { .. } => panic!("expected failure"),
         }
