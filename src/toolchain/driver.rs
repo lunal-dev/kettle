@@ -404,10 +404,22 @@ mod tests {
             .output()
             .unwrap();
         std::process::Command::new("git")
+            .args(["config", "user.name", "Kettle CI"])
+            .current_dir(tmp.path())
+            .output()
+            .unwrap();
+
+        // why is this failing but only on GitHub actions?
+        let output = std::process::Command::new("git")
             .args(["commit", "--allow-empty", "-n", "-m", "init"])
             .current_dir(tmp.path())
             .output()
             .unwrap();
+        println!(
+            "{}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
 
         let ctx = GitContext::from_dir(&tmp.path().to_path_buf()).unwrap();
         assert!(
