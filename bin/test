@@ -3,5 +3,10 @@ set -euo pipefail
 
 set -x
 
-cargo nextest run
-cargo nextest run --features attest
+cargo nextest run "${@:---no-fail-fast}"
+
+if dmesg 2>/dev/null | grep -i -E "snp|tdx|sev"; then
+  cargo nextest run --features attest "${@:---no-fail-fast}"
+else
+  echo "no attestation hardware found, skipping TEE tests"
+fi
