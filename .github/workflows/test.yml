@@ -54,7 +54,6 @@ jobs:
 
   run-tests:
     name: Run tests
-    needs: lint
     runs-on: ${{ matrix.runs-on }}
     strategy:
       fail-fast: false
