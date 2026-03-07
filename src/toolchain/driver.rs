@@ -97,9 +97,9 @@ pub(crate) struct GitContext {
 
 impl GitContext {
     pub(crate) fn from_dir(path: &PathBuf) -> Result<Self> {
+        let source_uri = git_cmd(path, &["remote", "get-url", "origin"]).unwrap_or_default();
         let commit = git_cmd(path, &["rev-parse", "HEAD"])?;
         let tree = git_cmd(path, &["rev-parse", "HEAD^{tree}"])?;
-        let source_uri = git_cmd(path, &["remote", "get-url", "origin"]).unwrap_or_default();
         Ok(Self {
             commit,
             tree,
@@ -404,13 +404,7 @@ mod tests {
             .output()
             .unwrap();
         std::process::Command::new("git")
-            .args([
-                "commit",
-                "--author='Kettle CI <kettle-ci@lunal.dev>'",
-                "--allow-empty",
-                "-m",
-                "init",
-            ])
+            .args(["commit", "--allow-empty", "-n", "-m", "init"])
             .current_dir(tmp.path())
             .output()
             .unwrap();
