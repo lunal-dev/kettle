@@ -68,6 +68,8 @@ cargo install --features attest --git https://github.com/lunal-dev/kettle
 
 Run `kettle build` to do all the steps except the hardware cryptography: generate a SLSA-compliant `provenance.json` file, build the project, and checksum the binaries. Use this command to test your build process even if you aren't inside a TEE.
 
+![`kettle build` will generate the provenance, build the project, and checksum the binaries](/docs/build.png)
+
 Today, Kettle supports building and attesting Rust and Nix projects. It's easy to add additional toolchains, and we plan to add first-party support for Python and Go soon.
 
 This example will check out the `ripgrep` search tool, build a binary, and generate a provenance file:
@@ -81,9 +83,9 @@ After Kettle finishes running, look for the provenance and binaries are availabl
 
 ### Attest from a TEE
 
-Run `kettle attest` to run a build, record measurements from the VM, and then apply a hardware signature to everything.
+Run `kettle attest` to run a build, record the VM firmware and OS image, then apply a hardware signature to everything to create an `evidence.json` file.
 
-![build from source code, dependencies, and toolchain. measure the binaries, provenance file, and VM. attest those to create hardware-signed evidence](/docs/build.png)
+![`kettle attest` will build if needed, then create hardware-signed evidence containing the checksum of the provenance file and confidential VM launch mearusements](/docs/attest.png)
 
 While running inside a TEE, this will check out, build, and attest the `ripgrep` search tool:
 
