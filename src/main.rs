@@ -3,7 +3,7 @@ use clap::{
     builder::{Styles, styling::AnsiColor},
 };
 use colored::Colorize;
-use std::path::PathBuf;
+use std::{path::PathBuf, process::exit};
 use tracing::{debug, error};
 use tracing_subscriber::FmtSubscriber;
 
@@ -75,6 +75,7 @@ async fn main() -> anyhow::Result<()> {
     if let Err(e) = result {
         error!("{}", "Error during run:".red());
         error!("  {}", e);
+        exit(1);
     }
 
     Ok(())
