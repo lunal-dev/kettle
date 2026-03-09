@@ -1,8 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-REPO=$1
-if [[ -n $REPO ]]; then
+REPO="$1"
+if [[ -e "$REPO" ]]; then
    echo "USAGE: kettle-build USERNAME/REPO"
    exit 1
 fi

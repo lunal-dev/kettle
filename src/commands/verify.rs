@@ -8,10 +8,11 @@ use tabled::builder::Builder;
 use tabled::settings::object::Columns;
 use tabled::settings::themes::BorderCorrection;
 use tabled::settings::{Alignment, Panel, Style};
+use tracing::info;
 
 use crate::provenance::Provenance;
 
-pub async fn verify(path: &PathBuf, verbose: bool) -> Result<()> {
+pub async fn verify(path: &PathBuf) -> Result<()> {
     let build = Build::from_dir(path)?;
 
     // Get the provenance and attestation
@@ -88,10 +89,7 @@ pub async fn verify(path: &PathBuf, verbose: bool) -> Result<()> {
         }
     }
 
-    if verbose {
-        println!("{}\n{:?}", "Attestation claims".bold(), &verification);
-        println!();
-    }
+    info!("{}\n{:?}", "Attestation claims".bold(), &verification);
 
     Ok(())
 }

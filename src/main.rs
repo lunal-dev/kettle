@@ -4,6 +4,8 @@ use clap::{
 };
 use colored::Colorize;
 use std::path::PathBuf;
+use tracing::{debug, error};
+use tracing_subscriber::FmtSubscriber;
 
 use kettle::commands;
 
@@ -23,8 +25,8 @@ const STYLES: Styles = Styles::styled()
 struct Args {
     #[command(subcommand)]
     command: Commands,
-    #[arg(long, help = "Enable verbose output", global = true)]
-    verbose: bool,
+    #[command(flatten)]
+    verbosity: clap_verbosity_flag::Verbosity,
 }
 
 #[derive(Subcommand, Debug)]
@@ -52,29 +54,28 @@ enum Commands {
         /// Path to directory containing provenance.json and evidence.b64
         #[arg(default_value = ".")]
         path: PathBuf,
-        #[arg(long, help = "Verbose output, including the entire attestation report")]
-        verbose: bool,
     },
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
+    let subscriber = FmtSubscriber::builder()
+        .with_max_level(args.verbosity)
+        .finish();
+    tracing::subscriber::set_global_default(subscriber).expect("log configuration failed");
+
+    debug!("got args: {:?}", args);
     let result = match args.command {
         Commands::Attest { ref path } => commands::attest::attest(path).await,
         Commands::Build { ref path } => commands::build::build(path),
-        Commands::Verify { ref path, verbose } => commands::verify::verify(path, verbose).await,
+        Commands::Verify { ref path } => commands::verify::verify(path).await,
     };
 
-    if args.verbose {
-        result
-    } else {
-        if let Err(e) = result {
-            eprintln!("{}", "Error during run:".red());
-            eprintln!("  {}", e);
-            std::process::exit(1);
-        }
-
-        Ok(())
+    if let Err(e) = result {
+        error!("{}", "Error during run:".red());
+        error!("  {}", e);
     }
+
+    Ok(())
 }
