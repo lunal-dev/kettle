@@ -6,6 +6,8 @@ use std::process::Command;
 
 use crate::provenance::{InternalParameters, ResolvedDependency};
 
+shadow_rs::shadow!(binary);
+
 // --- Moved from toolchain.rs ---
 
 #[derive(Debug)]
@@ -120,6 +122,7 @@ pub(crate) struct ProvenanceFields {
     pub(crate) resolved_dependencies: Vec<ResolvedDependency>,
 }
 
+#[derive(Debug)]
 pub(crate) struct ToolBinaryInfo {
     pub(crate) version: String,
     pub(crate) sha256: String,
@@ -163,6 +166,12 @@ impl ToolBinaryInfo {
             .output()
             .with_context(|| format!("{cmd} --version failed"))?;
         let version = String::from_utf8(ver.stdout)?.trim().to_string();
+        Ok(Self { version, sha256 })
+    }
+
+    pub(crate) fn kettle_info() -> Result<Self> {
+        let version = binary::VERSION.to_string();
+        let sha256 = binary::VERSION.to_string();
         Ok(Self { version, sha256 })
     }
 }
