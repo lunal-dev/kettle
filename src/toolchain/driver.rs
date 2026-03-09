@@ -8,6 +8,7 @@ use crate::provenance::{InternalParameters, ResolvedDependency};
 
 // --- Moved from toolchain.rs ---
 
+#[derive(Debug)]
 pub(crate) struct BuildMetadata {
     pub(crate) invocation_id: String,
     pub(crate) started_on: String,

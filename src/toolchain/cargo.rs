@@ -13,6 +13,7 @@ pub(crate) fn build(path: &PathBuf) -> Result<()> {
     crate::toolchain::runner::run::<CargoInputs>(path)
 }
 
+#[derive(Debug)]
 struct CargoInputs {
     kettle_version: String,
     kettle_hash: String,
