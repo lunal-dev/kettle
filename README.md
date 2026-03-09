@@ -1,5 +1,5 @@
 <h1 align="center">
-  <img src="docs/kettle.png" width="160px" height="160px" alt="kettle">
+  <img src="docs/kettle.png" width="220px" height="220px" alt="kettle">
 </h1>
 
 # Kettle, for attested builds
