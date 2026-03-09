@@ -58,7 +58,7 @@ enum Commands {
 }
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() {
     let args = Args::parse();
     let subscriber = FmtSubscriber::builder()
         .with_max_level(args.verbosity)
@@ -77,6 +77,4 @@ async fn main() -> anyhow::Result<()> {
         error!("  {}", e);
         exit(1);
     }
-
-    Ok(())
 }
