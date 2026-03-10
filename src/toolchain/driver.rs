@@ -3,11 +3,15 @@ use chrono::DateTime;
 use sha2::{Digest as _, Sha256};
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use tracing::debug;
 
 use crate::provenance::{InternalParameters, ResolvedDependency};
 
+shadow_rs::shadow!(binary);
+
 // --- Moved from toolchain.rs ---
 
+#[derive(Debug)]
 pub(crate) struct BuildMetadata {
     pub(crate) invocation_id: String,
     pub(crate) started_on: String,
@@ -119,6 +123,7 @@ pub(crate) struct ProvenanceFields {
     pub(crate) resolved_dependencies: Vec<ResolvedDependency>,
 }
 
+#[derive(Debug)]
 pub(crate) struct ToolBinaryInfo {
     pub(crate) version: String,
     pub(crate) sha256: String,
@@ -154,6 +159,12 @@ impl ToolBinaryInfo {
             .arg(cmd)
             .output()
             .with_context(|| format!("which {cmd} failed"))?;
+
+        debug!("which {cmd} output: {:?}", which);
+        if which.stdout.is_empty() {
+            return Err(anyhow!("could not find command named `{}`", cmd));
+        }
+
         let bin = PathBuf::from(String::from_utf8(which.stdout)?.trim().to_string());
         let sha256 = hex::encode(Sha256::digest(fs_err::read(&bin)?));
 
@@ -162,6 +173,12 @@ impl ToolBinaryInfo {
             .output()
             .with_context(|| format!("{cmd} --version failed"))?;
         let version = String::from_utf8(ver.stdout)?.trim().to_string();
+        Ok(Self { version, sha256 })
+    }
+
+    pub(crate) fn kettle_info() -> Result<Self> {
+        let version = binary::VERSION.to_string();
+        let sha256 = binary::VERSION.to_string();
         Ok(Self { version, sha256 })
     }
 }

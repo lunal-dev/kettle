@@ -134,7 +134,7 @@ pub(crate) struct BuildDefiniton {
     pub(crate) resolved_dependencies: Vec<ResolvedDependency>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ResolvedDependency {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -237,7 +237,7 @@ pub struct ToolchainVersion {
     pub(crate) version: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Annotation {
     pub(crate) drv_path: String,

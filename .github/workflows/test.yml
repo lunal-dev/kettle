@@ -38,17 +38,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check out repo
-        uses: actions/checkout@v6
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@v6
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           components: rustfmt, clippy
-
-      - name: Cache dependencies
-        uses: Swatinem/rust-cache@v2
-
       - name: Run linters
         run: ./bin/lint
 
@@ -65,18 +58,26 @@ jobs:
           - ubuntu-24.04-arm # linux-arm
 
     steps:
-      - name: Check out repo
-        uses: actions/checkout@v6
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install nextest
-        uses: taiki-e/install-action@nextest
-
-      - name: Cache dependencies
-        uses: Swatinem/rust-cache@v2
-
+      - uses: actions/checkout@v6
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: taiki-e/install-action@nextest
       - name: Run non-TEE tests
         shell: bash
         run: ./bin/test
+
+  build-projects:
+    name: Build ${{ matrix.project }} with Kettle
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - burntsushi/ripgrep
+          - eza-community/eza
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: cachix/install-nix-action@v31
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+      - run: bin/kettle-build ${{ matrix.project }}

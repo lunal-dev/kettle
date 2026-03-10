@@ -2,6 +2,7 @@ use anyhow::{Result, anyhow};
 use rs_merkle::MerkleTree;
 use sha2::{Digest as _, Sha256};
 use std::path::PathBuf;
+use tracing::debug;
 
 use crate::provenance::{
     BuildDefiniton, Builder, Byproduct, Digest, ExternalParameters, Metadata, Predicate,
@@ -10,9 +11,12 @@ use crate::provenance::{
 
 use super::driver::{Artifact, BuildMetadata, GitContext, ProvenanceFields, ToolchainDriver};
 
-pub(crate) fn run<T: ToolchainDriver>(path: &PathBuf) -> Result<()> {
+pub(crate) fn run<T: ToolchainDriver + std::fmt::Debug>(path: &PathBuf) -> Result<()> {
+    debug!("input dir: {:?}", path);
+
     // 1. Clean / create output dir
     let output_dir = path.join("kettle-build");
+    debug!("output dir: {:?}", output_dir);
     if fs_err::exists(&output_dir)? {
         fs_err::remove_dir_all(&output_dir)?;
     }
@@ -20,16 +24,20 @@ pub(crate) fn run<T: ToolchainDriver>(path: &PathBuf) -> Result<()> {
 
     // 2. Git context (shared)
     let git = GitContext::from_dir(path)?;
+    debug!("git context: {:?}", git);
 
     // 3. Read and hash lockfile (shared)
     let lockfile_bytes = fs_err::read(path.join(T::lockfile_filename()))?;
     let lockfile_hash = hex::encode(Sha256::digest(&lockfile_bytes));
+    debug!("lockfile hash: {}", lockfile_hash);
 
     // 4. Toolchain-specific inputs
     let inputs = T::collect_inputs(path, &git, &lockfile_hash, &lockfile_bytes)?;
+    debug!("inputs: {:?}", inputs);
 
     // 5. Start metadata
     let mut build_metadata = BuildMetadata::start();
+    debug!("build metadata: {:?}", build_metadata);
 
     // 6. Run build
     println!("Running `{}`", T::build_command_display());

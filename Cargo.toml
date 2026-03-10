@@ -3,6 +3,7 @@ name = "kettle"
 version = "0.1.1"
 edition = "2024"
 repository = "https://github.com/lunal-dev/kettle"
+build = "build.rs"
 
 [features]
 attest = ["attestation/attest"]
@@ -59,10 +60,19 @@ uuid = { version = "1.21.0", features = ["v4"] }
 rs_merkle = "1.5.0"
 attestation = { git = "https://github.com/lunal-dev/attestation-rs", branch = "feat/new-attestation-lib", version = "0.1.0" }
 tokio = { version = "1.49.0", features = ["rt-multi-thread"] }
+tracing = "0.1.44"
+clap-verbosity-flag = { version = "3.0.4", default-features = false, features = [
+    "tracing",
+] }
+tracing-subscriber = { version = "=0.3.19", features = ["tracing"] }
+shadow-rs = { version = "1.7.1", default-features = false }
 
 [dev-dependencies]
 tempfile = "3"
 regex-lite = "0.1"
+
+[build-dependencies]
+shadow-rs = "1.7.1"
 
 # The profile that 'dist' will build with
 [profile.dist]
