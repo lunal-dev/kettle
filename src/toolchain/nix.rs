@@ -64,7 +64,7 @@ impl ToolchainDriver for NixInputs {
         lockfile_bytes: &[u8],
     ) -> Result<Self> {
         let nix = ToolBinaryInfo::via_which("nix")?;
-        let kettle = ToolBinaryInfo::via_which("kettle")?;
+        let kettle = ToolBinaryInfo::kettle_info()?;
         let flake_deps = parse_flake_lock(lockfile_bytes)?;
         let graph = evaluate_derivation_graph(path)?;
         let derivation_count = graph.as_object().map(|o| o.len()).unwrap_or(0);
