@@ -3,6 +3,7 @@ use chrono::DateTime;
 use sha2::{Digest as _, Sha256};
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use tracing::debug;
 
 use crate::provenance::{InternalParameters, ResolvedDependency};
 
@@ -158,6 +159,12 @@ impl ToolBinaryInfo {
             .arg(cmd)
             .output()
             .with_context(|| format!("which {cmd} failed"))?;
+
+        debug!("which {cmd} output: {:?}", which);
+        if which.stdout.is_empty() {
+            return Err(anyhow!("could not find command named `{}`", cmd));
+        }
+
         let bin = PathBuf::from(String::from_utf8(which.stdout)?.trim().to_string());
         let sha256 = hex::encode(Sha256::digest(fs_err::read(&bin)?));
 
