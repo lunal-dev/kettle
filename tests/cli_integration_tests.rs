@@ -25,10 +25,10 @@ fn cli_build_error_unknown_project() {
         "should fail on empty dir: {:?}",
         output.status
     );
-    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
-        stderr.contains("Could not determine toolchain"),
-        "stderr should mention toolchain detection failure: {stderr}"
+        stdout.contains("Could not determine toolchain"),
+        "stderr should mention toolchain detection failure: {stdout}"
     );
 }
 
@@ -94,11 +94,11 @@ fn cli_attest_feature_disabled() {
         output.status,
     );
 
-    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
-        stderr.contains("Attestation is disabled"),
+        stdout.contains("Attestation is disabled"),
         "should say attestation is disabled, but got: {:?}",
-        stderr,
+        stdout,
     );
 }
 
