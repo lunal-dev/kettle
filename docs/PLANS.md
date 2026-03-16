@@ -4,6 +4,14 @@ Future work items tracked here.
 
 ---
 
+## Smoke test: build openclaw/openclaw in CI
+
+**Context:** The `build-projects` job in `.github/workflows/test.yml` runs `bin/kettle-build` against a matrix of real projects (currently `burntsushi/ripgrep` and `eza-community/eza`) to verify the Cargo and Nix toolchains work end-to-end. There is no equivalent coverage for the pnpm toolchain.
+
+**Work:** Add `openclaw/openclaw` to the `build-projects` matrix and add Node.js and pnpm setup steps to the job (alongside the existing Rust and Nix setup steps). The pnpm setup steps are harmless for the existing Cargo/Nix matrix entries, so no job split is needed. This gives the pnpm toolchain the same real-world CI coverage as the other toolchains.
+
+---
+
 ## Tech Debt
 
 ### Generalise `Digest` struct field name
