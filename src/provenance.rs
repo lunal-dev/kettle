@@ -995,4 +995,144 @@ mod tests {
             "regenerated provenance changed!"
         );
     }
+
+    fn make_pnpm_provenance() -> Provenance {
+        Provenance {
+            _type: "https://in-toto.io/Statement/v1".to_string(),
+            predicate_type: "https://slsa.dev/provenance/v1".to_string(),
+            predicate: Predicate {
+                build_definition: BuildDefiniton {
+                    build_type: "https://lunal.dev/kettle/pnpm@v1".to_string(),
+                    external_parameters: ExternalParameters {
+                        build_command: "pnpm build".to_string(),
+                        source: Source {
+                            digest: SourceDigest {
+                                git_commit: "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
+                                    .to_string(),
+                                git_tree: "f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5"
+                                    .to_string(),
+                            },
+                            uri: "https://github.com/example/openclaw.git".to_string(),
+                        },
+                    },
+                    internal_parameters: InternalParameters {
+                        evaluation: None,
+                        flake_inputs: None,
+                        lockfile_hash: Digest {
+                            sha256:
+                                "c0ffee00deadbeef1234567890abcdef1234567890abcdef1234567890abcdef"
+                                    .to_string(),
+                        },
+                        toolchain: Toolchain::PnpmToolchain {
+                            node: ToolchainVersion {
+                                version: "v18.12.0".to_string(),
+                                digest: Digest {
+                                    sha256:
+                                        "abc123abc123abc123abc123abc123abc123abc123abc123abc123abc123abc1"
+                                            .to_string(),
+                                },
+                            },
+                            pnpm: ToolchainVersion {
+                                version: "8.15.4".to_string(),
+                                digest: Digest {
+                                    sha256:
+                                        "def456def456def456def456def456def456def456def456def456def456def4"
+                                            .to_string(),
+                                },
+                            },
+                            kettle: ToolchainVersion {
+                                version: "kettle 0.1.0".to_string(),
+                                digest: Digest {
+                                    sha256:
+                                        "be54407b39e0d0680fafbc0f6eeac1cc0b91292589e1284ae307f950652bccad"
+                                            .to_string(),
+                                },
+                            },
+                        },
+                    },
+                    resolved_dependencies: vec![
+                        ResolvedDependency {
+                            annotations: None,
+                            digest: Digest {
+                                sha256:
+                                    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                                        .to_string(),
+                            },
+                            name: "@types/node".to_string(),
+                            uri: "pkg:npm/%40types/node@20.11.5".to_string(),
+                        },
+                        ResolvedDependency {
+                            annotations: None,
+                            digest: Digest {
+                                sha256:
+                                    "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                                        .to_string(),
+                            },
+                            name: "semver".to_string(),
+                            uri: "pkg:npm/semver@7.6.0".to_string(),
+                        },
+                        ResolvedDependency {
+                            annotations: None,
+                            digest: Digest {
+                                sha256:
+                                    "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                                        .to_string(),
+                            },
+                            name: "typescript".to_string(),
+                            uri: "pkg:npm/typescript@5.4.3".to_string(),
+                        },
+                    ],
+                },
+                run_details: RunDetails {
+                    builder: Builder {
+                        id: "https://lunal.dev/kettle-tee/v1".to_string(),
+                    },
+                    byproducts: vec![Byproduct {
+                        digest: Digest {
+                            sha256:
+                                "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                                    .to_string(),
+                        },
+                        name: "input_merkle_root".to_string(),
+                    }],
+                    metadata: Metadata {
+                        invocation_id: "build-20260316-120000-openclaw1".to_string(),
+                        started_on: "2026-03-16T12:00:00.000000+00:00".to_string(),
+                        finished_on: Some("2026-03-16T12:01:00.000000+00:00".to_string()),
+                    },
+                },
+            },
+            subject: vec![Subject {
+                digest: Digest {
+                    sha256: "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+                        .to_string(),
+                },
+                name: "dist.tar.gz".to_string(),
+            }],
+        }
+    }
+
+    #[test]
+    #[ignore]
+    fn dump_pnpm_provenance_fixture() {
+        let p = make_pnpm_provenance();
+        let json = serde_json::to_string_pretty(&p).unwrap();
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/openclaw/provenance.json");
+        fs_err::write(&path, json.as_bytes()).unwrap();
+        println!("Wrote fixture to {}", path.display());
+    }
+
+    #[test]
+    fn key_ordering_matches_when_regenerated_pnpm() {
+        const PNPM_FIXTURE: &[u8] =
+            include_bytes!("../tests/fixtures/openclaw/provenance.json");
+        let p = make_pnpm_provenance();
+        let regenerated = serde_json::to_string_pretty(&p).unwrap();
+        assert_eq!(
+            PNPM_FIXTURE,
+            regenerated.as_bytes(),
+            "regenerated pnpm provenance changed!"
+        );
+    }
 }
