@@ -6,6 +6,7 @@ use std::path::PathBuf;
 pub(crate) enum ProjectToolchain {
     Cargo,
     Nix,
+    Pnpm,
 }
 impl ProjectToolchain {
     fn from_dir(path: &PathBuf) -> Result<Self> {
@@ -13,9 +14,11 @@ impl ProjectToolchain {
             Ok(Self::Nix)
         } else if exists(path.join("Cargo.lock"))? {
             Ok(Self::Cargo)
+        } else if exists(path.join("pnpm-lock.yaml"))? {
+            Ok(Self::Pnpm)
         } else {
             Err(anyhow!(
-                "Could not determine toolchain. Is {:?} a rust or nix project?",
+                "Could not determine toolchain. Is {:?} a rust, nix, or pnpm project?",
                 path
             ))
         }
@@ -30,6 +33,7 @@ pub fn build(path: &PathBuf) -> Result<()> {
     match toolchain {
         ProjectToolchain::Cargo => crate::toolchain::cargo::build(path)?,
         ProjectToolchain::Nix => crate::toolchain::nix::build(path)?,
+        ProjectToolchain::Pnpm => crate::toolchain::pnpm::build(path)?,
     }
 
     Ok(())
@@ -118,6 +122,50 @@ mod tests {
         assert!(
             result.is_err(),
             "broken symlink should not satisfy exists()"
+        );
+    }
+
+    #[test]
+    fn pnpm_lock_detected() {
+        let tmp = TempDir::new().unwrap();
+        fs_err::write(tmp.path().join("pnpm-lock.yaml"), b"lockfileVersion: 5").unwrap();
+        match ProjectToolchain::from_dir(&tmp.path().to_path_buf()).unwrap() {
+            ProjectToolchain::Pnpm => {}
+            other => panic!("expected Pnpm, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn flake_wins_over_pnpm() {
+        let tmp = TempDir::new().unwrap();
+        fs_err::write(tmp.path().join("flake.nix"), b"{}").unwrap();
+        fs_err::write(tmp.path().join("pnpm-lock.yaml"), b"lockfileVersion: 5").unwrap();
+        match ProjectToolchain::from_dir(&tmp.path().to_path_buf()).unwrap() {
+            ProjectToolchain::Nix => {}
+            other => panic!("expected Nix when both present, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn cargo_wins_over_pnpm() {
+        let tmp = TempDir::new().unwrap();
+        fs_err::write(tmp.path().join("Cargo.lock"), b"version = 4").unwrap();
+        fs_err::write(tmp.path().join("pnpm-lock.yaml"), b"lockfileVersion: 5").unwrap();
+        match ProjectToolchain::from_dir(&tmp.path().to_path_buf()).unwrap() {
+            ProjectToolchain::Cargo => {}
+            other => panic!("expected Cargo when both present, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn error_message_mentions_pnpm() {
+        let tmp = TempDir::new().unwrap();
+        let result = ProjectToolchain::from_dir(&tmp.path().to_path_buf());
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(
+            err.contains("pnpm"),
+            "error message should mention pnpm: {err}"
         );
     }
 }
