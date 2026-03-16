@@ -242,13 +242,14 @@ fn parse_v9_key(key: &str) -> Result<(String, String)> {
     } else {
         key
     };
-    if key.starts_with('@') {
-        // scoped: @scope/name@version — find second '@'
-        let second_at = key[1..]
+    if let Some(rest) = key.strip_prefix('@') {
+        // scoped: @scope/name@version — find second '@' in rest
+        let inner_at = rest
             .find('@')
             .ok_or_else(|| anyhow!("pnpm-lock.yaml: cannot parse v9 scoped key {:?}", key))?;
-        let split = 1 + second_at; // position of second '@' in original key
-        Ok((key[..split].to_string(), key[split + 1..].to_string()))
+        let name = format!("@{}", &rest[..inner_at]);
+        let version = rest[inner_at + 1..].to_string();
+        Ok((name, version))
     } else {
         let at = key
             .find('@')
