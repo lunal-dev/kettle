@@ -216,6 +216,11 @@ pub enum Toolchain {
         rustc: ToolchainVersion,
         kettle: ToolchainVersion,
     },
+    PnpmToolchain {
+        node: ToolchainVersion,
+        pnpm: ToolchainVersion,
+        kettle: ToolchainVersion,
+    },
 }
 
 impl Display for Toolchain {
@@ -227,6 +232,11 @@ impl Display for Toolchain {
                 cargo: _,
                 rustc,
             } => write!(f, "{}", rustc.version),
+            Toolchain::PnpmToolchain {
+                kettle: _,
+                pnpm: _,
+                node,
+            } => write!(f, "{}", node.version),
         }
     }
 }
@@ -948,6 +958,31 @@ mod tests {
             },
         };
         assert_eq!(format!("{t}"), "rustc 1.78.0");
+    }
+
+    #[test]
+    fn toolchain_display_pnpm() {
+        let t = Toolchain::PnpmToolchain {
+            node: ToolchainVersion {
+                version: "node 18.12.0".to_string(),
+                digest: Digest {
+                    sha256: String::new(),
+                },
+            },
+            pnpm: ToolchainVersion {
+                version: "pnpm 8.5.1".to_string(),
+                digest: Digest {
+                    sha256: String::new(),
+                },
+            },
+            kettle: ToolchainVersion {
+                version: "kettle 1.0.0".to_string(),
+                digest: Digest {
+                    sha256: String::new(),
+                },
+            },
+        };
+        assert_eq!(format!("{t}"), "node 18.12.0");
     }
 
     #[test]
