@@ -121,12 +121,14 @@ impl ToolchainDriver for PnpmInputs {
         }
 
         let tarball_path = artifacts_dir.join("dist.tar.gz");
+        let tarball_str = tarball_path.to_str().ok_or_else(|| anyhow!("path is not valid UTF-8: {:?}", tarball_path))?;
+        let path_str = path.to_str().ok_or_else(|| anyhow!("path is not valid UTF-8: {:?}", path))?;
         let tar = Command::new("tar")
             .args([
                 "-czf",
-                tarball_path.to_str().unwrap(),
+                tarball_str,
                 "-C",
-                path.to_str().unwrap(),
+                path_str,
                 "dist",
             ])
             .output()
@@ -356,6 +358,15 @@ mod tests {
             );
             assert!(!dep.name.is_empty(), "name should not be empty");
         }
+        // Verify dependencies are sorted by URI
+        for i in 0..deps.len() - 1 {
+            assert!(
+                deps[i].uri <= deps[i + 1].uri,
+                "dependencies should be sorted by URI: {} > {}",
+                deps[i].uri,
+                deps[i + 1].uri
+            );
+        }
     }
 
     #[test]
@@ -407,11 +418,23 @@ mod tests {
 
     #[test]
     fn deterministic_ordering() {
-        let bytes = include_bytes!("../../tests/fixtures/openclaw/pnpm-lock-v9.yaml");
-        let r1 = parse_pnpm_lock(bytes).unwrap();
-        let r2 = parse_pnpm_lock(bytes).unwrap();
+        // Test v9
+        let v9_bytes = include_bytes!("../../tests/fixtures/openclaw/pnpm-lock-v9.yaml");
+        let r1 = parse_pnpm_lock(v9_bytes).unwrap();
+        let r2 = parse_pnpm_lock(v9_bytes).unwrap();
         assert_eq!(r1.len(), r2.len());
         for (a, b) in r1.iter().zip(r2.iter()) {
+            assert_eq!(a.uri, b.uri);
+            assert_eq!(a.name, b.name);
+            assert_eq!(a.digest.sha256, b.digest.sha256);
+        }
+
+        // Test legacy - should also be deterministic
+        let legacy_bytes = include_bytes!("../../tests/fixtures/openclaw/pnpm-lock-legacy.yaml");
+        let l1 = parse_pnpm_lock(legacy_bytes).unwrap();
+        let l2 = parse_pnpm_lock(legacy_bytes).unwrap();
+        assert_eq!(l1.len(), l2.len());
+        for (a, b) in l1.iter().zip(l2.iter()) {
             assert_eq!(a.uri, b.uri);
             assert_eq!(a.name, b.name);
             assert_eq!(a.digest.sha256, b.digest.sha256);
@@ -420,17 +443,33 @@ mod tests {
 
     #[test]
     fn uri_format_validation() {
-        let bytes = include_bytes!("../../tests/fixtures/openclaw/pnpm-lock-v9.yaml");
-        let deps = parse_pnpm_lock(bytes).unwrap();
-        for dep in &deps {
+        // Test both v9 and legacy fixtures to ensure URI format is consistent
+        let v9_bytes = include_bytes!("../../tests/fixtures/openclaw/pnpm-lock-v9.yaml");
+        let v9_deps = parse_pnpm_lock(v9_bytes).unwrap();
+        for dep in &v9_deps {
             assert!(
                 dep.uri.starts_with("pkg:npm/"),
-                "URI should start with pkg:npm/: {}",
+                "v9 URI should start with pkg:npm/: {}",
                 dep.uri
             );
             assert!(
                 dep.uri.contains("?checksum="),
-                "URI should contain ?checksum=: {}",
+                "v9 URI should contain ?checksum=: {}",
+                dep.uri
+            );
+        }
+
+        let legacy_bytes = include_bytes!("../../tests/fixtures/openclaw/pnpm-lock-legacy.yaml");
+        let legacy_deps = parse_pnpm_lock(legacy_bytes).unwrap();
+        for dep in &legacy_deps {
+            assert!(
+                dep.uri.starts_with("pkg:npm/"),
+                "legacy URI should start with pkg:npm/: {}",
+                dep.uri
+            );
+            assert!(
+                dep.uri.contains("?checksum="),
+                "legacy URI should contain ?checksum=: {}",
                 dep.uri
             );
         }
