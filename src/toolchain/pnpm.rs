@@ -379,6 +379,18 @@ mod tests {
     }
 
     #[test]
+    fn parse_pnpm_lock_empty_integrity() {
+        let yaml = b"lockfileVersion: '9.0'\n\npackages:\n  semver@7.6.0:\n    resolution:\n      integrity: \"\"\n";
+        let result = parse_pnpm_lock(yaml);
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(
+            err.contains("missing resolution.integrity"),
+            "error: {err}"
+        );
+    }
+
+    #[test]
     fn parse_pnpm_lock_malformed_yaml() {
         let result = parse_pnpm_lock(b"not: yaml: content: [unclosed");
         assert!(result.is_err());
