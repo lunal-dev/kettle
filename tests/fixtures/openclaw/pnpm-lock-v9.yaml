@@ -1,0 +1,18 @@
+lockfileVersion: '9.0'
+
+packages:
+  semver@7.6.0:
+    resolution:
+      integrity: sha512-EnwjPMl/i8/hwuoQiZCLEQFDMJwlQVQCOcPLQWI9mDDKs6/I8NjRtfpM+MjhSlJkc03iFvLSmBV0sPaGarHg==
+
+  typescript@5.4.3:
+    resolution:
+      integrity: sha512-KrPd3PKaCLr78MalgiwJnA25Nm8HAmdwN3mYUYZgG/wizIo9EainNVQI9/yDavtVFRN2h3k8uf3GLHuhDMgEHg==
+
+  '@types/node@20.11.5':
+    resolution:
+      integrity: sha512-g557+jQXMmX5Kh4Ixv0SJaWHPeSRhKtNUJAlXedWlQGiSGnHuCAFHGbOmHLqFWVJJ4hd5KeKBfXhzI9MWKmA==
+
+  '@types/react@18.0.0(@types/prop-types@15.7.0)':
+    resolution:
+      integrity: sha512-oQM6mRvQ+nSTqMEDFw2xhLZcMHZAhCt+5MH1oZe0TdAvmAQNFJl9A6LnHCHJaKPkqfWmFD8mCHJCTwG7GFpQ==

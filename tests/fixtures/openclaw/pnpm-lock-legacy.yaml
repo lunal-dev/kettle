@@ -1,0 +1,15 @@
+lockfileVersion: 5.4
+
+packages:
+
+  /semver/7.6.0:
+    resolution:
+      integrity: sha512-EnwjPMl/i8/hwuoQiZCLEQFDMJwlQVQCOcPLQWI9mDDKs6/I8NjRtfpM+MjhSlJkc03iFvLSmBV0sPaGarHg==
+
+  /@babel/core/7.24.0:
+    resolution:
+      integrity: sha512-gupiVtaB0TC0jkm7YwDMI9T+GqZ5qxSX3DKgEZMLuLkJNhWfQJLROJjSe8Qbc4gbMqK6NkJjT3Kh3BxYGrUg==
+
+  /@babel/parser/7.24.0_@types+node@20.11.5:
+    resolution:
+      integrity: sha512-QuP/FxEAzMSjXygs8v4N9dvdXzEHqKnqqn2bMosgKzFO6H9foGMdAbA7DpXL9gq9cB2Q5i0BTpGbJNZbH7RrQ==
