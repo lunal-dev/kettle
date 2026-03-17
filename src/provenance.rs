@@ -216,6 +216,11 @@ pub enum Toolchain {
         rustc: ToolchainVersion,
         kettle: ToolchainVersion,
     },
+    PnpmToolchain {
+        pnpm: ToolchainVersion,
+        node: ToolchainVersion,
+        kettle: ToolchainVersion,
+    },
 }
 
 impl Display for Toolchain {
@@ -227,6 +232,11 @@ impl Display for Toolchain {
                 cargo: _,
                 rustc,
             } => write!(f, "{}", rustc.version),
+            Toolchain::PnpmToolchain {
+                kettle: _,
+                node: _,
+                pnpm,
+            } => write!(f, "{}", pnpm.version),
         }
     }
 }
@@ -266,10 +276,12 @@ pub(crate) struct FlakeInput {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pretty_assertions::{assert_eq, assert_ne};
     use tempfile::TempDir;
 
     const CARGO_FIXTURE: &[u8] = include_bytes!("../tests/fixtures/ripgrep/provenance.json");
     const NIX_FIXTURE: &[u8] = include_bytes!("../tests/fixtures/alejandra/provenance.json");
+    const PNPM_FIXTURE: &[u8] = include_bytes!("../tests/fixtures/openclaw/provenance.json");
 
     // --- Provenance::from_json ---
 
@@ -955,9 +967,21 @@ mod tests {
         let p = Provenance::from_json(CARGO_FIXTURE).unwrap();
         let regenerated = serde_json::to_string_pretty(&p).unwrap();
         assert_eq!(
-            CARGO_FIXTURE,
-            regenerated.as_bytes(),
+            String::from_utf8_lossy(CARGO_FIXTURE),
+            String::from_utf8_lossy(regenerated.as_bytes()),
             "regenerated provenance changed!"
+        );
+    }
+
+    #[test]
+    fn key_ordering_matches_when_regenerated_pnpm() {
+        let p = Provenance::from_json(PNPM_FIXTURE).unwrap();
+        let regenerated = serde_json::to_string_pretty(&p).unwrap();
+        let _ = fs_err::write("regenerated.json", &regenerated);
+        assert_eq!(
+            String::from_utf8_lossy(PNPM_FIXTURE),
+            String::from_utf8_lossy(regenerated.as_bytes()),
+            "regenerated pnpm provenance changed!"
         );
     }
 }
