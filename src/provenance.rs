@@ -79,7 +79,7 @@ impl Provenance {
                 let checksum = Sha256::digest(fs_err::read(entry.path())?);
                 let subject = self.subject.iter().find(|s| s.name == name);
                 if let Some(subject) = subject {
-                    if hex::encode(checksum) == subject.digest.sha256 {
+                    if hex::encode(checksum) == subject.digest.value() {
                         Ok(Verification::success(&format!(
                             "Checksum match for binary `{}`",
                             name
@@ -114,8 +114,19 @@ pub struct Subject {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct Digest {
-    pub(crate) sha256: String,
+#[serde(untagged)]
+pub(crate) enum Digest {
+    Sha256 { sha256: String },
+    Sha512 { sha512: String },
+}
+
+impl Digest {
+    pub(crate) fn value(&self) -> &str {
+        match self {
+            Self::Sha256 { sha256 } => sha256,
+            Self::Sha512 { sha512 } => sha512,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -537,25 +548,25 @@ mod tests {
                     internal_parameters: InternalParameters {
                         evaluation: None,
                         flake_inputs: None,
-                        lockfile_hash: Digest {
+                        lockfile_hash: Digest::Sha256 {
                             sha256: String::new(),
                         },
                         toolchain: Toolchain::RustToolchain {
                             rustc: ToolchainVersion {
                                 version: String::new(),
-                                digest: Digest {
+                                digest: Digest::Sha256 {
                                     sha256: String::new(),
                                 },
                             },
                             cargo: ToolchainVersion {
                                 version: String::new(),
-                                digest: Digest {
+                                digest: Digest::Sha256 {
                                     sha256: String::new(),
                                 },
                             },
                             kettle: ToolchainVersion {
                                 version: String::new(),
-                                digest: Digest {
+                                digest: Digest::Sha256 {
                                     sha256: String::new(),
                                 },
                             },
@@ -575,7 +586,7 @@ mod tests {
             },
             subject: vec![Subject {
                 name: "rg".to_string(),
-                digest: Digest { sha256: checksum },
+                digest: Digest::Sha256 { sha256: checksum },
             }],
         };
 
@@ -617,25 +628,25 @@ mod tests {
                     internal_parameters: InternalParameters {
                         evaluation: None,
                         flake_inputs: None,
-                        lockfile_hash: Digest {
+                        lockfile_hash: Digest::Sha256 {
                             sha256: String::new(),
                         },
                         toolchain: Toolchain::RustToolchain {
                             rustc: ToolchainVersion {
                                 version: String::new(),
-                                digest: Digest {
+                                digest: Digest::Sha256 {
                                     sha256: String::new(),
                                 },
                             },
                             cargo: ToolchainVersion {
                                 version: String::new(),
-                                digest: Digest {
+                                digest: Digest::Sha256 {
                                     sha256: String::new(),
                                 },
                             },
                             kettle: ToolchainVersion {
                                 version: String::new(),
-                                digest: Digest {
+                                digest: Digest::Sha256 {
                                     sha256: String::new(),
                                 },
                             },
@@ -655,7 +666,7 @@ mod tests {
             },
             subject: vec![Subject {
                 name: "rg".to_string(),
-                digest: Digest {
+                digest: Digest::Sha256 {
                     sha256: "0000000000000000000000000000000000000000000000000000000000000000"
                         .to_string(),
                 },
@@ -698,25 +709,25 @@ mod tests {
                     internal_parameters: InternalParameters {
                         evaluation: None,
                         flake_inputs: None,
-                        lockfile_hash: Digest {
+                        lockfile_hash: Digest::Sha256 {
                             sha256: String::new(),
                         },
                         toolchain: Toolchain::RustToolchain {
                             rustc: ToolchainVersion {
                                 version: String::new(),
-                                digest: Digest {
+                                digest: Digest::Sha256 {
                                     sha256: String::new(),
                                 },
                             },
                             cargo: ToolchainVersion {
                                 version: String::new(),
-                                digest: Digest {
+                                digest: Digest::Sha256 {
                                     sha256: String::new(),
                                 },
                             },
                             kettle: ToolchainVersion {
                                 version: String::new(),
-                                digest: Digest {
+                                digest: Digest::Sha256 {
                                     sha256: String::new(),
                                 },
                             },
@@ -787,25 +798,25 @@ mod tests {
                     internal_parameters: InternalParameters {
                         evaluation: None,
                         flake_inputs: None,
-                        lockfile_hash: Digest {
+                        lockfile_hash: Digest::Sha256 {
                             sha256: String::new(),
                         },
                         toolchain: Toolchain::RustToolchain {
                             rustc: ToolchainVersion {
                                 version: String::new(),
-                                digest: Digest {
+                                digest: Digest::Sha256 {
                                     sha256: String::new(),
                                 },
                             },
                             cargo: ToolchainVersion {
                                 version: String::new(),
-                                digest: Digest {
+                                digest: Digest::Sha256 {
                                     sha256: String::new(),
                                 },
                             },
                             kettle: ToolchainVersion {
                                 version: String::new(),
-                                digest: Digest {
+                                digest: Digest::Sha256 {
                                     sha256: String::new(),
                                 },
                             },
@@ -826,13 +837,13 @@ mod tests {
             subject: vec![
                 Subject {
                     name: "a".to_string(),
-                    digest: Digest {
+                    digest: Digest::Sha256 {
                         sha256: checksum_a, // match
                     },
                 },
                 Subject {
                     name: "b".to_string(),
-                    digest: Digest {
+                    digest: Digest::Sha256 {
                         sha256: "bad_checksum".to_string(), // mismatch
                     },
                 },
@@ -923,13 +934,13 @@ mod tests {
         let t = Toolchain::NixToolchain {
             nix: ToolchainVersion {
                 version: "nix 2.18.1".to_string(),
-                digest: Digest {
+                digest: Digest::Sha256 {
                     sha256: String::new(),
                 },
             },
             kettle: ToolchainVersion {
                 version: "kettle 1.0.0".to_string(),
-                digest: Digest {
+                digest: Digest::Sha256 {
                     sha256: String::new(),
                 },
             },
@@ -942,19 +953,19 @@ mod tests {
         let t = Toolchain::RustToolchain {
             rustc: ToolchainVersion {
                 version: "rustc 1.78.0".to_string(),
-                digest: Digest {
+                digest: Digest::Sha256 {
                     sha256: String::new(),
                 },
             },
             cargo: ToolchainVersion {
                 version: "cargo 1.78.0".to_string(),
-                digest: Digest {
+                digest: Digest::Sha256 {
                     sha256: String::new(),
                 },
             },
             kettle: ToolchainVersion {
                 version: "kettle 1.0.0".to_string(),
-                digest: Digest {
+                digest: Digest::Sha256 {
                     sha256: String::new(),
                 },
             },
