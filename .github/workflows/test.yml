@@ -96,20 +96,18 @@ jobs:
           toolchain: pnpm
     steps:
       - name: Check out ${{ matrix.project }}
-        run: git clone --depth=1 "https://github.com/${{ matrix.owner }}/${{ matrix.project }}
-        working-directory: /tmp
+        uses: actions/checkout@v6
+        with:
+          repository: "${{ matrix.owner }}/${{ matrix.project }}"
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         if: ${{ matrix.toolchain == 'rust' }}
-        working-directory: /tmp/${{ matrix.project }}
       - uses: cachix/install-nix-action@v31
         if: ${{ matrix.toolchain == 'nix' }}
         with:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
-        working-directory: /tmp/${{ matrix.project }}
       - uses: pnpm/action-setup@v4
         if: ${{ matrix.toolchain == 'nix' }}
-        working-directory: /tmp/${{ matrix.project }}
       - uses: actions/download-artifact@v8
         with:
           name: kettle
-      - run: ./kettle build /tmp/${{ matrix.project }}
+      - run: ./kettle build $GITHUB_WORKSPACE
