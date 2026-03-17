@@ -65,19 +65,44 @@ jobs:
         shell: bash
         run: ./bin/test
 
+  build:
+    name: Build Kettle
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - run: cargo build --release
+      - uses: actions/upload-artifact@v8
+        with:
+          name: kettle
+          path: target/release/kettle
+          if-no-files-found: error
+
   build-projects:
+    needs: [build]
     name: Build ${{ matrix.project }} with Kettle
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        project:
-          - burntsushi/ripgrep
-          - eza-community/eza
+        - project: ripgrep
+          owner: burntsushi
+          toolchain: rust
+        - project: eza
+          owner: eza-community
+          toolchain: nix
     steps:
-      - uses: actions/checkout@v6
+      - name: Check out ${{ matrix.project }}
+        run: git clone --depth=1 "https://github.com/${{ matrix.owner }}/${{ matrix.project }}
+        working-directory: /tmp
       - uses: actions-rust-lang/setup-rust-toolchain@v1
+        if: ${{ matrix.toolchain == 'rust' }}
+        working-directory: /tmp/${{ matrix.project }}
       - uses: cachix/install-nix-action@v31
+        if: ${{ matrix.toolchain == 'nix' }}
         with:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
-      - run: bin/kettle-build ${{ matrix.project }}
+        working-directory: /tmp/${{ matrix.project }}
+      - uses: actions/download-artifact@v8
+        with:
+          name: kettle
+      - run: ./kettle build /tmp/${{ matrix.project }}
