@@ -85,15 +85,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        - project: ripgrep
-          owner: burntsushi
-          toolchain: rust
-        - project: eza
-          owner: eza-community
-          toolchain: nix
-        - project: openclaw
-          owner: openclaw
-          toolchain: pnpm
+        project: [ripgrep, eza, openclaw]
+        include:
+          - project: ripgrep
+            owner: burntsushi
+            toolchain: rust
+          - project: eza
+            owner: eza-community
+            toolchain: nix
+          - project: openclaw
+            owner: openclaw
+            toolchain: pnpm
     steps:
       - name: Check out ${{ matrix.project }}
         uses: actions/checkout@v6
