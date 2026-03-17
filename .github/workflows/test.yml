@@ -90,6 +90,9 @@ jobs:
         - project: eza
           owner: eza-community
           toolchain: nix
+        - project: openclaw
+          owner: openclaw
+          toolchain: pnpm
     steps:
       - name: Check out ${{ matrix.project }}
         run: git clone --depth=1 "https://github.com/${{ matrix.owner }}/${{ matrix.project }}
@@ -101,6 +104,9 @@ jobs:
         if: ${{ matrix.toolchain == 'nix' }}
         with:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
+        working-directory: /tmp/${{ matrix.project }}
+      - uses: pnpm/action-setup@v4
+        if: ${{ matrix.toolchain == 'nix' }}
         working-directory: /tmp/${{ matrix.project }}
       - uses: actions/download-artifact@v8
         with:
