@@ -10,5 +10,7 @@ fi
 DIR="/tmp/$(basename "$REPO")"
 set +x
 
-git clone "https://github.com/$REPO" "$DIR"
+if [[ ! -d "$DIR" ]]; then
+   git clone "https://github.com/$REPO" "$DIR"
+fi
 cargo run --release -- build "$DIR"
