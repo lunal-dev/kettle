@@ -71,36 +71,32 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        project:
-          - burntsushi/ripgrep
-          - eza-community/eza
-          - openclaw/openclaw
+        - project: ripgrep
+          owner: burntsushi
+          toolchain: cargo
+        - project: eza
+          owner: eza-community
+          toolchain: nix
+        - project: openclaw
+          owner: openclaw
+          toolchain: pnpm
     steps:
       - uses: actions/checkout@v6
+      - name: Clone target project # Must match DIR in bin/kettle-build
+        run: git clone "https://github.com/${{ matrix.owner }}/${{ matrix.project }}" "/tmp/${{ matrix.project }}"
       - uses: actions-rust-lang/setup-rust-toolchain@v1
+        if: matrix.toolchain == 'cargo'
+        working-directory: "/tmp/${{ matrix.project }}"
       - uses: cachix/install-nix-action@v31
+        if: matrix.toolchain == 'nix'
         with:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Clone target project # Must match DIR in bin/kettle-build
-        run: git clone "https://github.com/${{ matrix.project }}" "/tmp/$(basename "${{ matrix.project }}")"
-      - name: Detect pnpm and node versions
-        id: detect-versions
-        run: |
-          PKG="/tmp/$(basename "${{ matrix.project }}")/package.json"
-          if [[ -f "$PKG" ]]; then
-            PNPM_VERSION=$(jq -r '.packageManager // empty' "$PKG" | sed -n 's/^pnpm@//p')
-            NODE_VERSION=$(jq -r '.engines.node // empty' "$PKG")
-            echo "pnpm-version=$PNPM_VERSION" >> "$GITHUB_OUTPUT"
-            echo "node-version=$NODE_VERSION" >> "$GITHUB_OUTPUT"
-          fi
       - name: Setup pnpm
-        if: steps.detect-versions.outputs.pnpm-version != ''
+        if: matrix.toolchain == 'pnpm'
+        working-directory: "/tmp/${{ matrix.project }}"
         uses: pnpm/action-setup@v4
-        with:
-          version: ${{ steps.detect-versions.outputs.pnpm-version }}
       - name: Setup Node.js
-        if: steps.detect-versions.outputs.pnpm-version != ''
+        if: matrix.toolchain == 'pnpm'
+        working-directory: "/tmp/${{ matrix.project }}"
         uses: actions/setup-node@v4
-        with:
-          node-version: ${{ steps.detect-versions.outputs.node-version }}
       - run: bin/kettle-build ${{ matrix.project }}
