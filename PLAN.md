@@ -1,53 +1,29 @@
-# kettle.rs
+# Plans
 
-- [x] `kettle` command
-  - [x] set up a rust project
-  - [x] set up clap
-  - [x] format help output
+Future work items tracked here.
 
-- [x] `kettle verify` command
-  - [x] import verify code from attestation-rs
-  - [x] fetch AMD cert chain, check signature
-  - [x] parse provenance.json files for cargo and nix
-  - [x] validate attestation checksum matches provenance.json checksum
-  - [x] print tables of build info and verification results
-  - [x] print AMD cert chain verify result
-  - [x] print VCEK verify result
-  - [x] print sev-snp report verify result
-  - [x] print report data checksum verify result
-  - [x] print provenance checksum verify result
-  - [x] verify artifacts against provenance.json checksums
-  - [x] print launch measurements, guest_svn, policy, version, and vmpl
-  - [x] print git commit sha
-  - [x] print detailed error message after table with expected and actual checksums
+---
 
-- [x] `kettle build` command
-  - [x] collect provenance data
-    - [x] collect git repo data commit_hash, tree_hash, git_binary_hash, repository_url
-  - [x] handle cargo build
-    - [x] collect lockfile hash
-    - [x] collect rustc + cargo binary info (path, hash, version)
-    - [x] run `cargo build --locked --release`
-    - [x] collect exectutables from target/release/* (path, hash, name)
-  - [x] handle nix build
-    - [x] collect lockfile hash
-    - [x] collect nix binary info (path, hash, version)
-    - [x] run `nix build`
-    - [x] collect exectutable info (path, hash, name)
-  - [x] generate provenance.json file
+## Smoke test: build openclaw/openclaw in CI
 
-- [x] `kettle attest` command
-  - [x] generate attestation from provenance and build result
-    - [x] hash provenance for checksum
-    - [x] call attest with custom data of provenance checksum
-    - [x] write the results into `evidence.json`
+**Context:** The `build-projects` job in `.github/workflows/test.yml` runs `bin/kettle-build` against a matrix of real projects (currently `burntsushi/ripgrep` and `eza-community/eza`) to verify the Cargo and Nix toolchains work end-to-end. There is no equivalent coverage for the pnpm toolchain.
 
-## future work
+**Work:** Add `openclaw/openclaw` to the `build-projects` matrix and add Node.js and pnpm setup steps to the job (alongside the existing Rust and Nix setup steps). The pnpm setup steps are harmless for the existing Cargo/Nix matrix entries, so no job split is needed. This gives the pnpm toolchain the same real-world CI coverage as the other toolchains.
 
-- [ ] toolchain for python packages
-- [ ] toolchain for go binaries
-- [ ] `kettle verify-source` BUILD_PATH SOURCE_PATH\
-      # verifies that SOURCE_PATH was used to create BUILD_PATH
-  - [ ] verify git commit against provenance
-  - [ ] verify lockfile against provenance
-  - [ ] verify entire merkle tree against provenance
+---
+
+## Tech Debt
+
+### Generalise `Digest` struct field name
+
+**Context:** `ResolvedDependency.digest.sha256` stores sha512 SRI values (e.g. `sha512-<base64>`) for pnpm packages. The field name `sha256` is a misnomer.
+
+**Work:** Rename `digest.sha256` to `digest.integrity` (or generalise the `Digest` struct to carry an algorithm-tagged value), and provide a versioned migration for existing serialised provenance JSON. The change affects the provenance JSON schema so it requires bumping the `build_type` URI for affected toolchains.
+
+---
+
+### Harden Cargo lockfile parser to reject packages without checksums
+
+**Context:** `src/toolchain/cargo.rs` silently skips `Cargo.lock` packages that have no `checksum` field (workspace members fall into this category). The pnpm toolchain treats a missing integrity field as a hard error, so the two toolchains have inconsistent policies.
+
+**Work:** Audit which packages legitimately lack checksums in `Cargo.lock` (path dependencies, workspace members, git dependencies), decide the correct policy (skip with a logged warning, or error), and update the parser and its tests to match the strict policy applied in the pnpm toolchain.
