@@ -11,6 +11,6 @@ DIR="/tmp/$(basename "$REPO")"
 set +x
 
 if [[ ! -d "$DIR" ]]; then
-   git clone "https://github.com/$REPO" "$DIR"
+   git clone --depth=1 "https://github.com/$REPO" "$DIR"
 fi
 cargo run --release -- build "$DIR"
