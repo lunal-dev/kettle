@@ -120,25 +120,25 @@ impl ToolchainDriver for CargoInputs {
             internal_parameters: InternalParameters {
                 evaluation: None,
                 flake_inputs: None,
-                lockfile_hash: Digest {
+                lockfile_hash: Digest::Sha256 {
                     sha256: self.lockfile_hash,
                 },
                 toolchain: Toolchain::RustToolchain {
                     rustc: ToolchainVersion {
                         version: self.rustc_version,
-                        digest: Digest {
+                        digest: Digest::Sha256 {
                             sha256: self.rustc_hash,
                         },
                     },
                     cargo: ToolchainVersion {
                         version: self.cargo_version,
-                        digest: Digest {
+                        digest: Digest::Sha256 {
                             sha256: self.cargo_hash,
                         },
                     },
                     kettle: ToolchainVersion {
                         version: self.kettle_version,
-                        digest: Digest {
+                        digest: Digest::Sha256 {
                             sha256: self.kettle_hash,
                         },
                     },
@@ -166,7 +166,7 @@ fn parse_cargo_lock(bytes: &[u8]) -> Result<Vec<ResolvedDependency>> {
         if let Some(checksum) = pkg.get("checksum").and_then(|v| v.as_str()) {
             deps.push(ResolvedDependency {
                 annotations: None,
-                digest: Digest {
+                digest: Digest::Sha256 {
                     sha256: checksum.to_string(),
                 },
                 name: name.to_string(),
@@ -242,7 +242,7 @@ mod tests {
         for (a, b) in r1.iter().zip(r2.iter()) {
             assert_eq!(a.uri, b.uri);
             assert_eq!(a.name, b.name);
-            assert_eq!(a.digest.sha256, b.digest.sha256);
+            assert_eq!(a.digest.value(), b.digest.value());
         }
     }
 }

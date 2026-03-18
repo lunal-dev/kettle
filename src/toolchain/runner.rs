@@ -95,7 +95,7 @@ fn assemble_provenance(
             .iter()
             .map(|a| Subject {
                 name: a.name.clone(),
-                digest: Digest {
+                digest: Digest::Sha256 {
                     sha256: a.checksum.clone(),
                 },
             })
@@ -127,7 +127,7 @@ fn assemble_provenance(
                 },
                 byproducts: vec![Byproduct {
                     name: "input_merkle_root".to_string(),
-                    digest: Digest {
+                    digest: Digest::Sha256 {
                         sha256: merkle_root.to_string(),
                     },
                 }],
@@ -163,25 +163,25 @@ mod tests {
             internal_parameters: InternalParameters {
                 evaluation: None,
                 flake_inputs: None,
-                lockfile_hash: Digest {
+                lockfile_hash: Digest::Sha256 {
                     sha256: "c".repeat(64),
                 },
                 toolchain: Toolchain::RustToolchain {
                     rustc: ToolchainVersion {
                         version: "rustc 1.78.0".to_string(),
-                        digest: Digest {
+                        digest: Digest::Sha256 {
                             sha256: "d".repeat(64),
                         },
                     },
                     cargo: ToolchainVersion {
                         version: "cargo 1.78.0".to_string(),
-                        digest: Digest {
+                        digest: Digest::Sha256 {
                             sha256: "e".repeat(64),
                         },
                     },
                     kettle: ToolchainVersion {
                         version: "kettle 1.0.0".to_string(),
-                        digest: Digest {
+                        digest: Digest::Sha256 {
                             sha256: "f".repeat(64),
                         },
                     },
@@ -259,7 +259,7 @@ mod tests {
         // Subject corresponds to artifacts
         assert_eq!(p.subject.len(), 1);
         assert_eq!(p.subject[0].name, "mybin");
-        assert_eq!(p.subject[0].digest.sha256, "f".repeat(64));
+        assert_eq!(p.subject[0].digest.value(), "f".repeat(64));
         // Byproducts
         assert_eq!(p.predicate.run_details.byproducts.len(), 1);
         assert_eq!(
@@ -276,7 +276,7 @@ mod tests {
         pf.resolved_dependencies = vec![
             crate::provenance::ResolvedDependency {
                 annotations: None,
-                digest: Digest {
+                digest: Digest::Sha256 {
                     sha256: "1".repeat(64),
                 },
                 name: "zzz".to_string(),
@@ -284,7 +284,7 @@ mod tests {
             },
             crate::provenance::ResolvedDependency {
                 annotations: None,
-                digest: Digest {
+                digest: Digest::Sha256 {
                     sha256: "2".repeat(64),
                 },
                 name: "aaa".to_string(),

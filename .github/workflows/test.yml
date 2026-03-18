@@ -65,19 +65,53 @@ jobs:
         shell: bash
         run: ./bin/test
 
+  build:
+    name: Build Kettle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - run: cargo build --release
+      - uses: actions/upload-artifact@v7
+        with:
+          name: kettle
+          path: target/release/kettle
+          if-no-files-found: error
+
   build-projects:
+    needs: [build]
     name: Build ${{ matrix.project }} with Kettle
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        project:
-          - burntsushi/ripgrep
-          - eza-community/eza
+        project: [ripgrep, eza, openclaw]
+        include:
+          - project: ripgrep
+            owner: burntsushi
+            toolchain: rust
+          - project: eza
+            owner: eza-community
+            toolchain: nix
+          - project: openclaw
+            owner: openclaw
+            toolchain: pnpm
     steps:
-      - uses: actions/checkout@v6
+      - name: Check out ${{ matrix.project }}
+        uses: actions/checkout@v6
+        with:
+          repository: "${{ matrix.owner }}/${{ matrix.project }}"
       - uses: actions-rust-lang/setup-rust-toolchain@v1
+        if: ${{ matrix.toolchain == 'rust' }}
       - uses: cachix/install-nix-action@v31
+        if: ${{ matrix.toolchain == 'nix' }}
         with:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
-      - run: bin/kettle-build ${{ matrix.project }}
+      - uses: pnpm/action-setup@v4
+        if: ${{ matrix.toolchain == 'pnpm' }}
+      - uses: actions/download-artifact@v8
+        with:
+          name: kettle
+      - run: |
+          chmod +x kettle
+          ./kettle build $GITHUB_WORKSPACE

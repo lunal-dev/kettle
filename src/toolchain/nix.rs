@@ -151,7 +151,7 @@ impl ToolchainDriver for NixInputs {
                         url: fetch.url,
                         urls: fetch.urls,
                     }),
-                    digest: Digest {
+                    digest: Digest::Sha256 {
                         sha256: fetch.output_hash,
                     },
                     name: fetch.name,
@@ -188,19 +188,19 @@ impl ToolchainDriver for NixInputs {
                 } else {
                     Some(flake_inputs)
                 },
-                lockfile_hash: Digest {
+                lockfile_hash: Digest::Sha256 {
                     sha256: self.lockfile_hash,
                 },
                 toolchain: Toolchain::NixToolchain {
                     nix: ToolchainVersion {
                         version: self.nix_version,
-                        digest: Digest {
+                        digest: Digest::Sha256 {
                             sha256: self.nix_hash,
                         },
                     },
                     kettle: ToolchainVersion {
                         version: self.kettle_version,
-                        digest: Digest {
+                        digest: Digest::Sha256 {
                             sha256: self.kettle_hash,
                         },
                     },
