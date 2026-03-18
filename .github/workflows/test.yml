@@ -108,7 +108,7 @@ jobs:
         with:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
       - uses: pnpm/action-setup@v4
-        if: ${{ matrix.toolchain == 'nix' }}
+        if: ${{ matrix.toolchain == 'pnpm' }}
       - uses: actions/download-artifact@v8
         with:
           name: kettle
