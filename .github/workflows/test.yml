@@ -112,4 +112,6 @@ jobs:
       - uses: actions/download-artifact@v8
         with:
           name: kettle
-      - run: ./kettle build $GITHUB_WORKSPACE
+      - run: |
+          chmod +x kettle
+          ./kettle build $GITHUB_WORKSPACE
