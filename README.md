@@ -108,6 +108,19 @@ Verify the attested build created above like this:
 kettle verify ripgrep/kettle-build
 ```
 
+## Supported toolchains
+
+Today, Kettle supports building, attesting, and verifying software packaged with:
+
+- Cargo, for programs written in Rust
+- pnpm, for programs written in JavaScript and TypeScript
+- nix, for programs written in any language
+
+Planned toolchain support includes:
+
+- uv, for programs written in Python
+- go, for programs written in Go
+
 ## Development
 
 Use `cargo nextest run` to run the tests for any platform.
